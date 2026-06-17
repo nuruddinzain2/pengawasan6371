@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <style>
+    body { background-color: #f8f9fa; padding: 20px; }
+    .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+    .header-title { color: #0d6efd; font-weight: bold; text-align: center; margin-bottom: 20px; }
+    .form-label { font-weight: 600; font-size: 0.9rem; }
+    .readonly-field { background-color: #e9ecef; cursor: not-allowed; }
+    #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 9999; text-align: center; padding-top: 20%; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner-border text-primary" role="status"></div>
+  <p class="mt-2">Memproses data...</p>
+</div>
+
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card p-4">
+        <h3 class="header-title">📝 Form Input Laporan Pengawasan</h3>
+        
+        <form id="formPengawasan" onsubmit="handleFormSubmit(event)">
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tim Pengawasan</label>
+              <select class="form-select" id="tim" name="tim" required onchange="onTimChange()">
+                <option value="">-- Pilih Tim --</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">NIP Petugas</label>
+              <select class="form-select" id="nip" name="nip" required onchange="onNIPChange()" disabled>
+                <option value="">-- Pilih NIP --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Nama Lengkap</label>
+              <input type="text" class="form-control readonly-field" id="nama" name="nama" readonly>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Kuota Tugas</label>
+              <input type="number" class="form-control readonly-field" id="kuota" name="kuota" readonly>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Penggunaan Kuota</label>
+              <input type="text" class="form-control readonly-field" id="penggunaanKuota" name="penggunaanKuota" readonly value="0">
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tanggal</label>
+              <input type="date" class="form-control" id="tanggal" name="tanggal" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tugas</label>
+              <input type="text" class="form-control" id="tugas" name="tugas" placeholder="Contoh: Pengawasan Lapangan" required>
+            </div>
+          </div>
+
+          <hr class="my-4">
+          <h5 class="text-secondary mb-3">Detail Kunjungan</h5>
+
+          <div class="mb-3">
+            <label class="form-label">Kunjungan Ke (ID SubSLS / Nama SLS)</label>
+            <select class="form-select select2-lokasi" id="lokasi" name="lokasi" required onchange="onLokasiChange()">
+              <option value="">-- Pilih Lokasi Kunjungan --</option>
+            </select>
+            <input type="hidden" id="idSubSLS" name="idSubSLS">
+            <input type="hidden" id="namaSLS" name="namaSLS">
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Nama PML</label>
+              <input type="text" class="form-control readonly-field" id="namaPML" name="namaPML" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Nama PPL</label>
+              <input type="text" class="form-control readonly-field" id="namaPPL" name="namaPPL" readonly>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Uraian Kegiatan</label>
+            <textarea class="form-control" id="uraian" name="uraian" rows="3" required></textarea>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Muatan</label>
+              <input type="text" class="form-control" id="muatan" name="muatan" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Realisasi Muatan Sampai Kunjungan</label>
+              <input type="text" class="form-control" id="realisasi" name="realisasi" required>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Koordinat (Lat, Long)</label>
+              <input type="text" class="form-control" id="koordinat" name="koordinat" placeholder="-3.31987, 114.59087">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Foto (Link/URL)</label>
+              <input type="url" class="form-control" id="foto" name="foto" placeholder="https://...">
+            </div>
+          </div>
+
+          <div class="mb-4 form-check">
+            <input type="checkbox" class="form-check-input" id="dicetak" name="dicetak">
+            <label class="form-check-label" for="dicetak">Sudah Dicetak?</label>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg" id="btnSubmit">💾 Simpan Data</button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  // Inisialisasi Select2 untuk pencarian lokasi yang lebih baik
+  $(document).ready(function() {
+    $('.select2-lokasi').select2({
+      placeholder: "-- Cari Lokasi Kunjungan --",
+      allowClear: true,
+      width: '100%'
+    });
+    
+    // Set tanggal hari ini sebagai default
+    document.getElementById('tanggal').valueAsDate = new Date();
+    
+    // Load data awal
+    showLoading(true);
+    google.script.run.withSuccessHandler(populateTim).getTimList();
+    google.script.run.withSuccessHandler(populateLokasi).getLokasiList();
+  });
+
+  function showLoading(show) {
+    document.getElementById('loading').style.display = show ? 'block' : 'none';
+    document.getElementById('btnSubmit').disabled = show;
+  }
+
+  function populateTim(timList) {
+    const select = document.getElementById('tim');
+    timList.forEach(t => {
+      const option = document.createElement('option');
+      option.value = t;
+      option.text = t.toUpperCase();
+      select.add(option);
+    });
+    showLoading(false);
+  }
+
+  function populateLokasi(lokasiList) {
+    const select = document.getElementById('lokasi');
+    lokasiList.forEach(loc => {
+      const option = document.createElement('option');
+      option.value = loc.value;
+      option.text = loc.value;
+      option.dataset.id = loc.idSubSLS;
+      option.dataset.sls = loc.namaSLS;
+      select.add(option);
+    });
+  }
+
+  function onTimChange() {
+    const tim = document.getElementById('tim').value;
+    const nipSelect = document.getElementById('nip');
+    
+    // Reset
+    nipSelect.innerHTML = '<option value="">-- Pilih NIP --</option>';
+    nipSelect.disabled = true;
+    document.getElementById('nama').value = '';
+    document.getElementById('kuota').value = '';
+    document.getElementById('penggunaanKuota').value = '0';
+
+    if (tim) {
+      showLoading(true);
+      google.script.run.withSuccessHandler(function(data) {
+        nipSelect.disabled = false;
+        // Simpan data di dataset untuk akses cepat
+        nipSelect.dataset.nipData = JSON.stringify(data);
+        
+        data.forEach(item => {
+          const option = document.createElement('option');
+          option.value = item.nip;
+          option.text = `${item.nip} - ${item.nama}`;
+          nipSelect.add(option);
+        });
+        showLoading(false);
+      }).getNIPDataByTim(tim);
+    }
+  }
+
+  function onNIPChange() {
+    const nip = document.getElementById('nip').value;
+    const tim = document.getElementById('tim').value;
+    const nipData = JSON.parse(document.getElementById('nip').dataset.nipData || '[]');
+    
+    const selected = nipData.find(item => item.nip === nip);
+    
+    if (selected) {
+      document.getElementById('nama').value = selected.nama;
+      document.getElementById('kuota').value = selected.kuota;
+      
+      // Hitung penggunaan kuota
+      showLoading(true);
+      google.script.run.withSuccessHandler(function(usage) {
+        document.getElementById('penggunaanKuota').value = usage;
+        showLoading(false);
+      }).getPenggunaanKuota(nip, tim);
+    } else {
+      document.getElementById('nama').value = '';
+      document.getElementById('kuota').value = '';
+      document.getElementById('penggunaanKuota').value = '0';
+    }
+  }
+
+  function onLokasiChange() {
+    const select = document.getElementById('lokasi');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption && selectedOption.dataset.id) {
+      const idSubSLS = selectedOption.dataset.id;
+      document.getElementById('idSubSLS').value = idSubSLS;
+      document.getElementById('namaSLS').value = selectedOption.dataset.sls;
+      
+      showLoading(true);
+      google.script.run.withSuccessHandler(function(data) {
+        document.getElementById('namaPML').value = data.pml;
+        document.getElementById('namaPPL').value = data.ppl;
+        showLoading(false);
+      }).getPmlPplByIdSubSLS(idSubSLS);
+    } else {
+      document.getElementById('idSubSLS').value = '';
+      document.getElementById('namaSLS').value = '';
+      document.getElementById('namaPML').value = '';
+      document.getElementById('namaPPL').value = '';
+    }
+  }
+
+  function handleFormSubmit(e) {
+    e.preventDefault();
+    showLoading(true);
+    
+    const form = document.getElementById('formPengawasan');
+    const formData = new FormData(form);
+    const formObject = Object.fromEntries(formData.entries());
+    
+    google.script.run
+      .withSuccessHandler(function(response) {
+        showLoading(false);
+        if (response.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: response.message,
+            timer: 2000,
+            showConfirmButton: false
+          });
+          form.reset();
+          document.getElementById('tanggal').valueAsDate = new Date();
+          // Reset dropdown dependent
+          document.getElementById('nip').innerHTML = '<option value="">-- Pilih NIP --</option>';
+          document.getElementById('nip').disabled = true;
+          document.getElementById('lokasi').value = null;
+          $('.select2-lokasi').trigger('change');
+          onLokasiChange(); // clear PML/PPL
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: response.message
+          });
+8       }
+      })
+      .simpanData(formObject);
+  }
+</script>
+
+</body>
+</html>
