@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Pengawasan BPS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media (max-width: 1023px) {
+      #desktop-print-section { display: none !important; }
+      #mobile-warning { display: block !important; }
+    }
+    @media print {
+      body * { display: none !important; }
+      #print-area, #print-area * { display: block !important; }
+      #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 font-sans">
+
+  <div id="loading" class="loading-overlay">
+    <div class="text-center font-bold text-blue-600 animate-pulse text-lg">⏳ Memproses ke Server Google...</div>
+  </div>
+
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md border border-slate-200">
+    <h2 class="text-xl font-bold text-center text-blue-700 mb-6 uppercase">
+      Pengawasan Dalam Rangka SE BPS Kota Banjarmasin
+    </h2>
+
+    <div class="flex flex-wrap border-b border-slate-200 mb-6">
+      <button onclick="switchTab('input-tab')" id="btn-input-tab" class="py-2 px-4 font-semibold text-blue-600 border-b-2 border-blue-600 focus:outline-none">Form Input</button>
+      <button onclick="switchTab('edit-tab')" id="btn-edit-tab" class="py-2 px-4 font-semibold text-slate-500 hover:text-blue-600 focus:outline-none">Edit Data (Draft/Final)</button>
+      <button onclick="switchTab('register-tab')" id="btn-register-tab" class="py-2 px-4 font-semibold text-slate-500 hover:text-blue-600 focus:outline-none">Daftar Email Baru</button>
+      <button onclick="switchTab('print-tab')" id="btn-print-tab" class="py-2 px-4 font-semibold text-slate-500 hover:text-blue-600 focus:outline-none">Cetak Laporan</button>
+    </div>
+
+    <div id="input-tab" class="tab-content">
+      <form id="mainForm" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Tanggal *</label>
+            <input type="date" id="tanggal" required onchange="triggerQuotaCalculation()" class="w-full p-2 border border-slate-300 rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">NIP 5 Digit Belakang *</label>
+            <input type="text" id="input_nip5" required maxlength="5" oninput="validateNip('input_nip5', 'nip-status', 'taskforce')" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none" placeholder="Masukkan 5 digit terakhir NIP">
+            <span id="nip-status" class="text-xs block mt-1 font-semibold"></span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Tugas *</label>
+            <select id="tugas" required class="w-full p-2 border border-slate-300 rounded">
+              <option value="Pengawasan">Pengawasan</option>
+              <option value="Supervisi">Supervisi</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Taskforce *</label>
+            <select id="taskforce" disabled onchange="onTaskforceChange('taskforce', 'nama_pml', 'nama_ppl'); triggerQuotaCalculation();" required class="w-full p-2 border border-slate-300 rounded bg-slate-100"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Nama PML *</label>
+            <select id="nama_pml" disabled onchange="onPmlChange('taskforce', 'nama_pml', 'nama_ppl')" required class="w-full p-2 border border-slate-300 rounded bg-slate-100">
+              <option value="">-- Pilih PML --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Nama PPL *</label>
+            <select id="nama_ppl" disabled onchange="onPplChange('nama_ppl', 'tim', 'id_subsls', 'total_assignment', 'muatan_kk', 'muatan_usaha', 'total_muatan')" required class="w-full p-2 border border-slate-300 rounded bg-slate-100">
+              <option value="">-- Pilih PPL --</option>
+            </select>
+          </div>
+        </div>
+
+        <input type="hidden" id="tim">
+        <input type="hidden" id="id_subsls">
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase">Total Assignment</label>
+            <input type="text" id="total_assignment" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase">Muatan KK</label>
+            <input type="text" id="muatan_kk" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase">Muatan Usaha</label>
+            <input type="text" id="muatan_usaha" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase">Total Muatan</label>
+            <input type="text" id="total_muatan" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Kuota Kunjungan Harian</label>
+            <input type="number" id="kuota_kunjungan" value="20" readonly class="w-full p-2 border border-slate-300 bg-slate-100 text-slate-500 rounded outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Sisa Kuota Kunjungan</label>
+            <input type="number" id="sisa_kuota" readonly class="w-full p-2 border border-blue-300 bg-blue-50 font-bold text-blue-700 rounded outline-none" placeholder="Otomatis menghitung">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Uraian Kegiatan</label>
+            <textarea id="uraian" rows="2" class="w-full p-2 border border-slate-300 rounded" placeholder="Ketik rincian uraian..."></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-sm font-medium mb-1">Foto (Link)</label>
+              <input type="text" id="foto" class="w-full p-2 border border-slate-300 rounded" placeholder="https://...">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Koordinat</label>
+              <input type="text" id="koordinat" class="w-full p-2 border border-slate-300 rounded" placeholder="-3.314, 114.59">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <button type="button" id="btn-draft-main" disabled onclick="submitMainForm('Draft')" class="w-full bg-slate-400 text-white font-bold py-2 px-4 rounded cursor-not-allowed transition">📂 Simpan Sementara (Draft)</button>
+          <button type="button" id="btn-final-main" disabled onclick="submitMainForm('Final')" class="w-full bg-slate-400 text-white font-bold py-2 px-4 rounded cursor-not-allowed transition">🚀 Kirim / Submit (Final)</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="edit-tab" class="tab-content hidden">
+      <div class="bg-amber-50 p-4 rounded border border-amber-200 mb-6 shadow-sm">
+        <div class="flex flex-col md:flex-row gap-4 items-end">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-amber-900 mb-1">Masukkan Email Terdaftar Anda *</label>
+            <input type="email" id="search_email_edit" class="w-full p-2 border border-amber-300 rounded outline-none" placeholder="nama@gmail.com">
+          </div>
+          <button onclick="fetchAllRecords()" class="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-6 rounded transition shadow">Cari Data Saya</button>
+        </div>
+      </div>
+
+      <div id="records-container" class="hidden space-y-6 mb-6">
+        <div class="border border-amber-200 rounded-lg p-4 bg-amber-50/50">
+          <h3 class="text-md font-bold text-amber-800 mb-2 flex items-center gap-2">📂 DATA BERSTATUS DRAFT <span id="count-draft" class="bg-amber-200 text-amber-900 text-xs px-2 py-0.5 rounded-full">0</span></h3>
+          <div class="overflow-x-auto"><table class="w-full bg-white text-left text-xs border border-slate-200 rounded"><thead><tr class="bg-slate-100 border-b"><th class="p-2 border-r">ID Transaksi</th><th class="p-2 border-r">Tanggal</th><th class="p-2 border-r">PPL</th><th class="p-2 text-center">Aksi</th></tr></thead><tbody id="tbody-draft"></tbody></table></div>
+        </div>
+        <div class="border border-green-200 rounded-lg p-4 bg-green-50/30">
+          <h3 class="text-md font-bold text-green-800 mb-2 flex items-center gap-2">🚀 DATA BERSTATUS FINAL <span id="count-final" class="bg-green-200 text-green-900 text-xs px-2 py-0.5 rounded-full">0</span></h3>
+          <div class="overflow-x-auto"><table class="w-full bg-white text-left text-xs border border-slate-200 rounded opacity-80"><thead><tr class="bg-slate-100 border-b"><th class="p-2 border-r">ID Transaksi</th><th class="p-2 border-r">Tanggal</th><th class="p-2 border-r">PPL</th><th class="p-2 text-center">Status</th></tr></thead><tbody id="tbody-final"></tbody></table></div>
+        </div>
+      </div>
+
+      <form id="editForm" class="space-y-4 hidden border-t-2 border-dashed pt-6">
+        <input type="hidden" id="edit_row_index"><div class="bg-slate-100 p-3 rounded-md border font-semibold text-sm">Form Perubahan Data: <span id="edit_title_id" class="text-blue-700"></span></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="block text-sm font-medium mb-1">Tanggal *</label><input type="date" id="edit_tanggal" required class="w-full p-2 border border-slate-300 rounded"></div>
+          <div><label class="block text-sm font-medium mb-1">Tugas *</label><select id="edit_tugas" required class="w-full p-2 border border-slate-300 rounded"><option value="Pengawasan">Pengawasan</option><option value="Supervisi">Supervisi</option></select></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label class="block text-sm font-medium mb-1">Taskforce</label><select id="edit_taskforce" onchange="onTaskforceChange('edit_taskforce', 'edit_nama_pml', 'edit_nama_ppl')" required class="w-full p-2 border border-slate-300 rounded"></select></div>
+          <div><label class="block text-sm font-medium mb-1">Nama PML</label><select id="edit_nama_pml" onchange="onPmlChange('edit_taskforce', 'edit_nama_pml', 'edit_nama_ppl')" required class="w-full p-2 border border-slate-300 rounded"><option value="">-- Pilih PML --</option></select></div>
+          <div><label class="block text-sm font-medium mb-1">Nama PPL</label><select id="edit_nama_ppl" onchange="onPplChange('edit_nama_ppl', 'edit_tim', 'edit_id_subsls', 'edit_total_assignment', 'edit_muatan_kk', 'edit_muatan_usaha', 'edit_total_muatan')" required class="w-full p-2 border border-slate-300 rounded"><option value="">-- Pilih PPL --</option></select></div>
+        </div>
+        <input type="hidden" id="edit_tim"><input type="hidden" id="edit_id_subsls">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-slate-50 rounded-lg border">
+          <div><label class="block text-xs text-slate-500 uppercase">Total Assignment</label><input type="text" id="edit_total_assignment" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0"></div>
+          <div><label class="block text-xs text-slate-500 uppercase">Muatan KK</label><input type="text" id="edit_muatan_kk" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0"></div>
+          <div><label class="block text-xs text-slate-500 uppercase">Muatan Usaha</label><input type="text" id="edit_muatan_usaha" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0"></div>
+          <div><label class="block text-xs text-slate-500 uppercase">Total Muatan</label><input type="text" id="edit_total_muatan" readonly class="w-full bg-transparent font-bold text-sm outline-none" value="0"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="block text-sm font-medium mb-1">Foto (Link)</label><input type="text" id="edit_foto" class="w-full p-2 border border-slate-300 rounded"></div>
+          <div><label class="block text-sm font-medium mb-1">Koordinat</label><input type="text" id="edit_koordinat" class="w-full p-2 border border-slate-300 rounded"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <button type="button" onclick="submitEditForm('Draft')" class="w-full bg-slate-600 text-white font-bold py-2 px-4 rounded">Simpan Kembali Sebagai Draft</button>
+          <button type="button" onclick="submitEditForm('Final')" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded">🚀 Submit Menjadi Final (Kunci Data)</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="register-tab" class="tab-content hidden">
+      <form id="regForm" onsubmit="handleRegisterSubmit(event)" class="space-y-4">
+        <div><label class="block text-sm font-medium mb-1">Pilih Taskforce *</label><select id="reg_taskforce" required class="w-full p-2 border border-slate-300 rounded"></select></div>
+        <div><label class="block text-sm font-medium mb-1">NIP Lengkap *</label><input type="text" id="reg_nip" required class="w-full p-2 border border-slate-300 rounded" placeholder="19940308..."></div>
+        <div><label class="block text-sm font-medium mb-1">Alamat Email *</label><input type="email" id="reg_email" required class="w-full p-2 border border-slate-300 rounded" placeholder="nama@gmail.com"></div>
+        <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded">Daftarkan Email</button>
+      </form>
+    </div>
+
+    <div id="print-tab" class="tab-content hidden">
+      <div id="mobile-warning" class="hidden p-4 bg-amber-100 text-center rounded">⚠️ Menu cetak/print laporan resmi hanya tersedia melalui PC / Laptop.</div>
+      <div id="desktop-print-section" class="space-y-4">
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-4">
+          <h4 class="text-sm font-bold text-blue-800 uppercase tracking-wide">Pengisian Surat Tugas Sebelum Cetak</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-semibold text-slate-660 mb-1">Konfirmasi NIP 5 Digit Anda *</label><input type="text" id="print_nip5" maxlength="5" required class="w-full p-2 border border-slate-300 rounded text-sm"></div>
+            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Masukkan Email Terdaftar *</label><input type="email" id="print_email" required class="w-full p-2 border border-slate-300 rounded text-sm"></div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Surat Tugas *</label><input type="text" id="print_no_surat" required class="w-full p-2 border border-slate-300 rounded text-sm" placeholder="B-123/..."></div>
+            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Surat Tugas *</label><input type="date" id="print_tgl_surat" required class="w-full p-2 border border-slate-300 rounded text-sm"></div>
+          </div>
+          <div class="text-right"><button onclick="fetchPrintData()" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded text-sm">Verifikasi & Simpan Surat Tugas</button></div>
+        </div>
+        
+        <div id="print-result-section" class="hidden space-y-4">
+          <div class="flex justify-between items-center bg-slate-100 p-3 rounded border"><span class="text-sm font-medium">Data Terverifikasi! Silakan klik cetak.</span><button onclick="window.print()" class="bg-indigo-600 text-white font-bold py-1.5 px-4 rounded text-sm">🖨️ Cetak Sekarang</button></div>
+          <div id="print-area" class="border p-6 bg-white rounded"><div class="text-center mb-6 border-b-2 border-double pb-2"><h1 class="text-xl font-bold uppercase">Badan Pusat Statistik Kota Banjarmasin</h1><p class="text-xs text-slate-500">Laporan Hasil Pengawasan Lapangan Sensus Ekonomi</p></div><div id="print-meta-info" class="text-sm mb-4 bg-slate-50 p-3 rounded border space-y-1"></div><div id="print-table-content" class="text-sm"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // PASTE URL EXEC WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+    const API_URL = "https://script.google.com/macros/s/AKfycby98uFG8SXx2HQIFQi2dI0u_x4khk6hnk3eErtEZOtLDZ-YaeJztfNxKDLbio2SWyZOoQ/exec";
+    // =========================================================================
+
+    let globalEmails = [];
+    let databasePplInfo = [];
+
+    // Fungsi Jembatan API HTTP POST menggantikan google.script.run
+    async function callGoogleAPI(payload) {
+      document.getElementById('loading').style.display = 'flex';
+      try {
+        let response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        let data = await response.json();
+        document.getElementById('loading').style.display = 'none';
+        return data;
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        alert("Koneksi bermasalah ke API Google: " + error);
+        throw error;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      let res = await callGoogleAPI({ action: "getInitialData", taskforce: null, tanggal: null });
+      initDataSuccess(res);
+    });
+
+    function initDataSuccess(res) {
+      globalEmails = res.emails;
+      let tsSelect = document.getElementById('taskforce');
+      let editTsSelect = document.getElementById('edit_taskforce');
+      let regTsSelect = document.getElementById('reg_taskforce');
+      let htmlOptions = '<option value="">-- Pilih Taskforce --</option>';
+      res.taskforces.forEach(tf => { htmlOptions += `<option value="${tf}">${tf}</option>`; });
+      tsSelect.innerHTML = htmlOptions; editTsSelect.innerHTML = htmlOptions; regTsSelect.innerHTML = htmlOptions;
+    }
+
+    async function triggerQuotaCalculation() {
+      let tfVal = document.getElementById('taskforce').value;
+      let dateVal = document.getElementById('tanggal').value;
+      if(tfVal && dateVal) {
+        let res = await callGoogleAPI({ action: "getInitialData", taskforce: tfVal, tanggal: dateVal });
+        document.getElementById('sisa_kuota').value = res.calculatedSisaKuota;
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+      document.querySelectorAll('[id^="btn-"]').forEach(btn => { btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600'); btn.classList.add('text-slate-500'); });
+      document.getElementById('btn-' + tabId).classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    }
+
+    function validateNip(idInput, idStatus, idTs) {
+      let val = document.getElementById(idInput).value;
+      let statusEl = document.getElementById(idStatus);
+      let tsSelect = document.getElementById(idTs);
+      let btnDraft = document.getElementById('btn-draft-main');
+      let btnFinal = document.getElementById('btn-final-main');
+      
+      if (val.length === 5) {
+        let found = globalEmails.find(item => item.nip5 === val);
+        if (found) {
+          statusEl.innerText = `✔️ Cocok: ${found.taskforce}`; statusEl.className = "text-xs block mt-1 font-semibold text-green-600";
+          tsSelect.value = found.taskforce; tsSelect.disabled = false; tsSelect.classList.remove('bg-slate-100');
+          onTaskforceChange(idTs, 'nama_pml', 'nama_ppl'); triggerQuotaCalculation();
+          [btnDraft, btnFinal].forEach(b => { b.disabled = false; b.classList.remove('bg-slate-400', 'cursor-not-allowed'); });
+          btnDraft.classList.add('bg-slate-600'); btnFinal.classList.add('bg-blue-600');
+        } else {
+          statusEl.innerText = "❌ NIP tidak terdaftar."; statusEl.className = "text-xs block mt-1 font-semibold text-red-600"; clearFormLock();
+        }
+      } else { statusEl.innerText = ""; clearFormLock(); }
+    }
+
+    function clearFormLock() {
+      let ts = document.getElementById('taskforce'); ts.value = ""; ts.disabled = true; ts.classList.add('bg-slate-100');
+      let pml = document.getElementById('nama_pml'); pml.innerHTML = '<option value="">-- Pilih PML --</option>'; pml.disabled = true; pml.classList.add('bg-slate-100');
+      let ppl = document.getElementById('nama_ppl'); ppl.innerHTML = '<option value="">-- Pilih PPL --</option>'; ppl.disabled = true; ppl.classList.add('bg-slate-100');
+      document.getElementById('sisa_kuota').value = "";
+      [document.getElementById('btn-draft-main'), document.getElementById('btn-final-main')].forEach(b => {
+        b.disabled = true; b.className = "w-full bg-slate-400 text-white font-bold py-2 px-4 rounded cursor-not-allowed transition";
+      });
+    }
+
+    async function onTaskforceChange(idTs, idPml, idPpl) {
+      let tfVal = document.getElementById(idTs).value; if (!tfVal) return;
+      let res = await callGoogleAPI({ action: "getPmlData", taskforce: tfVal });
+      let pmlSelect = document.getElementById(idPml);
+      let html = '<option value="">-- Pilih PML --</option>';
+      res.forEach(p => { html += `<option value="${p}">${p}</option>`; });
+      pmlSelect.innerHTML = html; pmlSelect.disabled = false;
+    }
+
+    async function onPmlChange(idTs, idPml, idPpl) {
+      let tfVal = document.getElementById(idTs).value;
+      let pmlVal = document.getElementById(idPml).value; if (!tfVal || !pmlVal) return;
+      let res = await callGoogleAPI({ action: "getPplData", taskforce: tfVal, pml: pmlVal });
+      databasePplInfo = res; 
+      let pplSelect = document.getElementById(idPpl);
+      let html = '<option value="">-- Pilih PPL --</option>';
+      res.forEach(item => { html += `<option value="${item.ppl}">${item.ppl}</option>`; });
+      pplSelect.innerHTML = html; pplSelect.disabled = false;
+    }
+
+    function onPplChange(idPpl, idTim, idSub, idTotAs, idMtnKk, idMtnUs, idTotMtn) {
+      let pplVal = document.getElementById(idPpl).value;
+      let matched = databasePplInfo.find(item => item.ppl === pplVal);
+      if (matched) {
+        document.getElementById(idTim).value = matched.tim; document.getElementById(idSub).value = matched.idSubSls;
+        document.getElementById(idTotAs).value = matched.totalAssignment; document.getElementById(idMtnKk).value = matched.muatanKk;
+        document.getElementById(idMtnUs).value = matched.muatanUsaha; document.getElementById(idTotMtn).value = matched.totalMuatan;
+      }
+    }
+
+    async function submitMainForm(statusSubmit) {
+      let form = document.getElementById('mainForm'); if(!form.checkValidity()) { return form.reportValidity(); }
+      let payload = {
+        tanggal: document.getElementById('tanggal').value, tugas: document.getElementById('tugas').value, taskforce: document.getElementById('taskforce').value,
+        nama_pml: document.getElementById('nama_pml').value, nama_ppl: document.getElementById('nama_ppl').value, tim: document.getElementById('tim').value,
+        id_subsls: document.getElementById('id_subsls').value, total_assignment: document.getElementById('total_assignment').value, muatan_kk: document.getElementById('muatan_kk').value,
+        muatan_usaha: document.getElementById('muatan_usaha').value, total_muatan: document.getElementById('total_muatan').value, kuota_kunjungan: document.getElementById('kuota_kunjungan').value,
+        sisa_kuota: document.getElementById('sisa_kuota').value, foto: document.getElementById('foto').value, koordinat: document.getElementById('koordinat').value
+      };
+      let res = await callGoogleAPI({ action: "saveInputData", formData: payload, statusSubmit: statusSubmit });
+      alert(res.message);
+      if(res.status === "SUCCESS") { form.reset(); clearFormLock(); document.getElementById('input_nip5').value = ""; }
+    }
+
+    async function fetchAllRecords() {
+      let emailRow = document.getElementById('search_email_edit').value.trim().toLowerCase(); if(!emailRow) return alert("Email wajib diisi!");
+      let foundUser = globalEmails.find(item => item.email === emailRow); if (!foundUser) return alert("Email tidak terdaftar.");
+
+      let res = await callGoogleAPI({ action: "findAllRecordsByTaskforce", taskforceName: foundUser.taskforce });
+      document.getElementById('records-container').classList.remove('hidden');
+      document.getElementById('editForm').classList.add('hidden');
+
+      let tbodyDraft = document.getElementById('tbody-draft');
+      document.getElementById('count-draft').innerText = res.drafts.length;
+      if(res.drafts.length === 0) { tbodyDraft.innerHTML = `<tr><td colspan="4" class="p-3 text-center">Tidak ada data draft.</td></tr>`; } 
+      else {
+        let html = "";
+        res.drafts.forEach(r => {
+          html += `<tr class="border-b"><td>${r.ID}</td><td>${r.TANGGAL}</td><td>${r.NAMA_PPL}</td><td class="text-center"><button onclick="loadFormToEdit(${r.rowIndex})" class="bg-amber-600 text-white px-2 py-0.5 rounded text-xs">Pilih & Edit</button></td></tr>`;
+        });
+        tbodyDraft.innerHTML = html;
+      }
+
+      let tbodyFinal = document.getElementById('tbody-final');
+      document.getElementById('count-final').innerText = res.finals.length;
+      if(res.finals.length === 0) { tbodyFinal.innerHTML = `<tr><td colspan="4" class="p-3 text-center">Tidak ada data final.</td></tr>`; }
+      else {
+        let html = "";
+        res.finals.forEach(r => { html += `<tr class="border-b bg-slate-50"><td>${r.ID}</td><td>${r.TANGGAL}</td><td>${r.NAMA_PPL}</td><td class="text-center text-green-600 font-bold">✔️ Terkunci</td></tr>`; });
+        tbodyFinal.innerHTML = html;
+      }
+    }
+
+    async function loadFormToEdit(rowIndex) {
+      let res = await callGoogleAPI({ action: "loadSingleRecord", rowIndex: rowIndex });
+      document.getElementById('editForm').classList.remove('hidden');
+      document.getElementById('edit_row_index').value = rowIndex;
+      document.getElementById('edit_title_id').innerText = res.ID;
+      document.getElementById('edit_tanggal').value = res.TANGGAL;
+      document.getElementById('edit_tugas').value = res.TUGAS;
+      document.getElementById('edit_taskforce').value = res.TASKFORCE;
+      
+      await onTaskforceChange('edit_taskforce', 'edit_nama_pml', 'edit_nama_ppl');
+      document.getElementById('edit_nama_pml').value = res.NAMA_PML;
+      
+      await onPmlChange('edit_taskforce', 'edit_nama_pml', 'edit_nama_ppl');
+      document.getElementById('edit_nama_ppl').value = res.NAMA_PPL;
+      document.getElementById('edit_tim').value = res.TIM;
+      document.getElementById('edit_id_subsls').value = res.ID_SUBSLS;
+      document.getElementById('edit_total_assignment').value = res["TOTAL ASSIGMENT"] || res["TOTAL ASSIGNMENT"] || 0;
+      document.getElementById('edit_muatan_kk').value = res["MUATAN KK WILKERSTAT"] || 0;
+      document.getElementById('edit_muatan_usaha').value = res["MUATAN USAHA WILKERSTAT"] || 0;
+      document.getElementById('edit_total_muatan').value = res["TOTAL MUATAN WILKERSTAT"] || 0;
+      document.getElementById('edit_foto').value = res.FOTO || '';
+      document.getElementById('edit_koordinat').value = res.KOORDINAT || '';
+      document.getElementById('editForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function submitEditForm(statusSubmit) {
+      let rowIndex = document.getElementById('edit_row_index').value;
+      let payload = {
+        tanggal: document.getElementById('edit_tanggal').value, tugas: document.getElementById('edit_tugas').value, taskforce: document.getElementById('edit_taskforce').value,
+        nama_pml: document.getElementById('edit_nama_pml').value, nama_ppl: document.getElementById('edit_nama_ppl').value, tim: document.getElementById('edit_tim').value,
+        id_subsls: document.getElementById('edit_id_subsls').value, total_assignment: document.getElementById('edit_total_assignment').value, muatan_kk: document.getElementById('edit_muatan_kk').value,
+        muatan_usaha: document.getElementById('edit_muatan_usaha').value, total_muatan: document.getElementById('edit_total_muatan').value, foto: document.getElementById('edit_foto').value, koordinat: document.getElementById('edit_koordinat').value
+      };
+      let res = await callGoogleAPI({ action: "updateInputData", rowIndex: rowIndex, formData: payload, statusSubmit: statusSubmit });
+      alert(res.message);
+      if(res.status === "SUCCESS") { document.getElementById('editForm').reset(); document.getElementById('editForm').classList.add('hidden'); fetchAllRecords(); }
+    }
+
+    async function handleRegisterSubmit(e) {
+      e.preventDefault();
+      let payload = {
+        taskforce: document.getElementById('reg_taskforce').value, nip: document.getElementById('reg_nip').value, email: document.getElementById('reg_email').value.trim().toLowerCase()
+      };
+      let res = await callGoogleAPI({ action: "registerEmail", formData: payload });
+      alert(res.message);
+      if(res.status === "SUCCESS") {
+        document.getElementById('regForm').reset();
+        let updateRes = await callGoogleAPI({ action: "getInitialData", taskforce: null, tanggal: null });
+        globalEmails = updateRes.emails; switchTab('input-tab');
+      }
+    }
+
+    async function fetchPrintData() {
+      let nip5 = document.getElementById('print_nip5').value;
+      let email = document.getElementById('print_email').value.trim().toLowerCase();
+      let noSurat = document.getElementById('print_no_surat').value.trim();
+      let tglSurat = document.getElementById('print_tgl_surat').value;
+      
+      if (!nip5 || !email || !noSurat || !tglSurat) return alert("Semua kolom cetak wajib diisi!");
+      let targetUser = globalEmails.find(item => item.nip5 === nip5 && item.email === email);
+      if (!targetUser) return alert("Verifikasi Gagal! Kombinasi NIP & Email salah.");
+      
+      let records = await callGoogleAPI({ action: "getPrintDataAndSaveSurat", nip5: nip5, noSurat: noSurat, tglSurat: tglSurat });
+      let metaContainer = document.getElementById('print-meta-info');
+      let tableContainer = document.getElementById('print-table-content');
+      let resultSection = document.getElementById('print-result-section');
+      
+      if (records.length === 0) {
+        tableContainer.innerHTML = `<p class="text-center text-red-500 p-4">Tidak ada data berstatus FINAL untuk Taskforce ini.</p>`;
+        metaContainer.innerHTML = ''; resultSection.classList.remove('hidden'); return;
+      }
+      
+      metaContainer.innerHTML = `<div class="grid grid-cols-2 gap-2 text-xs"><div><p><strong>Nama Taskforce:</strong> ${targetUser.taskforce}</p><p><strong>NIP:</strong> ${targetUser.nipFull}</p></div><div><p><strong>No. Surat Tugas:</strong> ${noSurat}</p><p><strong>Tgl. Surat Tugas:</strong> ${tglSurat}</p></div></div>`;
+      
+      let html = `<table class="w-full text-left border border-slate-400 text-xs"><thead><tr class="bg-slate-100"><th class="border border-slate-400 p-1">ID</th><th class="border border-slate-400 p-1">Tanggal</th><th class="border border-slate-400 p-1">Tugas</th><th class="border border-slate-400 p-1">PML</th><th class="border border-slate-400 p-1">PPL</th><th class="border border-slate-400 p-1">ID Sub SLS</th></tr></thead><tbody>`;
+      records.forEach(r => { html += `<tr><td class="border border-slate-400 p-1">${r.ID}</td><td class="border border-slate-400 p-1">${r.TANGGAL}</td><td class="border border-slate-400 p-1">${r.TUGAS}</td><td class="border border-slate-400 p-1">${r.NAMA_PML}</td><td class="border border-slate-400 p-1">${r.NAMA_PPL}</td><td class="border border-slate-400 p-1">${r.ID_SUBSLS}</td></tr>`; });
+      html += `</tbody></table>`;
+      tableContainer.innerHTML = html; resultSection.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
