@@ -16,6 +16,7 @@
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
   textarea { height: 80px; resize: vertical; }
   button { padding: 12px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; transition: opacity 0.2s; }
+  button:disabled { background: #bdc3c7; cursor: not-allowed; opacity: 1; }
   button:active { opacity: 0.8; }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-success { background: var(--success); color: #fff; }
@@ -36,22 +37,20 @@
 <body>
 
 <div class="container">
-  <!-- LOGIN PAGE -->
   <div id="page-login" class="card">
     <h2>🔐 Login Pengawasan</h2>
-    <div class="info-box">Masukkan 5 digit NIP belakang dan Email aktif Anda.</div>
+    <div class="info-box">Masukkan 5 digit NIP belakang dan Email aktif Anda. Tekan Enter untuk lanjut.</div>
     <div class="form-group">
       <label>5 Digit NIP Belakang</label>
-      <input type="text" id="login-nip" maxlength="5" placeholder="Contoh: 12345" inputmode="numeric">
+      <input type="text" id="login-nip" maxlength="5" placeholder="Contoh: 12345" inputmode="numeric" onkeydown="if(event.key === 'Enter') document.getElementById('login-email').focus()">
     </div>
     <div class="form-group">
       <label>Email (BPS)</label>
-      <input type="email" id="login-email" placeholder="email@bps.go.id">
+      <input type="email" id="login-email" placeholder="email@bps.go.id" onkeydown="if(event.key === 'Enter') doLogin()">
     </div>
-    <button class="btn-primary" onclick="doLogin()">Login / Register</button>
+    <button class="btn-primary" id="btn-login" onclick="doLogin()">Login / Register</button>
   </div>
 
-  <!-- MENU PAGE -->
   <div id="page-menu" class="card hidden">
     <h2>📊 Dashboard</h2>
     <div class="info-box">
@@ -64,7 +63,6 @@
     <button class="btn-secondary" onclick="doLogout()">🚪 Logout</button>
   </div>
 
-  <!-- FORM PAGE -->
   <div id="page-form" class="card hidden">
     <h2 id="form-title">Input Laporan</h2>
     <input type="hidden" id="edit-id">
@@ -128,12 +126,11 @@
       <input type="date" id="f-tanggalSurat">
     </div>
 
-    <button class="btn-warning" onclick="saveData('DRAFT')">💾 Simpan sebagai Draft</button>
-    <button class="btn-success" onclick="saveData('FINAL')">✅ Submit Final</button>
+    <button class="btn-warning" id="btn-save-draft" onclick="saveData('DRAFT')">💾 Simpan sebagai Draft</button>
+    <button class="btn-success" id="btn-submit-final" onclick="saveData('FINAL')">✅ Submit Final</button>
     <button class="btn-danger" onclick="showPage('menu')">❌ Batal</button>
   </div>
 
-  <!-- LIST PAGE -->
   <div id="page-list" class="card hidden">
     <h2 id="list-title">Daftar Laporan</h2>
     <div id="list-container"></div>
@@ -204,33 +201,45 @@ function showPage(page) {
 async function doLogin() {
   const nip5 = document.getElementById('login-nip').value.trim();
   const email = document.getElementById('login-email').value.trim();
+  const loginBtn = document.getElementById('btn-login');
 
   if (!nip5 || nip5.length !== 5) return alert('NIP harus 5 digit angka!');
   if (!email) return alert('Email wajib diisi!');
 
-  let res = await api('loginEmail', { email });
-  
-  if (res.success) {
-    state.taskforce = res.taskforce;
-    state.email = email;
-    alert('Login berhasil!');
-    enterDashboard();
-  } else {
-    const regRes = await api('registerEmail', { nip5, email });
-    if (regRes.success) {
-      const tfRes = await api('getTaskforceByNip', { nip5 });
-      if (tfRes.success) {
-        state.taskforce = tfRes.taskforce;
-        state.email = email;
-        state.nip = nip5;
-        alert('Registrasi berhasil!');
-        enterDashboard();
-      } else {
-        alert('NIP tidak ditemukan di database pusat.');
-      }
+  // Set loading state
+  loginBtn.innerText = "⏳ Memproses...";
+  loginBtn.disabled = true;
+
+  try {
+    let res = await api('loginEmail', { email });
+    
+    if (res.success) {
+      state.taskforce = res.taskforce;
+      state.email = email;
+      alert('Login berhasil!');
+      enterDashboard();
     } else {
-      alert('Login/Registrasi gagal: ' + (regRes.message || 'NIP tidak ditemukan'));
+      const regRes = await api('registerEmail', { nip5, email });
+      if (regRes.success) {
+        const tfRes = await api('getTaskforceByNip', { nip5 });
+        if (tfRes.success) {
+          state.taskforce = tfRes.taskforce;
+          state.email = email;
+          state.nip = nip5;
+          alert('Registrasi email berhasil!');
+          enterDashboard();
+        } else {
+          alert('Registrasi berhasil, namun data Gugus Tugas gagal dimuat. Cek kecocokan data di database.');
+        }
+      } else {
+        alert('Login/Registrasi gagal: ' + (regRes.message || '5 Digit NIP belakang tidak ditemukan di database.'));
+      }
     }
+  } catch (e) {
+    alert('Sistem Error: ' + e.message);
+  } finally {
+    loginBtn.innerText = "Login / Register";
+    loginBtn.disabled = false;
   }
 }
 
@@ -242,6 +251,8 @@ function enterDashboard() {
 
 function doLogout() {
   state.taskforce = '';
+  state.email = '';
+  state.nip = '';
   document.getElementById('login-nip').value = '';
   document.getElementById('login-email').value = '';
   showPage('login');
@@ -302,7 +313,7 @@ async function onSubSlsChange() {
     document.getElementById('f-totalAssignment').innerText = getVal(d, 'TOTAL_ASSIGNMENT') || 0;
     document.getElementById('f-muatanKK').innerText = getVal(d, 'MUATAN_KK') || 0;
     document.getElementById('f-muatanUsaha').innerText = getVal(d, 'MUATAN_USAHA') || 0;
-    document.getElementById('f-totalMuatan').innerText = getVal(d, 'TOTAL_MUATAN') || 0;
+    document.getElementById('f-totalMuatan').innerText = getVal(d, 'TOTAL_MUTAN') || 0;
   }
 
   const tim = document.getElementById('f-tim').value;
@@ -372,6 +383,11 @@ async function saveData(status) {
 
   if (!tim || !tugas || !pml || !ppl || !subsls) return alert('Lengkapi semua dropdown TIM s.d. SubSLS!');
 
+  const draftBtn = document.getElementById('btn-save-draft');
+  const finalBtn = document.getElementById('btn-submit-final');
+  draftBtn.disabled = true;
+  finalBtn.disabled = true;
+
   let fotoFileId = state.currentFotoFileId;
   let fotoUrl = state.currentFotoUrl;
 
@@ -381,7 +397,11 @@ async function saveData(status) {
     if (uploadRes.success) {
       fotoFileId = uploadRes.fileId;
       fotoUrl = uploadRes.url;
-    } else return alert('Gagal upload foto: ' + uploadRes.message);
+    } else {
+      draftBtn.disabled = false;
+      finalBtn.disabled = false;
+      return alert('Gagal upload foto: ' + uploadRes.message);
+    }
   } 
 
   const tgl = document.getElementById('f-tanggal').value;
@@ -398,10 +418,10 @@ async function saveData(status) {
   const tgs = document.getElementById('f-tanggalSurat').value;
 
   if (status === 'FINAL') {
-    if (!fotoFileId) return alert('Foto wajib diisi untuk Submit Final!');
-    if (!koord) return alert('Koordinat wajib diisi!');
-    if (!ns) return alert('Nomor surat tugas wajib diisi!');
-    if (!tgs) return alert('Tanggal surat tugas wajib diisi!');
+    if (!fotoFileId) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Foto wajib diisi untuk Submit Final!'); }
+    if (!koord) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Koordinat wajib diisi!'); }
+    if (!ns) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Nomor surat tugas wajib diisi!'); }
+    if (!tgs) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Tanggal surat tugas wajib diisi!'); }
   }
 
   const data = {
@@ -428,6 +448,8 @@ async function saveData(status) {
   } else {
     alert('Gagal menyimpan: ' + (res.message || 'Unknown error'));
   }
+  draftBtn.disabled = false;
+  finalBtn.disabled = false;
 }
 
 // ======================================================
