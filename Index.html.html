@@ -5,33 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pengawasan SE2026 - BPS</title>
 <style>
-  :root { --primary: #2c3e50; --accent: #3498db; --success: #2ecc71; --warning: #f1c40f; --danger: #e74c3c; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f7f6; color: #333; }
-  .container { max-width: 600px; margin: 0 auto; padding: 15px; }
-  .card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-  h2 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 10px; }
-  .form-group { margin-bottom: 15px; }
-  label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: #555; }
-  input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; transition: border 0.3s; }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-  textarea { height: 80px; resize: vertical; }
-  button { padding: 12px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; transition: opacity 0.2s; }
-  button:disabled { background: #bdc3c7; cursor: not-allowed; opacity: 1; }
-  button:active { opacity: 0.8; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-success { background: var(--success); color: #fff; }
-  .btn-warning { background: var(--warning); color: #fff; }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-secondary { background: #95a5a6; color: #fff; }
-  .hidden { display: none; }
-  .list-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-  .list-item:hover { background: #f9f9f9; }
-  .status { font-size: 12px; padding: 4px 10px; border-radius: 12px; color: #fff; font-weight: bold; }
-  .status-draft { background: #f39c12; }
-  .status-final { background: #27ae60; }
-  .info-box { background: #e8f4fd; padding: 12px; border-left: 4px solid var(--accent); margin-bottom: 15px; font-size: 14px; border-radius: 4px; }
-  .readonly-field { background: #f8f9fa; color: #666; font-weight: bold; }
-  .foto-preview { max-width: 100%; margin-top: 10px; display: none; border-radius: 8px; border: 2px solid #eee; }
+  :root { --primary:#2c3e50; --accent:#3498db; --success:#2ecc71; --warning:#f1c40f; --danger:#e74c3c; }
+  body { font-family:'Segoe UI',sans-serif; margin:0; background:#f4f7f6; color:#333; }
+  .container { max-width:600px; margin:0 auto; padding:15px; }
+  .card { background:#fff; padding:20px; border-radius:10px; box-shadow:0 4px 6px rgba(0,0,0,0.05); margin-bottom:20px; }
+  h2 { margin-top:0; color:var(--primary); border-bottom:2px solid #eee; padding-bottom:10px; }
+  .form-group { margin-bottom:15px; }
+  label { display:block; margin-bottom:6px; font-weight:600; font-size:14px; color:#555; }
+  input,select,textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:16px; }
+  textarea { height:80px; resize:vertical; }
+  button { padding:12px; border:none; border-radius:6px; font-size:16px; cursor:pointer; width:100%; margin-top:10px; font-weight:bold; }
+  button:disabled { opacity:0.5; cursor:not-allowed; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-success { background:var(--success); color:#fff; }
+  .btn-warning { background:var(--warning); color:#fff; }
+  .btn-danger { background:var(--danger); color:#fff; }
+  .btn-secondary { background:#95a5a6; color:#fff; }
+  .hidden { display:none; }
+  .list-item { padding:15px; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .list-item:hover { background:#f9f9f9; }
+  .status { font-size:12px; padding:4px 10px; border-radius:12px; color:#fff; font-weight:bold; }
+  .status-draft { background:#f39c12; }
+  .status-final { background:#27ae60; }
+  .info-box { background:#e8f4fd; padding:12px; border-left:4px solid var(--accent); margin-bottom:15px; font-size:14px; border-radius:4px; }
+  .error-box { background:#fde8e8; padding:12px; border-left:4px solid var(--danger); margin-bottom:15px; font-size:14px; border-radius:4px; color:var(--danger); }
+  .readonly-field { background:#f8f9fa; color:#666; font-weight:bold; }
+  .foto-preview { max-width:100%; margin-top:10px; display:none; border-radius:8px; border:2px solid #eee; }
+  .log-box { background:#1e1e1e; color:#0f0; padding:10px; border-radius:6px; font-family:monospace; font-size:11px; max-height:200px; overflow-y:auto; white-space:pre-wrap; }
 </style>
 </head>
 <body>
@@ -39,16 +39,19 @@
 <div class="container">
   <div id="page-login" class="card">
     <h2>🔐 Login Pengawasan</h2>
-    <div class="info-box">Masukkan 5 digit NIP belakang dan Email aktif Anda. Tekan Enter untuk lanjut.</div>
+    <div class="info-box">Masukkan 5 digit NIP belakang dan Email aktif Anda.</div>
     <div class="form-group">
       <label>5 Digit NIP Belakang</label>
-      <input type="text" id="login-nip" maxlength="5" placeholder="Contoh: 12345" inputmode="numeric" onkeydown="if(event.key === 'Enter') document.getElementById('login-email').focus()">
+      <input type="text" id="login-nip" maxlength="5" placeholder="Contoh: 12345" inputmode="numeric">
     </div>
     <div class="form-group">
       <label>Email (BPS)</label>
-      <input type="email" id="login-email" placeholder="email@bps.go.id" onkeydown="if(event.key === 'Enter') doLogin()">
+      <input type="email" id="login-email" placeholder="email@bps.go.id">
     </div>
-    <button class="btn-primary" id="btn-login" onclick="doLogin()">Login / Register</button>
+    <div id="login-error" class="error-box hidden"></div>
+    <button class="btn-primary" onclick="doLogin()">Login / Register</button>
+    <button class="btn-secondary" onclick="testConnection()">🔍 Test Koneksi Server</button>
+    <div id="log-box" class="log-box hidden"></div>
   </div>
 
   <div id="page-menu" class="card hidden">
@@ -66,32 +69,12 @@
   <div id="page-form" class="card hidden">
     <h2 id="form-title">Input Laporan</h2>
     <input type="hidden" id="edit-id">
-    
-    <div class="form-group">
-      <label>Tanggal Pengawasan</label>
-      <input type="date" id="f-tanggal">
-    </div>
-    <div class="form-group">
-      <label>TIM</label>
-      <select id="f-tim" onchange="onTimChange()"></select>
-    </div>
-    <div class="form-group">
-      <label>Tugas</label>
-      <select id="f-tugas"></select>
-    </div>
-    <div class="form-group">
-      <label>PML</label>
-      <select id="f-pml" onchange="onPmlChange()"></select>
-    </div>
-    <div class="form-group">
-      <label>PPL</label>
-      <select id="f-ppl" onchange="onPplChange()"></select>
-    </div>
-    <div class="form-group">
-      <label>SubSLS</label>
-      <select id="f-subsls" onchange="onSubSlsChange()"></select>
-    </div>
-
+    <div class="form-group"><label>Tanggal Pengawasan</label><input type="date" id="f-tanggal"></div>
+    <div class="form-group"><label>TIM</label><select id="f-tim" onchange="onTimChange()"></select></div>
+    <div class="form-group"><label>Tugas</label><select id="f-tugas"></select></div>
+    <div class="form-group"><label>PML</label><select id="f-pml" onchange="onPmlChange()"></select></div>
+    <div class="form-group"><label>PPL</label><select id="f-ppl" onchange="onPplChange()"></select></div>
+    <div class="form-group"><label>SubSLS</label><select id="f-subsls" onchange="onSubSlsChange()"></select></div>
     <div class="info-box">
       <b>Detail SubSLS:</b><br>
       Kelurahan: <span id="f-kelurahan">-</span><br>
@@ -99,263 +82,238 @@
       Total Assignment: <span id="f-totalAssignment">0</span> | KK: <span id="f-muatanKK">0</span> | Usaha: <span id="f-muatanUsaha">0</span><br>
       Total Muatan: <span id="f-totalMuatan">0</span>
     </div>
-
-    <div class="form-group">
-      <label>Uraian Kegiatan</label>
-      <textarea id="f-uraian" placeholder="Jelaskan hasil pengawasan..."></textarea>
-    </div>
-
+    <div class="form-group"><label>Uraian Kegiatan</label><textarea id="f-uraian"></textarea></div>
     <div class="form-group">
       <label>Koordinat Lokasi</label>
-      <input type="text" id="f-koordinat" class="readonly-field" readonly placeholder="Klik tombol di bawah">
-      <button class="btn-secondary" style="margin-top:5px; width:auto; padding:8px 15px;" onclick="getLocation()">📍 Ambil Lokasi GPS</button>
+      <input type="text" id="f-koordinat" class="readonly-field" readonly>
+      <button class="btn-secondary" style="width:auto;padding:8px 15px;" onclick="getLocation()">📍 Ambil GPS</button>
     </div>
-
     <div class="form-group">
       <label>Foto Dokumentasi</label>
       <input type="file" id="f-foto" accept="image/*" capture="environment" onchange="handleFoto(this)">
       <img id="foto-preview" class="foto-preview">
     </div>
-
-    <div class="form-group">
-      <label>Nomor Surat Tugas</label>
-      <input type="text" id="f-nomorSurat" placeholder="Contoh: ST-01/2026">
-    </div>
-    <div class="form-group">
-      <label>Tanggal Surat Tugas</label>
-      <input type="date" id="f-tanggalSurat">
-    </div>
-
-    <button class="btn-warning" id="btn-save-draft" onclick="saveData('DRAFT')">💾 Simpan sebagai Draft</button>
-    <button class="btn-success" id="btn-submit-final" onclick="saveData('FINAL')">✅ Submit Final</button>
+    <div class="form-group"><label>Nomor Surat Tugas</label><input type="text" id="f-nomorSurat"></div>
+    <div class="form-group"><label>Tanggal Surat Tugas</label><input type="date" id="f-tanggalSurat"></div>
+    <button class="btn-warning" onclick="saveData('DRAFT')">💾 Simpan Draft</button>
+    <button class="btn-success" onclick="saveData('FINAL')">✅ Submit Final</button>
     <button class="btn-danger" onclick="showPage('menu')">❌ Batal</button>
   </div>
 
   <div id="page-list" class="card hidden">
     <h2 id="list-title">Daftar Laporan</h2>
     <div id="list-container"></div>
-    <button class="btn-secondary" onclick="showPage('menu')">⬅️ Kembali ke Menu</button>
+    <button class="btn-secondary" onclick="showPage('menu')">⬅️ Kembali</button>
   </div>
 </div>
 
 <script>
-// ======================================================
-// KONFIGURASI API
-// ======================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbz4knmevLePPyCO8Yxh5qr5w0X0c_00qP6pmzStz5fdmr2_3M6PHhuqcoGJ8aBoIJOi9g/exec";
+// GANTI URL INI DENGAN URL DEPLOYMENT TERBARU ANDA!
+const API_URL = "GANTI_DENGAN_URL_APPS_SCRIPT_TERBARU";
 
-// ======================================================
-// STATE & HELPER
-// ======================================================
-const state = {
-  taskforce: '', email: '', nip: '',
-  editId: null, base64: null, fileName: null,
-  currentFotoFileId: null, currentFotoUrl: null
-};
+const state = { taskforce:'', email:'', nip:'', editId:null, base64:null, fileName:null, currentFotoFileId:null, currentFotoUrl:null };
 
-function getVal(obj, key) {
-  if (!obj || typeof obj !== 'object') return '';
-  if (obj[key] !== undefined) return obj[key];
-  const lowerKey = String(key).toLowerCase().replace(/[_\s-]/g, '');
-  for (let k in obj) {
-    if (String(k).toLowerCase().replace(/[_\s-]/g, '') === lowerKey) return obj[k];
-  }
-  return '';
+function log(msg){
+  const box = document.getElementById('log-box');
+  box.classList.remove('hidden');
+  box.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  box.scrollTop = box.scrollHeight;
 }
 
-function formatDate(val) {
-  if (!val) return '';
-  const d = new Date(val);
-  if (isNaN(d)) return String(val).split(' ')[0];
-  return d.toISOString().split('T')[0];
+function showError(msg){
+  const el = document.getElementById('login-error');
+  el.innerText = msg;
+  el.classList.remove('hidden');
+  log('ERROR: '+msg);
+  setTimeout(()=>el.classList.add('hidden'), 8000);
 }
 
-// ======================================================
-// API CALL (CORS Friendly untuk Google Apps Script)
-// ======================================================
-async function api(action, data = {}) {
-  try {
+function showPage(page){
+  document.querySelectorAll('.card').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('page-'+page).classList.remove('hidden');
+}
+
+async function api(action, data={}){
+  try{
+    log(`API → ${action}`);
     const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, ...data }),
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      method:'POST',
+      body: JSON.stringify({action, ...data}),
+      headers:{'Content-Type':'text/plain;charset=utf-8'}
     });
-    return await res.json();
-  } catch (err) {
-    alert('Error koneksi ke server: ' + err.message);
-    return { success: false, message: err.message };
+    const text = await res.text();
+    log(`API ← ${action}: ${text.substring(0,200)}`);
+    try{
+      return JSON.parse(text);
+    }catch(pe){
+      log('PARSE ERROR: '+text);
+      return {success:false, message:'Response bukan JSON: '+text.substring(0,100)};
+    }
+  }catch(err){
+    log('FETCH ERROR: '+err.message);
+    return {success:false, message:'Koneksi gagal: '+err.message};
   }
 }
 
-// ======================================================
-// NAVIGATION
-// ======================================================
-function showPage(page) {
-  document.querySelectorAll('.card').forEach(el => el.classList.add('hidden'));
-  document.getElementById('page-' + page).classList.remove('hidden');
+async function testConnection(){
+  log('Testing connection...');
+  const res = await api('ping');
+  if(res.success){
+    alert('✅ Koneksi BERHASIL! Server time: '+res.time);
+  }else{
+    alert('❌ Koneksi GAGAL: '+res.message);
+  }
 }
 
-// ======================================================
-// LOGIN & LOGOUT
-// ======================================================
-async function doLogin() {
+async function doLogin(){
   const nip5 = document.getElementById('login-nip').value.trim();
   const email = document.getElementById('login-email').value.trim();
-  const loginBtn = document.getElementById('btn-login');
-
-  if (!nip5 || nip5.length !== 5) return alert('NIP harus 5 digit angka!');
-  if (!email) return alert('Email wajib diisi!');
-
-  // Set loading state
-  loginBtn.innerText = "⏳ Memproses...";
-  loginBtn.disabled = true;
-
-  try {
-    let res = await api('loginEmail', { email });
-    
-    if (res.success) {
-      state.taskforce = res.taskforce;
-      state.email = email;
-      alert('Login berhasil!');
-      enterDashboard();
-    } else {
-      const regRes = await api('registerEmail', { nip5, email });
-      if (regRes.success) {
-        const tfRes = await api('getTaskforceByNip', { nip5 });
-        if (tfRes.success) {
-          state.taskforce = tfRes.taskforce;
-          state.email = email;
-          state.nip = nip5;
-          alert('Registrasi email berhasil!');
-          enterDashboard();
-        } else {
-          alert('Registrasi berhasil, namun data Gugus Tugas gagal dimuat. Cek kecocokan data di database.');
-        }
-      } else {
-        alert('Login/Registrasi gagal: ' + (regRes.message || '5 Digit NIP belakang tidak ditemukan di database.'));
+  if(!nip5 || nip5.length!==5) return showError('NIP harus 5 digit!');
+  if(!email) return showError('Email wajib!');
+  
+  log('Login attempt: '+email);
+  let res = await api('loginEmail', {email});
+  
+  if(res.success && res.taskforce){
+    state.taskforce = res.taskforce;
+    state.email = email;
+    state.nip = nip5;
+    alert('✅ Login berhasil! Taskforce: '+res.taskforce);
+    enterDashboard();
+  }else{
+    log('Login gagal, mencoba register...');
+    const regRes = await api('registerEmail', {nip5, email});
+    if(regRes.success){
+      const tfRes = await api('getTaskforceByNip', {nip5});
+      if(tfRes.success && tfRes.taskforce){
+        state.taskforce = tfRes.taskforce;
+        state.email = email;
+        state.nip = nip5;
+        alert('✅ Registrasi berhasil! Taskforce: '+tfRes.taskforce);
+        enterDashboard();
+      }else{
+        showError('NIP tidak ditemukan di database. Response: '+JSON.stringify(tfRes));
       }
+    }else{
+      showError('Login/Register gagal: '+regRes.message);
     }
-  } catch (e) {
-    alert('Sistem Error: ' + e.message);
-  } finally {
-    loginBtn.innerText = "Login / Register";
-    loginBtn.disabled = false;
   }
 }
 
-function enterDashboard() {
+async function enterDashboard(){
+  if(!state.taskforce){
+    return showError('Taskforce kosong!');
+  }
   document.getElementById('info-taskforce').innerText = state.taskforce;
   showPage('menu');
-  loadDropdowns();
+  await loadDropdowns();
 }
 
-function doLogout() {
-  state.taskforce = '';
-  state.email = '';
-  state.nip = '';
-  document.getElementById('login-nip').value = '';
-  document.getElementById('login-email').value = '';
+function doLogout(){
+  state.taskforce=''; state.email=''; state.nip='';
+  document.getElementById('login-nip').value='';
+  document.getElementById('login-email').value='';
   showPage('login');
 }
 
-// ======================================================
-// DROPDOWN & CASCADING
-// ======================================================
-async function loadDropdowns() {
+function fillSelect(id, data){
+  const el = document.getElementById(id);
+  el.innerHTML = '<option value="">-- Pilih --</option>';
+  if(Array.isArray(data)){
+    data.forEach(item=>{
+      if(item){
+        const safe = String(item).replace(/"/g,'&quot;');
+        el.innerHTML += `<option value="${safe}">${safe}</option>`;
+      }
+    });
+  }
+  log(`Filled ${id}: ${data?.length || 0} items`);
+}
+
+async function loadDropdowns(){
+  log('Loading dropdowns...');
   const [timRes, tugasRes, pmlRes] = await Promise.all([
     api('getTim'),
     api('getTugas'),
-    api('getPML', { taskforce: state.taskforce })
+    api('getPML', {taskforce: state.taskforce})
   ]);
-
+  log(`TIM: ${JSON.stringify(timRes).substring(0,100)}`);
+  log(`TUGAS: ${JSON.stringify(tugasRes).substring(0,100)}`);
+  log(`PML: ${JSON.stringify(pmlRes).substring(0,100)}`);
+  
   fillSelect('f-tim', timRes);
   fillSelect('f-tugas', tugasRes);
   fillSelect('f-pml', pmlRes);
-  onPmlChange();
+  await onPmlChange();
 }
 
-function fillSelect(id, data) {
-  const el = document.getElementById(id);
-  el.innerHTML = '<option value="">-- Pilih --</option>';
-  if (Array.isArray(data)) {
-    data.forEach(item => {
-      const safeItem = String(item).replace(/"/g, '&quot;');
-      el.innerHTML += `<option value="${safeItem}">${safeItem}</option>`;
-    });
-  }
-}
-
-async function onPmlChange() {
+async function onPmlChange(){
   const pml = document.getElementById('f-pml').value;
-  if (!pml) return;
-  const res = await api('getPPL', { taskforce: state.taskforce, pml });
+  if(!pml){ fillSelect('f-ppl',[]); fillSelect('f-subsls',[]); return; }
+  const res = await api('getPPL', {taskforce:state.taskforce, pml});
   fillSelect('f-ppl', res);
-  onPplChange();
+  await onPplChange();
 }
 
-async function onPplChange() {
+async function onPplChange(){
   const ppl = document.getElementById('f-ppl').value;
   const pml = document.getElementById('f-pml').value;
-  if (!ppl) return;
-  const res = await api('getSubSLS', { taskforce: state.taskforce, pml, ppl });
+  if(!ppl || !pml){ fillSelect('f-subsls',[]); return; }
+  const res = await api('getSubSLS', {taskforce:state.taskforce, pml, ppl});
   fillSelect('f-subsls', res);
 }
 
-async function onSubSlsChange() {
+async function onSubSlsChange(){
   const subsls = document.getElementById('f-subsls').value;
-  if (!subsls) return;
-  
-  const res = await api('getDetailSubSLS', { subsls });
-  if (res.success && res.data) {
-    const d = res.data;
-    document.getElementById('f-kelurahan').innerText = getVal(d, 'KELURAHAN') || '-';
-    document.getElementById('f-supervisor').innerText = getVal(d, 'SUPERVISOR') || '-';
-    document.getElementById('f-totalAssignment').innerText = getVal(d, 'TOTAL_ASSIGNMENT') || 0;
-    document.getElementById('f-muatanKK').innerText = getVal(d, 'MUATAN_KK') || 0;
-    document.getElementById('f-muatanUsaha').innerText = getVal(d, 'MUATAN_USAHA') || 0;
-    document.getElementById('f-totalMuatan').innerText = getVal(d, 'TOTAL_MUTAN') || 0;
+  if(!subsls){
+    ['f-kelurahan','f-supervisor'].forEach(id=>document.getElementById(id).innerText='-');
+    ['f-totalAssignment','f-muatanKK','f-muatanUsaha','f-totalMuatan'].forEach(id=>document.getElementById(id).innerText='0');
+    return;
   }
-
+  const res = await api('getDetailSubSLS', {subsls});
+  if(res.success && res.data){
+    const d = res.data;
+    document.getElementById('f-kelurahan').innerText = d['Kelurahan'] || d['KELURAHAN'] || '-';
+    document.getElementById('f-supervisor').innerText = d['SUPERVISOR'] || '-';
+    document.getElementById('f-totalAssignment').innerText = d['Total Assigment'] || d['TOTAL_ASSIGNMENT'] || 0;
+    document.getElementById('f-muatanKK').innerText = d['Muatan Kk Wilkerstat'] || d['MUATAN_KK'] || 0;
+    document.getElementById('f-muatanUsaha').innerText = d['Muatan Usaha WIlkerstat'] || d['MUATAN_USAHA'] || 0;
+    document.getElementById('f-totalMuatan').innerText = d['Total Muatan Wilkerstat'] || d['TOTAL_MUATAN'] || 0;
+  }
   const tim = document.getElementById('f-tim').value;
-  if (tim) {
-    const kuotaRes = await api('hitungSisaKuota', { tim, taskforce: state.taskforce });
-    if (kuotaRes.success) document.getElementById('info-kuota').innerText = kuotaRes.sisa;
+  if(tim){
+    const kuotaRes = await api('hitungSisaKuota', {tim, taskforce:state.taskforce});
+    if(kuotaRes.success) document.getElementById('info-kuota').innerText = kuotaRes.sisa;
   }
 }
 
-function onTimChange() {
+function onTimChange(){
   const tim = document.getElementById('f-tim').value;
-  if (tim) {
-    api('hitungSisaKuota', { tim, taskforce: state.taskforce }).then(res => {
-       if(res.success) document.getElementById('info-kuota').innerText = res.sisa;
+  if(tim){
+    api('hitungSisaKuota', {tim, taskforce:state.taskforce}).then(res=>{
+      if(res.success) document.getElementById('info-kuota').innerText = res.sisa;
     });
   }
 }
 
-// ======================================================
-// FORM HANDLING
-// ======================================================
-function resetForm() {
+function resetForm(){
   document.getElementById('form-title').innerText = 'Input Laporan Baru';
   document.getElementById('edit-id').value = '';
   document.getElementById('f-tanggal').value = new Date().toISOString().split('T')[0];
-  ['f-uraian','f-koordinat','f-nomorSurat','f-tanggalSurat'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('foto-preview').style.display = 'none';
-  document.getElementById('f-foto').value = '';
-  
-  state.editId = null; state.base64 = null; state.fileName = null;
-  state.currentFotoFileId = null; state.currentFotoUrl = null;
-  
-  ['f-kelurahan','f-supervisor','f-totalAssignment','f-muatanKK','f-muatanUsaha','f-totalMuatan'].forEach(id => {
-    document.getElementById(id).innerText = (id.includes('total') || id.includes('Muatan')) ? '0' : '-';
-  });
+  ['f-uraian','f-koordinat','f-nomorSurat','f-tanggalSurat'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('foto-preview').style.display='none';
+  document.getElementById('f-foto').value='';
+  state.editId=null; state.base64=null; state.fileName=null;
+  state.currentFotoFileId=null; state.currentFotoUrl=null;
+  ['f-kelurahan','f-supervisor'].forEach(id=>document.getElementById(id).innerText='-');
+  ['f-totalAssignment','f-muatanKK','f-muatanUsaha','f-totalMuatan'].forEach(id=>document.getElementById(id).innerText='0');
 }
 
-function handleFoto(input) {
-  if (input.files && input.files[0]) {
+function handleFoto(input){
+  if(input.files && input.files[0]){
     const reader = new FileReader();
     state.fileName = input.files[0].name;
-    reader.onload = function (e) {
+    reader.onload = e=>{
       state.base64 = e.target.result;
       const preview = document.getElementById('foto-preview');
       preview.src = e.target.result;
@@ -365,161 +323,114 @@ function handleFoto(input) {
   }
 }
 
-function getLocation() {
-  if (navigator.geolocation) {
+function getLocation(){
+  if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
-      pos => document.getElementById('f-koordinat').value = `${pos.coords.latitude}, ${pos.coords.longitude}`,
-      err => alert('Gagal mengambil lokasi: ' + err.message)
+      pos=>document.getElementById('f-koordinat').value=`${pos.coords.latitude}, ${pos.coords.longitude}`,
+      err=>alert('GPS gagal: '+err.message)
     );
-  } else alert('Browser tidak mendukung GPS.');
+  }
 }
 
-async function saveData(status) {
+async function saveData(status){
   const tim = document.getElementById('f-tim').value;
   const tugas = document.getElementById('f-tugas').value;
   const pml = document.getElementById('f-pml').value;
   const ppl = document.getElementById('f-ppl').value;
   const subsls = document.getElementById('f-subsls').value;
-
-  if (!tim || !tugas || !pml || !ppl || !subsls) return alert('Lengkapi semua dropdown TIM s.d. SubSLS!');
-
-  const draftBtn = document.getElementById('btn-save-draft');
-  const finalBtn = document.getElementById('btn-submit-final');
-  draftBtn.disabled = true;
-  finalBtn.disabled = true;
+  if(!tim||!tugas||!pml||!ppl||!subsls) return alert('Lengkapi semua dropdown!');
 
   let fotoFileId = state.currentFotoFileId;
   let fotoUrl = state.currentFotoUrl;
-
-  if (state.base64) {
-    alert('Mengupload foto ke Drive...');
-    const uploadRes = await api('uploadPhoto', { base64: state.base64, fileName: state.fileName, tim: tim });
-    if (uploadRes.success) {
-      fotoFileId = uploadRes.fileId;
-      fotoUrl = uploadRes.url;
-    } else {
-      draftBtn.disabled = false;
-      finalBtn.disabled = false;
-      return alert('Gagal upload foto: ' + uploadRes.message);
-    }
-  } 
-
-  const tgl = document.getElementById('f-tanggal').value;
-  const kel = document.getElementById('f-kelurahan').innerText;
-  const ta = document.getElementById('f-totalAssignment').innerText;
-  const kk = document.getElementById('f-muatanKK').innerText;
-  const mu = document.getElementById('f-muatanUsaha').innerText;
-  const tm = document.getElementById('f-totalMuatan').innerText;
-  const sup = document.getElementById('f-supervisor').innerText;
-  const sisa = document.getElementById('info-kuota').innerText || 0;
-  const ur = document.getElementById('f-uraian').value;
-  const koord = document.getElementById('f-koordinat').value;
-  const ns = document.getElementById('f-nomorSurat').value;
-  const tgs = document.getElementById('f-tanggalSurat').value;
-
-  if (status === 'FINAL') {
-    if (!fotoFileId) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Foto wajib diisi untuk Submit Final!'); }
-    if (!koord) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Koordinat wajib diisi!'); }
-    if (!ns) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Nomor surat tugas wajib diisi!'); }
-    if (!tgs) { draftBtn.disabled = false; finalBtn.disabled = false; return alert('Tanggal surat tugas wajib diisi!'); }
+  if(state.base64){
+    alert('Mengupload foto...');
+    const upRes = await api('uploadPhoto', {base64:state.base64, fileName:state.fileName, tim});
+    if(upRes.success){ fotoFileId=upRes.fileId; fotoUrl=upRes.url; }
+    else return alert('Upload gagal: '+upRes.message);
   }
 
   const data = {
-    tanggal: tgl, tim: tim, taskforce: state.taskforce, tugas: tugas, pml: pml, ppl: ppl, subsls: subsls, 
-    kelurahan: kel, totalAssignment: ta, muatanKK: kk, muatanUsaha: mu, totalMuatan: tm, 
-    supervisor: sup, sisaKuota: sisa, uraian: ur, koordinat: koord, 
-    fotoFileId: fotoFileId, fotoUrl: fotoUrl, nomorSurat: ns, tanggalSurat: tgs,
-    ID_RECORD: state.editId, TANGGAL: tgl, TIM: tim, TASKFORCE: state.taskforce, TUGAS: tugas,
-    PML: pml, PPL: ppl, SUBSLS: subsls, KELURAHAN: kel, TOTAL_ASSIGNMENT: ta, MUATAN_KK: kk, 
-    MUATAN_USAHA: mu, TOTAL_MUATAN: tm, SUPERVISOR: sup, SISA_KUOTA: sisa, URAIAN: ur, KOORDINAT: koord,
-    FOTO_FILE_ID: fotoFileId, FOTO_URL: fotoUrl, NOMOR_SURAT: ns, TANGGAL_SURAT: tgs, STATUS: status 
+    tanggal: document.getElementById('f-tanggal').value,
+    tim, taskforce:state.taskforce, tugas, pml, ppl, subsls,
+    kelurahan: document.getElementById('f-kelurahan').innerText,
+    totalAssignment: document.getElementById('f-totalAssignment').innerText,
+    muatanKK: document.getElementById('f-muatanKK').innerText,
+    muatanUsaha: document.getElementById('f-muatanUsaha').innerText,
+    totalMuatan: document.getElementById('f-totalMuatan').innerText,
+    supervisor: document.getElementById('f-supervisor').innerText,
+    sisaKuota: document.getElementById('info-kuota').innerText || 0,
+    uraian: document.getElementById('f-uraian').value,
+    koordinat: document.getElementById('f-koordinat').value,
+    fotoFileId, fotoUrl,
+    nomorSurat: document.getElementById('f-nomorSurat').value,
+    tanggalSurat: document.getElementById('f-tanggalSurat').value
   };
 
   let res;
-  if (state.editId) {
-    res = await api('updateData', { data });
-  } else {
-    res = await api(status === 'DRAFT' ? 'saveDraft' : 'saveFinal', { data });
+  if(state.editId){
+    data.idRecord = state.editId;
+    res = await api('updateData', {data});
+  }else{
+    res = await api(status==='DRAFT'?'saveDraft':'saveFinal', {data});
   }
 
-  if (res.success) {
-    alert('Berhasil disimpan!');
+  if(res.success){
+    alert('✅ Berhasil disimpan!');
     showPage('menu');
-  } else {
-    alert('Gagal menyimpan: ' + (res.message || 'Unknown error'));
+  }else{
+    alert('❌ Gagal: '+res.message);
   }
-  draftBtn.disabled = false;
-  finalBtn.disabled = false;
 }
 
-// ======================================================
-// LISTS & EDIT
-// ======================================================
-async function loadList(status) {
-  document.getElementById('list-title').innerText = status === 'DRAFT' ? '📝 Daftar Draft' : '✅ Daftar Final';
+async function loadList(status){
+  document.getElementById('list-title').innerText = status==='DRAFT'?'📝 Draft':'✅ Final';
   showPage('list');
-  document.getElementById('list-container').innerHTML = '<p>Memuat data...</p>';
-
-  const res = await api(status === 'DRAFT' ? 'getDraftList' : 'getFinalList', { taskforce: state.taskforce });
+  document.getElementById('list-container').innerHTML = '<p>Memuat...</p>';
+  const res = await api(status==='DRAFT'?'getDraftList':'getFinalList', {taskforce:state.taskforce});
   const container = document.getElementById('list-container');
   container.innerHTML = '';
-
-  if (!res || !Array.isArray(res) || res.length === 0) {
+  if(!res || !Array.isArray(res) || res.length===0){
     container.innerHTML = '<p>Tidak ada data.</p>';
     return;
   }
-
-  res.forEach(item => {
+  res.forEach(item=>{
     const div = document.createElement('div');
     div.className = 'list-item';
     div.innerHTML = `
       <div>
-        <b>${getVal(item, 'ID_RECORD')}</b><br>
-        📅 ${formatDate(getVal(item, 'TANGGAL'))} | TIM: ${getVal(item, 'TIM')}<br>
-        📍 ${getVal(item, 'KELURAHAN') || getVal(item, 'SUBSLS')}
+        <b>${item.ID_RECORD||'-'}</b><br>
+        📅 ${item.TANGGAL||'-'} | TIM: ${item.TIM||'-'}<br>
+        📍 ${item.KELURAHAN||item.SUBSLS||'-'}
       </div>
-      <span class="status status-${getVal(item, 'STATUS').toLowerCase()}">${getVal(item, 'STATUS')}</span>
+      <span class="status status-${(item.STATUS||'').toLowerCase()}">${item.STATUS||'-'}</span>
     `;
-    div.onclick = () => editData(item);
+    div.onclick = ()=>editData(item);
     container.appendChild(div);
   });
 }
 
-async function editData(item) {
+function editData(item){
   resetForm();
   showPage('form');
   document.getElementById('form-title').innerText = 'Edit Laporan';
-  
-  state.editId = getVal(item, 'ID_RECORD');
-  state.currentFotoFileId = getVal(item, 'FOTO_FILE_ID');
-  state.currentFotoUrl = getVal(item, 'FOTO_URL');
-
-  document.getElementById('f-tanggal').value = formatDate(getVal(item, 'TANGGAL'));
-  
-  setTimeout(async () => {
-    document.getElementById('f-tim').value = getVal(item, 'TIM');
-    document.getElementById('f-tugas').value = getVal(item, 'TUGAS');
-    
-    const pmlRes = await api('getPML', { taskforce: state.taskforce });
-    fillSelect('f-pml', pmlRes);
-    document.getElementById('f-pml').value = getVal(item, 'PML');
-    
-    const pplRes = await api('getPPL', { taskforce: state.taskforce, pml: getVal(item, 'PML') });
-    fillSelect('f-ppl', pplRes);
-    document.getElementById('f-ppl').value = getVal(item, 'PPL');
-
-    const subRes = await api('getSubSLS', { taskforce: state.taskforce, pml: getVal(item, 'PML'), ppl: getVal(item, 'PPL') });
-    fillSelect('f-subsls', subRes);
-    document.getElementById('f-subsls').value = getVal(item, 'SUBSLS');
-
-    onSubSlsChange();
-    onTimChange();
-
-    document.getElementById('f-uraian').value = getVal(item, 'URAIAN');
-    document.getElementById('f-koordinat').value = getVal(item, 'KOORDINAT');
-    document.getElementById('f-nomorSurat').value = getVal(item, 'NOMOR_SURAT');
-    document.getElementById('f-tanggalSurat').value = formatDate(getVal(item, 'TANGGAL_SURAT'));
-  }, 500);
+  state.editId = item.ID_RECORD;
+  state.currentFotoFileId = item.FOTO_FILE_ID;
+  state.currentFotoUrl = item.FOTO_URL;
+  document.getElementById('f-tanggal').value = item.TANGGAL;
+  document.getElementById('f-tim').value = item.TIM;
+  document.getElementById('f-tugas').value = item.TUGAS;
+  document.getElementById('f-pml').value = item.PML;
+  onPmlChange().then(()=>{
+    document.getElementById('f-ppl').value = item.PPL;
+    onPplChange().then(()=>{
+      document.getElementById('f-subsls').value = item.SUBSLS;
+      onSubSlsChange();
+    });
+  });
+  document.getElementById('f-uraian').value = item.URAIAN;
+  document.getElementById('f-koordinat').value = item.KOORDINAT;
+  document.getElementById('f-nomorSurat').value = item.NOMOR_SURAT;
+  document.getElementById('f-tanggalSurat').value = item.TANGGAL_SURAT;
 }
 </script>
 </body>
