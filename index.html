@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Form Pengawasan BPS</title>
+  <title>Form Pengawasan BPS Kota Banjarmasin</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @media (max-width: 1023px) {
@@ -24,7 +24,7 @@
 <body class="bg-slate-50 text-slate-800 p-4 font-sans">
 
   <div id="loading" class="loading-overlay">
-    <div class="text-center font-bold text-blue-600 animate-pulse text-lg">⏳ Memproses ke Server Google...</div>
+    <div class="text-center font-bold text-blue-600 animate-pulse text-lg">⏳ Memproses data via Web API Google...</div>
   </div>
 
   <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md border border-slate-200">
@@ -162,7 +162,8 @@
       </div>
 
       <form id="editForm" class="space-y-4 hidden border-t-2 border-dashed pt-6">
-        <input type="hidden" id="edit_row_index"><div class="bg-slate-100 p-3 rounded-md border font-semibold text-sm">Form Perubahan Data: <span id="edit_title_id" class="text-blue-700"></span></div>
+        <input type="hidden" id="edit_row_index">
+        <div class="bg-slate-100 p-3 rounded-md border font-semibold text-sm">Form Perubahan Data: <span id="edit_title_id" class="text-blue-700"></span></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label class="block text-sm font-medium mb-1">Tanggal *</label><input type="date" id="edit_tanggal" required class="w-full p-2 border border-slate-300 rounded"></div>
           <div><label class="block text-sm font-medium mb-1">Tugas *</label><select id="edit_tugas" required class="w-full p-2 border border-slate-300 rounded"><option value="Pengawasan">Pengawasan</option><option value="Supervisi">Supervisi</option></select></div>
@@ -217,7 +218,11 @@
         
         <div id="print-result-section" class="hidden space-y-4">
           <div class="flex justify-between items-center bg-slate-100 p-3 rounded border"><span class="text-sm font-medium">Data Terverifikasi! Silakan klik cetak.</span><button onclick="window.print()" class="bg-indigo-600 text-white font-bold py-1.5 px-4 rounded text-sm">🖨️ Cetak Sekarang</button></div>
-          <div id="print-area" class="border p-6 bg-white rounded"><div class="text-center mb-6 border-b-2 border-double pb-2"><h1 class="text-xl font-bold uppercase">Badan Pusat Statistik Kota Banjarmasin</h1><p class="text-xs text-slate-500">Laporan Hasil Pengawasan Lapangan Sensus Ekonomi</p></div><div id="print-meta-info" class="text-sm mb-4 bg-slate-50 p-3 rounded border space-y-1"></div><div id="print-table-content" class="text-sm"></div></div>
+          <div id="print-area" class="border p-6 bg-white rounded">
+            <div class="text-center mb-6 border-b-2 border-double pb-2"><h1 class="text-xl font-bold uppercase">Badan Pusat Statistik Kota Banjarmasin</h1><p class="text-xs text-slate-500">Laporan Hasil Pengawasan Lapangan Sensus Ekonomi</p></div>
+            <div id="print-meta-info" class="text-sm mb-4 bg-slate-50 p-3 rounded border space-y-1"></div>
+            <div id="print-table-content" class="text-sm"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -225,14 +230,14 @@
 
   <script>
     // =========================================================================
-    // URL WEB APP GOOGLE APPS SCRIPT YANG TELAH DIKEMAS KINI
+    // URL WEB API GOOGLE APPS SCRIPT YANG DIHUBUNGKAN KE REPOSITORI ANDA
     const API_URL = "https://script.google.com/macros/s/AKfycby98uFG8SXx2HQIFQi2dI0u_x4khk6hnk3eErtEZOtLDZ-YaeJztfNxKDLbio2SWyZOoQ/exec";
     // =========================================================================
 
     let globalEmails = [];
     let databasePplInfo = [];
 
-    // Fungsi Jembatan API HTTP POST menggantikan google.script.run
+    // Jembatan Web API HTTP POST Utama menggantikan fungsi google.script.run
     async function callGoogleAPI(payload) {
       document.getElementById('loading').style.display = 'flex';
       try {
@@ -246,23 +251,30 @@
         return data;
       } catch (error) {
         document.getElementById('loading').style.display = 'none';
-        alert("Koneksi bermasalah ke API Google: " + error);
+        alert("Web API Error (Gagal koneksi ke server Google): " + error);
         throw error;
       }
     }
 
+    // Load data otomatis di awal halaman dibuka via API GET/POST pembuka
     window.addEventListener('DOMContentLoaded', async () => {
-      let res = await callGoogleAPI({ action: "getInitialData", taskforce: null, tanggal: null });
-      initDataSuccess(res);
+      try {
+        let res = await callGoogleAPI({ action: "getInitialData", taskforce: null, tanggal: null });
+        initDataSuccess(res);
+      } catch (e) {
+        console.error("Inisialisasi awal Web API mandek:", e);
+      }
     });
 
     function initDataSuccess(res) {
-      globalEmails = res.emails;
+      globalEmails = res.emails || [];
       let tsSelect = document.getElementById('taskforce');
       let editTsSelect = document.getElementById('edit_taskforce');
       let regTsSelect = document.getElementById('reg_taskforce');
       let htmlOptions = '<option value="">-- Pilih Taskforce --</option>';
-      res.taskforces.forEach(tf => { htmlOptions += `<option value="${tf}">${tf}</option>`; });
+      if (res.taskforces) {
+        res.taskforces.forEach(tf => { htmlOptions += `<option value="${tf}">${tf}</option>`; });
+      }
       tsSelect.innerHTML = htmlOptions; editTsSelect.innerHTML = htmlOptions; regTsSelect.innerHTML = htmlOptions;
     }
 
@@ -434,7 +446,7 @@
       if(res.status === "SUCCESS") {
         document.getElementById('regForm').reset();
         let updateRes = await callGoogleAPI({ action: "getInitialData", taskforce: null, tanggal: null });
-        globalEmails = updateRes.emails; switchTab('input-tab');
+        globalEmails = updateRes.emails || []; switchTab('input-tab');
       }
     }
 
@@ -453,12 +465,12 @@
       let tableContainer = document.getElementById('print-table-content');
       let resultSection = document.getElementById('print-result-section');
       
-      if (records.length === 0) {
+      if (!records || records.length === 0) {
         tableContainer.innerHTML = `<p class="text-center text-red-500 p-4">Tidak ada data berstatus FINAL untuk Taskforce ini.</p>`;
         metaContainer.innerHTML = ''; resultSection.classList.remove('hidden'); return;
       }
       
-      metaContainer.innerHTML = `<div class="grid grid-cols-2 gap-2 text-xs"><div><p><strong>Nama Taskforce:</strong> ${targetUser.taskforce}</p><p><strong>NIP:</strong> ${targetUser.nipFull}</p></div><div><p><strong>No. Surat Tugas:</strong> ${noSurat}</p><p><strong>Tgl. Surat Tugas:</strong> ${tglSurat}</p></div></div>`;
+      metaContainer.innerHTML = `<div class="grid grid-cols-2 gap-2 text-xs"><div><p><strong>Nama Taskforce:</strong> ${targetUser.taskforce}</p><p><strong>NIP:</strong> ${targetUser.nipFull || '-'}</p></div><div><p><strong>No. Surat Tugas:</strong> ${noSurat}</p><p><strong>Tgl. Surat Tugas:</strong> ${tglSurat}</p></div></div>`;
       
       let html = `<table class="w-full text-left border border-slate-400 text-xs"><thead><tr class="bg-slate-100"><th class="border border-slate-400 p-1">ID</th><th class="border border-slate-400 p-1">Tanggal</th><th class="border border-slate-400 p-1">Tugas</th><th class="border border-slate-400 p-1">PML</th><th class="border border-slate-400 p-1">PPL</th><th class="border border-slate-400 p-1">ID Sub SLS</th></tr></thead><tbody>`;
       records.forEach(r => { html += `<tr><td class="border border-slate-400 p-1">${r.ID}</td><td class="border border-slate-400 p-1">${r.TANGGAL}</td><td class="border border-slate-400 p-1">${r.TUGAS}</td><td class="border border-slate-400 p-1">${r.NAMA_PML}</td><td class="border border-slate-400 p-1">${r.NAMA_PPL}</td><td class="border border-slate-400 p-1">${r.ID_SUBSLS}</td></tr>`; });
