@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pengawasan SE2026 - BPS</title>
+<style>
+  :root { --primary: #2c3e50; --accent: #3498db; --success: #2ecc71; --warning: #f1c40f; --danger: #e74c3c; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f7f6; color: #333; }
+  .container { max-width: 600px; margin: 0 auto; padding: 15px; }
+  .card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+  h2 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 10px; }
+  .form-group { margin-bottom: 15px; }
+  label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: #555; }
+  input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; transition: border 0.3s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { height: 80px; resize: vertical; }
+  button { padding: 12px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; transition: opacity 0.2s; }
+  button:active { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-warning { background: var(--warning); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-secondary { background: #95a5a6; color: #fff; }
+  .hidden { display: none; }
+  .list-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .list-item:hover { background: #f9f9f9; }
+  .status { font-size: 12px; padding: 4px 10px; border-radius: 12px; color: #fff; font-weight: bold; }
+  .status-draft { background: #f39c12; }
+  .status-final { background: #27ae60; }
+  .info-box { background: #e8f4fd; padding: 12px; border-left: 4px solid var(--accent); margin-bottom: 15px; font-size: 14px; border-radius: 4px; }
+  .readonly-field { background: #f8f9fa; color: #666; font-weight: bold; }
+  .foto-preview { max-width: 100%; margin-top: 10px; display: none; border-radius: 8px; border: 2px solid #eee; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- LOGIN PAGE -->
+  <div id="page-login" class="card">
+    <h2>🔐 Login Pengawasan</h2>
+    <div class="info-box">Masukkan 5 digit NIP belakang dan Email aktif Anda.</div>
+    <div class="form-group">
+      <label>5 Digit NIP Belakang</label>
+      <input type="text" id="login-nip" maxlength="5" placeholder="Contoh: 12345" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label>Email (BPS)</label>
+      <input type="email" id="login-email" placeholder="email@bps.go.id">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Login / Register</button>
+  </div>
+
+  <!-- MENU PAGE -->
+  <div id="page-menu" class="card hidden">
+    <h2>📊 Dashboard</h2>
+    <div class="info-box">
+      Taskforce: <b id="info-taskforce">-</b><br>
+      Sisa Kuota TIM: <b id="info-kuota">-</b>
+    </div>
+    <button class="btn-primary" onclick="showPage('form'); resetForm();">➕ Input Laporan Baru</button>
+    <button class="btn-warning" onclick="loadList('DRAFT')">📝 Lihat Daftar Draft</button>
+    <button class="btn-success" onclick="loadList('FINAL')">✅ Lihat Laporan Final</button>
+    <button class="btn-secondary" onclick="doLogout()">🚪 Logout</button>
+  </div>
+
+  <!-- FORM PAGE -->
+  <div id="page-form" class="card hidden">
+    <h2 id="form-title">Input Laporan</h2>
+    <input type="hidden" id="edit-id">
+    
+    <div class="form-group">
+      <label>Tanggal Pengawasan</label>
+      <input type="date" id="f-tanggal">
+    </div>
+    <div class="form-group">
+      <label>TIM</label>
+      <select id="f-tim" onchange="onTimChange()"></select>
+    </div>
+    <div class="form-group">
+      <label>Tugas</label>
+      <select id="f-tugas"></select>
+    </div>
+    <div class="form-group">
+      <label>PML</label>
+      <select id="f-pml" onchange="onPmlChange()"></select>
+    </div>
+    <div class="form-group">
+      <label>PPL</label>
+      <select id="f-ppl" onchange="onPplChange()"></select>
+    </div>
+    <div class="form-group">
+      <label>SubSLS</label>
+      <select id="f-subsls" onchange="onSubSlsChange()"></select>
+    </div>
+
+    <div class="info-box">
+      <b>Detail SubSLS:</b><br>
+      Kelurahan: <span id="f-kelurahan">-</span><br>
+      Supervisor: <span id="f-supervisor">-</span><br>
+      Total Assignment: <span id="f-totalAssignment">0</span> | KK: <span id="f-muatanKK">0</span> | Usaha: <span id="f-muatanUsaha">0</span><br>
+      Total Muatan: <span id="f-totalMuatan">0</span>
+    </div>
+
+    <div class="form-group">
+      <label>Uraian Kegiatan</label>
+      <textarea id="f-uraian" placeholder="Jelaskan hasil pengawasan..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Koordinat Lokasi</label>
+      <input type="text" id="f-koordinat" class="readonly-field" readonly placeholder="Klik tombol di bawah">
+      <button class="btn-secondary" style="margin-top:5px; width:auto; padding:8px 15px;" onclick="getLocation()">📍 Ambil Lokasi GPS</button>
+    </div>
+
+    <div class="form-group">
+      <label>Foto Dokumentasi</label>
+      <input type="file" id="f-foto" accept="image/*" capture="environment" onchange="handleFoto(this)">
+      <img id="foto-preview" class="foto-preview">
+    </div>
+
+    <div class="form-group">
+      <label>Nomor Surat Tugas</label>
+      <input type="text" id="f-nomorSurat" placeholder="Contoh: ST-01/2026">
+    </div>
+    <div class="form-group">
+      <label>Tanggal Surat Tugas</label>
+      <input type="date" id="f-tanggalSurat">
+    </div>
+
+    <button class="btn-warning" onclick="saveData('DRAFT')">💾 Simpan sebagai Draft</button>
+    <button class="btn-success" onclick="saveData('FINAL')">✅ Submit Final</button>
+    <button class="btn-danger" onclick="showPage('menu')">❌ Batal</button>
+  </div>
+
+  <!-- LIST PAGE -->
+  <div id="page-list" class="card hidden">
+    <h2 id="list-title">Daftar Laporan</h2>
+    <div id="list-container"></div>
+    <button class="btn-secondary" onclick="showPage('menu')">⬅️ Kembali ke Menu</button>
+  </div>
+</div>
+
+<script>
+// ======================================================
+// KONFIGURASI API
+// ======================================================
+const API_URL = "https://script.google.com/macros/s/AKfycbz4knmevLePPyCO8Yxh5qr5w0X0c_00qP6pmzStz5fdmr2_3M6PHhuqcoGJ8aBoIJOi9g/exec";
+
+// ======================================================
+// STATE & HELPER
+// ======================================================
+const state = {
+  taskforce: '', email: '', nip: '',
+  editId: null, base64: null, fileName: null,
+  currentFotoFileId: null, currentFotoUrl: null
+};
+
+function getVal(obj, key) {
+  if (!obj || typeof obj !== 'object') return '';
+  if (obj[key] !== undefined) return obj[key];
+  const lowerKey = String(key).toLowerCase().replace(/[_\s-]/g, '');
+  for (let k in obj) {
+    if (String(k).toLowerCase().replace(/[_\s-]/g, '') === lowerKey) return obj[k];
+  }
+  return '';
+}
+
+function formatDate(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d)) return String(val).split(' ')[0];
+  return d.toISOString().split('T')[0];
+}
+
+// ======================================================
+// API CALL (CORS Friendly untuk Google Apps Script)
+// ======================================================
+async function api(action, data = {}) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...data }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    return await res.json();
+  } catch (err) {
+    alert('Error koneksi ke server: ' + err.message);
+    return { success: false, message: err.message };
+  }
+}
+
+// ======================================================
+// NAVIGATION
+// ======================================================
+function showPage(page) {
+  document.querySelectorAll('.card').forEach(el => el.classList.add('hidden'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+}
+
+// ======================================================
+// LOGIN & LOGOUT
+// ======================================================
+async function doLogin() {
+  const nip5 = document.getElementById('login-nip').value.trim();
+  const email = document.getElementById('login-email').value.trim();
+
+  if (!nip5 || nip5.length !== 5) return alert('NIP harus 5 digit angka!');
+  if (!email) return alert('Email wajib diisi!');
+
+  let res = await api('loginEmail', { email });
+  
+  if (res.success) {
+    state.taskforce = res.taskforce;
+    state.email = email;
+    alert('Login berhasil!');
+    enterDashboard();
+  } else {
+    const regRes = await api('registerEmail', { nip5, email });
+    if (regRes.success) {
+      const tfRes = await api('getTaskforceByNip', { nip5 });
+      if (tfRes.success) {
+        state.taskforce = tfRes.taskforce;
+        state.email = email;
+        state.nip = nip5;
+        alert('Registrasi berhasil!');
+        enterDashboard();
+      } else {
+        alert('NIP tidak ditemukan di database pusat.');
+      }
+    } else {
+      alert('Login/Registrasi gagal: ' + (regRes.message || 'NIP tidak ditemukan'));
+    }
+  }
+}
+
+function enterDashboard() {
+  document.getElementById('info-taskforce').innerText = state.taskforce;
+  showPage('menu');
+  loadDropdowns();
+}
+
+function doLogout() {
+  state.taskforce = '';
+  document.getElementById('login-nip').value = '';
+  document.getElementById('login-email').value = '';
+  showPage('login');
+}
+
+// ======================================================
+// DROPDOWN & CASCADING
+// ======================================================
+async function loadDropdowns() {
+  const [timRes, tugasRes, pmlRes] = await Promise.all([
+    api('getTim'),
+    api('getTugas'),
+    api('getPML', { taskforce: state.taskforce })
+  ]);
+
+  fillSelect('f-tim', timRes);
+  fillSelect('f-tugas', tugasRes);
+  fillSelect('f-pml', pmlRes);
+  onPmlChange();
+}
+
+function fillSelect(id, data) {
+  const el = document.getElementById(id);
+  el.innerHTML = '<option value="">-- Pilih --</option>';
+  if (Array.isArray(data)) {
+    data.forEach(item => {
+      const safeItem = String(item).replace(/"/g, '&quot;');
+      el.innerHTML += `<option value="${safeItem}">${safeItem}</option>`;
+    });
+  }
+}
+
+async function onPmlChange() {
+  const pml = document.getElementById('f-pml').value;
+  if (!pml) return;
+  const res = await api('getPPL', { taskforce: state.taskforce, pml });
+  fillSelect('f-ppl', res);
+  onPplChange();
+}
+
+async function onPplChange() {
+  const ppl = document.getElementById('f-ppl').value;
+  const pml = document.getElementById('f-pml').value;
+  if (!ppl) return;
+  const res = await api('getSubSLS', { taskforce: state.taskforce, pml, ppl });
+  fillSelect('f-subsls', res);
+}
+
+async function onSubSlsChange() {
+  const subsls = document.getElementById('f-subsls').value;
+  if (!subsls) return;
+  
+  const res = await api('getDetailSubSLS', { subsls });
+  if (res.success && res.data) {
+    const d = res.data;
+    document.getElementById('f-kelurahan').innerText = getVal(d, 'KELURAHAN') || '-';
+    document.getElementById('f-supervisor').innerText = getVal(d, 'SUPERVISOR') || '-';
+    document.getElementById('f-totalAssignment').innerText = getVal(d, 'TOTAL_ASSIGNMENT') || 0;
+    document.getElementById('f-muatanKK').innerText = getVal(d, 'MUATAN_KK') || 0;
+    document.getElementById('f-muatanUsaha').innerText = getVal(d, 'MUATAN_USAHA') || 0;
+    document.getElementById('f-totalMuatan').innerText = getVal(d, 'TOTAL_MUATAN') || 0;
+  }
+
+  const tim = document.getElementById('f-tim').value;
+  if (tim) {
+    const kuotaRes = await api('hitungSisaKuota', { tim, taskforce: state.taskforce });
+    if (kuotaRes.success) document.getElementById('info-kuota').innerText = kuotaRes.sisa;
+  }
+}
+
+function onTimChange() {
+  const tim = document.getElementById('f-tim').value;
+  if (tim) {
+    api('hitungSisaKuota', { tim, taskforce: state.taskforce }).then(res => {
+       if(res.success) document.getElementById('info-kuota').innerText = res.sisa;
+    });
+  }
+}
+
+// ======================================================
+// FORM HANDLING
+// ======================================================
+function resetForm() {
+  document.getElementById('form-title').innerText = 'Input Laporan Baru';
+  document.getElementById('edit-id').value = '';
+  document.getElementById('f-tanggal').value = new Date().toISOString().split('T')[0];
+  ['f-uraian','f-koordinat','f-nomorSurat','f-tanggalSurat'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('foto-preview').style.display = 'none';
+  document.getElementById('f-foto').value = '';
+  
+  state.editId = null; state.base64 = null; state.fileName = null;
+  state.currentFotoFileId = null; state.currentFotoUrl = null;
+  
+  ['f-kelurahan','f-supervisor','f-totalAssignment','f-muatanKK','f-muatanUsaha','f-totalMuatan'].forEach(id => {
+    document.getElementById(id).innerText = (id.includes('total') || id.includes('Muatan')) ? '0' : '-';
+  });
+}
+
+function handleFoto(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    state.fileName = input.files[0].name;
+    reader.onload = function (e) {
+      state.base64 = e.target.result;
+      const preview = document.getElementById('foto-preview');
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => document.getElementById('f-koordinat').value = `${pos.coords.latitude}, ${pos.coords.longitude}`,
+      err => alert('Gagal mengambil lokasi: ' + err.message)
+    );
+  } else alert('Browser tidak mendukung GPS.');
+}
+
+async function saveData(status) {
+  const tim = document.getElementById('f-tim').value;
+  const tugas = document.getElementById('f-tugas').value;
+  const pml = document.getElementById('f-pml').value;
+  const ppl = document.getElementById('f-ppl').value;
+  const subsls = document.getElementById('f-subsls').value;
+
+  if (!tim || !tugas || !pml || !ppl || !subsls) return alert('Lengkapi semua dropdown TIM s.d. SubSLS!');
+
+  let fotoFileId = state.currentFotoFileId;
+  let fotoUrl = state.currentFotoUrl;
+
+  if (state.base64) {
+    alert('Mengupload foto ke Drive...');
+    const uploadRes = await api('uploadPhoto', { base64: state.base64, fileName: state.fileName, tim: tim });
+    if (uploadRes.success) {
+      fotoFileId = uploadRes.fileId;
+      fotoUrl = uploadRes.url;
+    } else return alert('Gagal upload foto: ' + uploadRes.message);
+  } 
+
+  const tgl = document.getElementById('f-tanggal').value;
+  const kel = document.getElementById('f-kelurahan').innerText;
+  const ta = document.getElementById('f-totalAssignment').innerText;
+  const kk = document.getElementById('f-muatanKK').innerText;
+  const mu = document.getElementById('f-muatanUsaha').innerText;
+  const tm = document.getElementById('f-totalMuatan').innerText;
+  const sup = document.getElementById('f-supervisor').innerText;
+  const sisa = document.getElementById('info-kuota').innerText || 0;
+  const ur = document.getElementById('f-uraian').value;
+  const koord = document.getElementById('f-koordinat').value;
+  const ns = document.getElementById('f-nomorSurat').value;
+  const tgs = document.getElementById('f-tanggalSurat').value;
+
+  if (status === 'FINAL') {
+    if (!fotoFileId) return alert('Foto wajib diisi untuk Submit Final!');
+    if (!koord) return alert('Koordinat wajib diisi!');
+    if (!ns) return alert('Nomor surat tugas wajib diisi!');
+    if (!tgs) return alert('Tanggal surat tugas wajib diisi!');
+  }
+
+  const data = {
+    tanggal: tgl, tim: tim, taskforce: state.taskforce, tugas: tugas, pml: pml, ppl: ppl, subsls: subsls, 
+    kelurahan: kel, totalAssignment: ta, muatanKK: kk, muatanUsaha: mu, totalMuatan: tm, 
+    supervisor: sup, sisaKuota: sisa, uraian: ur, koordinat: koord, 
+    fotoFileId: fotoFileId, fotoUrl: fotoUrl, nomorSurat: ns, tanggalSurat: tgs,
+    ID_RECORD: state.editId, TANGGAL: tgl, TIM: tim, TASKFORCE: state.taskforce, TUGAS: tugas,
+    PML: pml, PPL: ppl, SUBSLS: subsls, KELURAHAN: kel, TOTAL_ASSIGNMENT: ta, MUATAN_KK: kk, 
+    MUATAN_USAHA: mu, TOTAL_MUATAN: tm, SUPERVISOR: sup, SISA_KUOTA: sisa, URAIAN: ur, KOORDINAT: koord,
+    FOTO_FILE_ID: fotoFileId, FOTO_URL: fotoUrl, NOMOR_SURAT: ns, TANGGAL_SURAT: tgs, STATUS: status 
+  };
+
+  let res;
+  if (state.editId) {
+    res = await api('updateData', { data });
+  } else {
+    res = await api(status === 'DRAFT' ? 'saveDraft' : 'saveFinal', { data });
+  }
+
+  if (res.success) {
+    alert('Berhasil disimpan!');
+    showPage('menu');
+  } else {
+    alert('Gagal menyimpan: ' + (res.message || 'Unknown error'));
+  }
+}
+
+// ======================================================
+// LISTS & EDIT
+// ======================================================
+async function loadList(status) {
+  document.getElementById('list-title').innerText = status === 'DRAFT' ? '📝 Daftar Draft' : '✅ Daftar Final';
+  showPage('list');
+  document.getElementById('list-container').innerHTML = '<p>Memuat data...</p>';
+
+  const res = await api(status === 'DRAFT' ? 'getDraftList' : 'getFinalList', { taskforce: state.taskforce });
+  const container = document.getElementById('list-container');
+  container.innerHTML = '';
+
+  if (!res || !Array.isArray(res) || res.length === 0) {
+    container.innerHTML = '<p>Tidak ada data.</p>';
+    return;
+  }
+
+  res.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.innerHTML = `
+      <div>
+        <b>${getVal(item, 'ID_RECORD')}</b><br>
+        📅 ${formatDate(getVal(item, 'TANGGAL'))} | TIM: ${getVal(item, 'TIM')}<br>
+        📍 ${getVal(item, 'KELURAHAN') || getVal(item, 'SUBSLS')}
+      </div>
+      <span class="status status-${getVal(item, 'STATUS').toLowerCase()}">${getVal(item, 'STATUS')}</span>
+    `;
+    div.onclick = () => editData(item);
+    container.appendChild(div);
+  });
+}
+
+async function editData(item) {
+  resetForm();
+  showPage('form');
+  document.getElementById('form-title').innerText = 'Edit Laporan';
+  
+  state.editId = getVal(item, 'ID_RECORD');
+  state.currentFotoFileId = getVal(item, 'FOTO_FILE_ID');
+  state.currentFotoUrl = getVal(item, 'FOTO_URL');
+
+  document.getElementById('f-tanggal').value = formatDate(getVal(item, 'TANGGAL'));
+  
+  setTimeout(async () => {
+    document.getElementById('f-tim').value = getVal(item, 'TIM');
+    document.getElementById('f-tugas').value = getVal(item, 'TUGAS');
+    
+    const pmlRes = await api('getPML', { taskforce: state.taskforce });
+    fillSelect('f-pml', pmlRes);
+    document.getElementById('f-pml').value = getVal(item, 'PML');
+    
+    const pplRes = await api('getPPL', { taskforce: state.taskforce, pml: getVal(item, 'PML') });
+    fillSelect('f-ppl', pplRes);
+    document.getElementById('f-ppl').value = getVal(item, 'PPL');
+
+    const subRes = await api('getSubSLS', { taskforce: state.taskforce, pml: getVal(item, 'PML'), ppl: getVal(item, 'PPL') });
+    fillSelect('f-subsls', subRes);
+    document.getElementById('f-subsls').value = getVal(item, 'SUBSLS');
+
+    onSubSlsChange();
+    onTimChange();
+
+    document.getElementById('f-uraian').value = getVal(item, 'URAIAN');
+    document.getElementById('f-koordinat').value = getVal(item, 'KOORDINAT');
+    document.getElementById('f-nomorSurat').value = getVal(item, 'NOMOR_SURAT');
+    document.getElementById('f-tanggalSurat').value = formatDate(getVal(item, 'TANGGAL_SURAT'));
+  }, 500);
+}
+</script>
+</body>
+</html>
