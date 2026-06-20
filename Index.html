@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taskforce SE2026 - BPS Kota Banjarmasin</title>
+  <style>
+    /* ============================================================
+       RESET & BASE STYLES
+       ============================================================ */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #FFF8F2;
+      color: #2D2D2D;
+      line-height: 1.6;
+      padding-bottom: 70px; /* Jarak untuk bottom nav di mobile */
+    }
+
+    /* ============================================================
+       TYPOGRAPHY & UTILITIES
+       ============================================================ */
+    h1, h2, h3 {
+      color: #1B3A5C;
+      font-weight: 700;
+    }
+    .text-center { text-align: center; }
+    .hidden { display: none !important; }
+    .d-flex { display: flex; }
+    .justify-between { justify-content: space-between; }
+    .align-center { align-items: center; }
+
+    /* ============================================================
+       HEADER STYLE
+       ============================================================ */
+    header {
+      background-color: #1B3A5C;
+      color: #FFFFFF;
+      padding: 18px 16px;
+      text-align: center;
+      border-bottom: 4px solid #E66A1F;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      color: #FFFFFF;
+      font-size: 1.3rem;
+      letter-spacing: 0.5px;
+    }
+    header p {
+      font-size: 0.85rem;
+      color: #E0E0E0;
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       CONTAINER & CARDS
+       ============================================================ */
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .card {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(27, 58, 92, 0.05);
+      border: 1px solid #E0E0E0;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #FFF8F2;
+      padding-bottom: 8px;
+    }
+
+    /* ============================================================
+       FORM ELEMENTS
+       ============================================================ */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: #1B3A5C;
+    }
+    .form-control {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #E0E0E0;
+      border-radius: 8px;
+      font-size: 1rem;
+      background-color: #FFFFFF;
+      color: #2D2D2D;
+      transition: border-color 0.2s;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #E66A1F;
+      box-shadow: 0 0 0 3px rgba(230, 106, 31, 0.1);
+    }
+    .form-control:disabled {
+      background-color: #F5F5F5;
+      color: #777777;
+    }
+    .readonly-box {
+      background-color: #F9FAFB;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      border: 1px dashed #E0E0E0;
+      margin-top: 6px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* ============================================================
+       BUTTONS
+       ============================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-primary { background-color: #E66A1F; color: #FFFFFF; }
+    .btn-secondary { background-color: #1B3A5C; color: #FFFFFF; }
+    .btn-outline { background-color: transparent; border: 1px solid #E66A1F; color: #E66A1F; }
+    .btn-success { background-color: #2E7D4F; color: #FFFFFF; }
+
+    /* ============================================================
+       NAVIGATION (BOTTOM MOBILE NAV / TOP DESKTOP)
+       ============================================================ */
+    .nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: #1B3A5C;
+      display: flex;
+      justify-content: space-around;
+      border-top: 3px solid #E66A1F;
+      z-index: 999;
+    }
+    .nav-item {
+      flex: 1;
+      text-align: center;
+      padding: 12px 0;
+      color: #FFFFFF;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    .nav-item.active {
+      opacity: 1;
+      background-color: rgba(230, 106, 31, 0.15);
+      font-weight: bold;
+    }
+
+    /* ============================================================
+       COMPONENTS: ALERTS, BADGES & LISTS
+       ============================================================ */
+    .alert {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .alert-danger { background-color: #FDE8E8; color: #9B1C1C; border: 1px solid #F8B4B4; }
+    .alert-success { background-color: #DEF7EC; color: #03543F; border: 1px solid #BCF0DA; }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-draft { background-color: #FEF08A; color: #713F12; }
+    .badge-final { background-color: #DEF7EC; color: #03543F; }
+
+    .report-item {
+      padding: 14px;
+      border-bottom: 1px solid #E0E0E0;
+      cursor: pointer;
+    }
+    .report-item:last-child { border-bottom: none; }
+    .report-item:hover { background-color: #FFF8F2; }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      flex-direction: column;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #E0E0E0;
+      border-top: 4px solid #E66A1F;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* Desktop View Optimization */
+    @media (min-width: 768px) {
+      body { padding-bottom: 0; padding-top: 60px; }
+      .nav-bar { top: 0; bottom: auto; }
+      .print-only-desktop { display: inline-flex !important; }
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .nav-bar, .btn, .no-print { display: none !important; }
+      .card { box-shadow: none; border: 1px solid black; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <div id="loadingText" style="font-weight:600; color:#1B3A5C;">Memuat data...</div>
+  </div>
+
+  <header class="no-print">
+    <h1>SENSUS EKONOMI 2026</h1>
+    <p>BPS KOTA BANJARMASIN - LAPORAN TASKFORCE</p>
+  </header>
+
+  <nav id="mainNav" class="nav-bar no-print hidden">
+    <div class="nav-item active" onclick="switchTab('form-tab')">Form Lapor</div>
+    <div class="nav-item" onclick="switchTab('history-tab'); loadMyReports();">Riwayat Saya</div>
+    <div class="nav-item" onclick="handleLogout()">Keluar</div>
+  </nav>
+
+  <div class="container">
+
+    <section id="loginSection" class="card">
+      <h2 class="card-title text-center">Masuk Taskforce</h2>
+      <div id="loginAlert" class="alert alert-danger hidden"></div>
+      
+      <div id="loginStage1">
+        <div class="form-group">
+          <label for="loginNip">Nomor Induk Pegawai (NIP)</label>
+          <input type="number" id="loginNip" class="form-control" placeholder="Masukkan NIP anda">
+        </div>
+        <button class="btn btn-primary" onclick="submitLoginStage1()">Lanjutkan</button>
+      </div>
+
+      <div id="loginStage2" class="hidden">
+        <div class="form-group">
+          <label for="loginTaskforce">Konfirmasi Nama Taskforce</label>
+          <select id="loginTaskforce" class="form-control"></select>
+        </div>
+        <button class="btn btn-primary" onclick="submitLoginStage2()">Masuk</button>
+      </div>
+
+      <div id="loginStage3" class="hidden">
+        <div class="alert alert-success">NIP Berhasil divalidasi. Silakan lengkapi email aktif Anda terlebih dahulu.</div>
+        <div class="form-group">
+          <label for="loginEmail">Alamat Email Aktif</label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="nama@gmail.com">
+        </div>
+        <button class="btn btn-success" onclick="submitSaveEmail()">Simpan Email & Masuk</button>
+      </div>
+    </section>
+
+    <section id="formSection" class="card hidden">
+      <h2 class="card-title" id="formTitle">Buat Laporan Baru</h2>
+      <div id="formAlert" class="alert hidden"></div>
+      <form id="reportForm" onsubmit="event.preventDefault();">
+        <input type="hidden" id="reportId">
+        
+        <div class="form-group">
+          <label>Tanggal Pelaporan</label>
+          <input type="date" id="repTanggal" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label>Tim</label>
+          <select id="repTim" class="form-control" onchange="chainTim()"><option value="">-- Pilih Tim --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Taskforce</label>
+          <select id="repTaskforce" class="form-control" disabled onchange="chainTaskforce()"><option value="">-- Pilih Taskforce --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Nama PML</label>
+          <select id="repPml" class="form-control" disabled onchange="chainPml()"><option value="">-- Pilih PML --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Nama PPL</label>
+          <select id="repPpl" class="form-control" disabled onchange="chainPpl()"><option value="">-- Pilih PPL --</option></select>
+        </div>
+        <div class="form-group">
+          <label>ID SubSLS</label>
+          <select id="repSubSls" class="form-control" disabled onchange="selectSubSls()"><option value="">-- Pilih ID SubSLS --</option></select>
+          <div id="subSlsDetail" class="readonly-box hidden"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Jenis Tugas</label>
+          <select id="repTugas" class="form-control"><option value="">-- Pilih Tugas --</option></select>
+        </div>
+
+        <div class="form-group">
+          <label>Uraian Kegiatan</label>
+          <textarea id="repUraian" class="form-control" rows="3" placeholder="Deskripsikan pekerjaan Anda secara rinci (Wajib untuk Final)"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Jumlah Kunjungan</label>
+          <input type="number" id="repKunjungan" class="form-control" placeholder="Contoh: 5 (Maks kuota: 20)" oninput="calcSisaKuota()">
+          <div class="readonly-box" id="boxSisaKuota">Kuota: 20 | Sisa Kuota: 20</div>
+        </div>
+
+        <div class="form-group">
+          <label>Koordinat Lokasi</label>
+          <div class="grid-2">
+            <input type="text" id="repKoordinat" class="form-control" placeholder="Lat, Long" readonly>
+            <button type="button" class="btn btn-secondary" onclick="getLocation()">Ambil GPS</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Foto Dokumentasi</label>
+          <input type="file" id="fileFoto" class="form-control" accept="image/*" onchange="handlePhotoUpload()">
+          <input type="hidden" id="repFotoUrl">
+          <div id="fotoStatus" class="readonly-box hidden"></div>
+        </div>
+
+        <div class="grid-2 form-group">
+          <div>
+            <label>No. Surat Tugas</label>
+            <input type="text" id="repNoSurat" class="form-control" placeholder="Format resmi">
+          </div>
+          <div>
+            <label>Tgl. Surat Tugas</label>
+            <input type="date" id="repTglSurat" class="form-control">
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px;">
+          <button type="button" class="btn btn-outline" onclick="submitLaporan('DRAFT')">Simpan Draft</button>
+          <button type="button" class="btn btn-primary" onclick="submitLaporan('FINAL')">Kirim Final</button>
+        </div>
+        <button type="button" id="btnCancelEdit" class="btn btn-secondary hidden" style="margin-top:10px;" onclick="cancelEdit()">Batal Edit / Buat Baru</button>
+      </form>
+    </section>
+
+    <section id="historySection" class="card hidden">
+      <h2 class="card-title">Riwayat Laporan Saya</h2>
+      <div class="form-group">
+        <label>Filter Status</label>
+        <select id="filterStatus" class="form-control" onchange="loadMyReports()">
+          <option value="">Semua Laporan</option>
+          <option value="Draft">Draft</option>
+          <option value="Final">Final</option>
+        </select>
+      </div>
+      <div id="reportsList" style="margin-top: 10px;"></div>
+    </section>
+
+  </div>
+
+  <script>
+    // Taruh URL Google Apps Script Web App Anda di sini
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4knmevLePPyCO8Yxh5qr5w0X0c_00qP6pmzStz5fdmr2_3M6PHhuqcoGJ8aBoIJOi9g/exec";
+
+    // Global Session States
+    let SESSION = { nip: "", taskforce: "", email: "" };
+    let cacheSubSlsData = [];
+
+    // Toggles Loaders
+    function showLoading(text) {
+      document.getElementById('loadingText').innerText = text || "Memuat...";
+      document.getElementById('loading').classList.remove('hidden');
+    }
+    function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
+
+    // Navigation Router
+    function switchTab(tab) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('formSection').classList.add('hidden');
+      document.getElementById('historySection').classList.add('hidden');
+      
+      if (tab === 'form-tab') {
+        document.getElementById('formSection').classList.remove('hidden');
+        document.querySelectorAll('.nav-item')[0].classList.add('active');
+      } else if (tab === 'history-tab') {
+        document.getElementById('historySection').classList.remove('hidden');
+        document.querySelectorAll('.nav-item')[1].classList.add('active');
+      }
+    }
+
+    // High Performance Fetch Handler avoiding Preflight CORS Block via text/plain
+    async function callApi(action, params = {}) {
+      try {
+        const bodyData = { action: action, ...params };
+        const response = await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(bodyData)
+        });
+        return await response.json();
+      } catch (err) {
+        console.error("API Error: ", err);
+        alert("Gagal terhubung ke server. Periksa koneksi internet Anda.");
+        hideLoading();
+        return { success: false, message: err.message };
+      }
+    }
+
+    /* ============================================================
+       AUTHENTICATION FLOW ENGINE
+       ============================================================ */
+    async function submitLoginStage1() {
+      const nip = document.getElementById('loginNip').value.trim();
+      if(!nip) return alert("NIP tidak boleh kosong!");
+      
+      showLoading("Memverifikasi NIP...");
+      const res = await callApi('login', { nip: nip });
+      hideLoading();
+
+      const alertBox = document.getElementById('loginAlert');
+      alertBox.classList.add('hidden');
+
+      if(res.success) {
+        if(res.stage === 'choose_name') {
+          const select = document.getElementById('loginTaskforce');
+          select.innerHTML = '';
+          res.options.forEach(opt => {
+            let el = document.createElement('option');
+            el.value = opt.taskforce; el.innerText = opt.taskforce;
+            select.appendChild(el);
+          });
+          document.getElementById('loginStage1').classList.add('hidden');
+          document.getElementById('loginStage2').classList.remove('hidden');
+        }
+      } else {
+        alertBox.innerText = res.message; alertBox.classList.remove('hidden');
+      }
+    }
+
+    async function submitLoginStage2() {
+      const nip = document.getElementById('loginNip').value.trim();
+      const name = document.getElementById('loginTaskforce').value;
+      
+      showLoading("Mengautentikasi...");
+      const res = await callApi('login', { nip: nip, taskforce: name });
+      hideLoading();
+
+      if(res.success && res.stage === 'logged_in') {
+        SESSION.nip = res.nip;
+        SESSION.taskforce = res.taskforce;
+        SESSION.email = res.email;
+
+        if(res.needEmail) {
+          document.getElementById('loginStage2').classList.add('hidden');
+          document.getElementById('loginStage3').classList.remove('hidden');
+        } else {
+          initDashboard();
+        }
+      } else {
+        alert(res.message);
+      }
+    }
+
+    async function submitSaveEmail() {
+      const email = document.getElementById('loginEmail').value.trim();
+      if(!email || email.indexOf('@') === -1) return alert("Format email keliru!");
+
+      showLoading("Menyimpan alamat email...");
+      const res = await callApi('saveEmail', { nip: SESSION.nip, taskforce: SESSION.taskforce, email: email });
+      hideLoading();
+
+      if(res.success) {
+        SESSION.email = email;
+        initDashboard();
+      } else {
+        alert(res.message);
+      }
+    }
+
+    function handleLogout() {
+      if(confirm("Apakah Anda yakin ingin keluar? Sesi login akan terhapus.")) {
+        SESSION = { nip: "", taskforce: "", email: "" };
+        document.getElementById('mainNav').classList.add('hidden');
+        document.getElementById('formSection').classList.add('hidden');
+        document.getElementById('historySection').classList.add('hidden');
+        document.getElementById('loginSection').classList.remove('hidden');
+        document.getElementById('loginStage1').classList.remove('hidden');
+        document.getElementById('loginStage2').classList.add('hidden');
+        document.getElementById('loginStage3').classList.add('hidden');
+        document.getElementById('reportForm').reset();
+      }
+    }
+
+    /* ============================================================
+       DASHBOARD & CHAINED DROPDOWN CORE JS
+       ============================================================ */
+    function initDashboard() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('mainNav').classList.remove('hidden');
+      document.getElementById('formSection').classList.remove('hidden');
+      
+      // Set default date today
+      document.getElementById('repTanggal').value = new Date().toISOString().split('T')[0];
+      
+      loadFormDropdownMaster();
+    }
+
+    async function loadFormDropdownMaster() {
+      showLoading("Sinkronisasi Master Data...");
+      
+      // Load Tugas Options
+      const resTugas = await callApi('getTugasOptions');
+      if(resTugas.success) {
+        const tSel = document.getElementById('repTugas');
+        tSel.innerHTML = '<option value="">-- Pilih Tugas --</option>';
+        resTugas.data.forEach(v => tSel.innerHTML += `<option value="${v}">${v}</option>`);
+      }
+
+      // Load Chained level 1: Tim
+      const resTim = await callApi('getDropdownData', { level: 'tim' });
+      if(resTim.success) {
+        const timSel = document.getElementById('repTim');
+        timSel.innerHTML = '<option value="">-- Pilih Tim --</option>';
+        resTim.data.forEach(v => timSel.innerHTML += `<option value="${v}">${v}</option>`);
+      }
+      hideLoading();
+    }
+
+    async function chainTim() {
+      const tim = document.getElementById('repTim').value;
+      resetChain(['repTaskforce', 'repPml', 'repPpl', 'repSubSls']);
+      if(!tim) return;
+
+      const res = await callApi('getDropdownData', { level: 'taskforce', tim: tim });
+      if(res.success) {
+        populateSelect('repTaskforce', res.data);
+      }
+    }
+
+    async function chainTaskforce() {
+      const tim = document.getElementById('repTim').value;
+      const tf = document.getElementById('repTaskforce').value;
+      resetChain(['repPml', 'repPpl', 'repSubSls']);
+      if(!tf) return;
+
+      const res = await callApi('getDropdownData', { level: 'pml', tim: tim, taskforce: tf });
+      if(res.success) populateSelect('repPml', res.data);
+    }
+
+    async function chainPml() {
+      const tim = document.getElementById('repTim').value;
+      const tf = document.getElementById('repTaskforce').value;
+      const pml = document.getElementById('repPml').value;
+      resetChain(['repPpl', 'repSubSls']);
+      if(!pml) return;
+
+      const res = await callApi('getDropdownData', { level: 'ppl', tim: tim, taskforce: tf, pml: pml });
+      if(res.success) populateSelect('repPpl', res.data);
+    }
+
+    async function chainPpl() {
+      const tim = document.getElementById('repTim').value;
+      const tf = document.getElementById('repTaskforce').value;
+      const pml = document.getElementById('repPml').value;
+      const ppl = document.getElementById('repPpl').value;
+      resetChain(['repSubSls']);
+      if(!ppl) return;
+
+      const res = await callApi('getDropdownData', { level: 'subsls', tim: tim, taskforce: tf, pml: pml, ppl: ppl });
+      if(res.success) {
+        cacheSubSlsData = res.data;
+        const sel = document.getElementById('repSubSls');
+        sel.innerHTML = '<option value="">-- Pilih ID SubSLS --</option>';
+        res.data.forEach(item => {
+          sel.innerHTML += `<option value="${item.id_subsls}">${item.id_subsls}</option>`;
+        });
+        sel.disabled = false;
+      }
+    }
+
+    function selectSubSls() {
+      const id = document.getElementById('repSubSls').value;
+      const detailBox = document.getElementById('subSlsDetail');
+      if(!id) { detailBox.classList.add('hidden'); return; }
+
+      const match = cacheSubSlsData.find(x => x.id_subsls === id);
+      if(match) {
+        detailBox.innerHTML = `
+          <strong>Detail Muatan Wilkerstat:</strong><br>
+          • Total Assignment: ${match.total_assigment || 0}<br>
+          • Muatan KK: ${match.muatan_kk || 0} | Muatan Usaha: ${match.muatan_usaha || 0}<br>
+          • <strong>Total Muatan: ${match.total_muatan || 0}</strong>
+        `;
+        detailBox.classList.remove('hidden');
+      }
+    }
+
+    function resetChain(ids) {
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        el.innerHTML = `<option value="">-- Pilih ${id.replace('rep','')} --</option>`;
+        el.disabled = true;
+      });
+      document.getElementById('subSlsDetail').classList.add('hidden');
+    }
+
+    function populateSelect(id, dataArr) {
+      const el = document.getElementById(id);
+      el.innerHTML = `<option value="">-- Pilih --</option>`;
+      dataArr.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`);
+      el.disabled = false;
+    }
+
+    function calcSisaKuota() {
+      const kunjungan = Number(document.getElementById('repKunjungan').value) || 0;
+      const sisa = 20 - kunjungan;
+      document.getElementById('boxSisaKuota').innerText = `Kuota: 20 | Sisa Kuota: ${sisa}`;
+    }
+
+    /* ============================================================
+       HARDWARE API ACCELERATION (GPS & CAMERA DECODER)
+       ============================================================ */
+    function getLocation() {
+      if (!navigator.geolocation) return alert("Browser Anda tidak mendukung deteksi lokasi/GPS.");
+      showLoading("Mengunci koordinat satelit...");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          hideLoading();
+          document.getElementById('repKoordinat').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+        },
+        (err) => {
+          hideLoading();
+          alert("Gagal memperoleh lokasi GPS. Pastikan izin lokasi aktif.");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    function handlePhotoUpload() {
+      const fileInput = document.getElementById('fileFoto');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      showLoading("Mengompresi & menyiapkan unggahan foto...");
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const base64Str = e.target.result;
+        
+        // Upload langsung ke Drive via API
+        const res = await callApi('uploadPhoto', {
+          filename: `TF_${SESSION.nip}_${new Date().getTime()}.jpg`,
+          mimeType: file.type,
+          base64Data: base64Str
+        });
+        hideLoading();
+
+        const statusBox = document.getElementById('fotoStatus');
+        if(res.success) {
+          document.getElementById('repFotoUrl').value = res.directLink;
+          statusBox.innerHTML = `<span style="color:#2E7D4F;">✓ Foto berhasil diunggah ke Google Drive</span>`;
+          statusBox.classList.remove('hidden');
+        } else {
+          alert("Gagal mengunggah foto: " + res.message);
+          fileInput.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /* ============================================================
+       TRANSACTION CRUD ENGINE (SUBMIT / EDIT / READ)
+       ============================================================ */
+    async function submitLaporan(statusTarget) {
+      const form = document.getElementById('reportForm');
+      
+      const subSlsId = document.getElementById('repSubSls').value;
+      const matchSls = cacheSubSlsData.find(x => x.id_subsls === subSlsId) || {};
+
+      const payload = {
+        id: document.getElementById('reportId').value,
+        tanggal: document.getElementById('repTanggal').value,
+        nip: SESSION.nip,
+        taskforce: SESSION.taskforce,
+        tim: document.getElementById('repTim').value,
+        pml: document.getElementById('repPml').value,
+        ppl: document.getElementById('repPpl').value,
+        id_subsls: subSlsId,
+        total_assigment: matchSls.total_assigment,
+        muatan_kk: matchSls.muatan_kk,
+        muatan_usaha: matchSls.muatan_usaha,
+        total_muatan: matchSls.total_muatan,
+        tugas: document.getElementById('repTugas').value,
+        uraian_kegiatan: document.getElementById('repUraian').value.trim(),
+        kunjungan: document.getElementById('repKunjungan').value,
+        foto: document.getElementById('repFotoUrl').value,
+        koordinat: document.getElementById('repKoordinat').value,
+        nomor_surat_tugas: document.getElementById('repNoSurat').value.trim(),
+        tanggal_surat_tugas: document.getElementById('repTglSurat').value,
+        status: statusTarget
+      };
+
+      showLoading("Memproses penyimpanan laporan...");
+      const res = await callApi('submitReport', payload);
+      hideLoading();
+
+      const fAlert = document.getElementById('formAlert');
+      fAlert.className = "alert"; // Reset class
+
+      if(res.success) {
+        fAlert.classList.add('alert-success');
+        fAlert.innerText = res.message;
+        fAlert.classList.remove('hidden');
+        
+        cancelEdit(); // Reset form kembalikan ke state awal laporan baru
+        form.reset();
+        document.getElementById('repTanggal').value = new Date().toISOString().split('T')[0];
+        document.getElementById('fotoStatus').classList.add('hidden');
+        calcSisaKuota();
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        fAlert.classList.add('alert-danger');
+        fAlert.innerText = res.message;
+        fAlert.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    async function loadMyReports() {
+      showLoading("Mengambil riwayat data...");
+      const statusFilter = document.getElementById('filterStatus').value;
+      const res = await callApi('getMyReports', { nip: SESSION.nip, taskforce: SESSION.taskforce, status: statusFilter });
+      hideLoading();
+
+      const container = document.getElementById('reportsList');
+      container.innerHTML = "";
+
+      if(res.success && res.data.length > 0) {
+        res.data.forEach(rpt => {
+          const tglFormatted
