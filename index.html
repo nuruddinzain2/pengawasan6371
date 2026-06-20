@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensus Ekonomi 2026 - Taskforce BPS Banjarmasin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff5eb; color: #333; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(255, 107, 0, 0.15); padding: 30px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #ff6b00; padding-bottom: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .header h1 { font-size: 28px; color: #ff6b00; }
+        .header .user-info { font-size: 16px; color: #555; }
+        .header .user-info strong { color: #ff6b00; }
+        .btn-logout { background: #e74c3c; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: background 0.2s; }
+        .btn-logout:hover { background: #c0392b; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-weight: 700; font-size: 16px; margin-bottom: 6px; color: #2c3e50; }
+        .form-group .required { color: #e74c3c; }
+        .form-control { width: 100%; padding: 14px 16px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.2s; }
+        .form-control:focus { outline: none; border-color: #ff6b00; box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.2); }
+        .form-control.error { border-color: #e74c3c; }
+        select.form-control { appearance: auto; }
+        textarea.form-control { resize: vertical; min-height: 100px; font-size: 16px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+        .input-help { font-size: 14px; color: #7f8c8d; margin-top: 6px; }
+        .btn { padding: 14px 28px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: #ff6b00; color: #fff; }
+        .btn-primary:hover { background: #e66000; }
+        .btn-success { background: #27ae60; color: #fff; }
+        .btn-success:hover { background: #219a52; }
+        .btn-warning { background: #f39c12; color: #fff; }
+        .btn-warning:hover { background: #d68910; }
+        .btn-secondary { background: #95a5a6; color: #fff; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-group { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        #loginPanel { max-width: 550px; margin: 40px auto; }
+        #loginPanel .logo { text-align: center; margin-bottom: 30px; }
+        #loginPanel .logo h2 { color: #ff6b00; font-size: 32px; }
+        #loginPanel .logo p { color: #7f8c8d; font-size: 18px; }
+        #loginPanel .logo small { font-size: 15px; }
+        #reportPanel { display: none; }
+        .tabs { display: flex; gap: 6px; border-bottom: 3px solid #ddd; margin-bottom: 24px; flex-wrap: wrap; }
+        .tab-btn { padding: 14px 24px; background: transparent; border: none; font-size: 16px; font-weight: 700; cursor: pointer; color: #7f8c8d; border-bottom: 4px solid transparent; transition: all 0.2s; }
+        .tab-btn:hover { color: #2c3e50; }
+        .tab-btn.active { color: #ff6b00; border-bottom-color: #ff6b00; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .report-list { margin-top: 16px; }
+        .report-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 18px; margin-bottom: 14px; cursor: pointer; transition: background 0.2s; }
+        .report-item:hover { background: #fff5eb; border-color: #ff6b00; }
+        .report-item .meta { display: flex; justify-content: space-between; font-size: 14px; color: #7f8c8d; flex-wrap: wrap; }
+        .report-item .title { font-weight: 700; font-size: 18px; color: #2c3e50; }
+        .report-item .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+        .status-badge.draft { background: #f39c12; color: #fff; }
+        .status-badge.final { background: #27ae60; color: #fff; }
+        .photo-preview { max-width: 200px; max-height: 200px; margin-top: 10px; border-radius: 8px; border: 2px solid #ddd; }
+        .loading { text-align: center; padding: 40px; color: #7f8c8d; font-size: 18px; }
+        .alert { padding: 16px 20px; border-radius: 8px; margin-bottom: 18px; font-size: 16px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .file-info { font-size: 14px; color: #7f8c8d; margin-top: 6px; }
+        .file-info .max-size { color: #e74c3c; font-weight: 700; }
+        #loginBtn { background: #ff6b00; font-size: 20px; padding: 16px; border-radius: 10px; }
+        #loginBtn:hover { background: #e66000; }
+        #loginNip { font-size: 20px; padding: 16px; text-align: center; letter-spacing: 2px; }
+        #loginPanel label { font-size: 18px; font-weight: 700; }
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .form-row { grid-template-columns: 1fr; }
+            .form-row-3 { grid-template-columns: 1fr 1fr; }
+            .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .header h1 { font-size: 22px; }
+            .tabs { flex-direction: column; border-bottom: none; }
+            .tab-btn { border-bottom: 2px solid #ddd; text-align: left; padding: 12px 16px; font-size: 15px; }
+            .tab-btn.active { border-bottom-color: #ff6b00; }
+            .btn-group { flex-direction: column; }
+            .btn-group .btn { width: 100%; text-align: center; }
+            #loginPanel .logo h2 { font-size: 26px; }
+        }
+        @media (max-width: 480px) { .form-row-3 { grid-template-columns: 1fr; } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app">
+    <div id="loginPanel">
+        <div class="logo">
+            <h2>📊 Sensus Ekonomi 2026</h2>
+            <p>BPS Kota Banjarmasin - Taskforce</p>
+            <small style="color:#7f8c8d;">Masukkan NIP 9 digit (contoh: 340015349)</small>
+        </div>
+        <div id="loginAlert"></div>
+        <form id="loginForm" onsubmit="return handleLogin(event)">
+            <div class="form-group">
+                <label for="loginNip">NIP <span class="required">*</span></label>
+                <input type="text" id="loginNip" class="form-control" placeholder="340015349" maxlength="9" pattern="[0-9]{9}" title="NIP harus 9 digit angka" required autofocus>
+                <div class="input-help">Masukkan 9 digit angka NIP Anda.</div>
+            </div>
+            <div class="form-group" id="taskforceGroup" style="display:none;">
+                <label for="loginTaskforce">Nama Taskforce <span class="required">*</span></label>
+                <select id="loginTaskforce" class="form-control">
+                    <option value="">-- Pilih Taskforce --</option>
+                </select>
+            </div>
+            <div class="form-group" id="emailGroup" style="display:none;">
+                <label for="loginEmail">Email <span class="required">*</span></label>
+                <input type="email" id="loginEmail" class="form-control" placeholder="Masukkan email">
+                <small style="color:#7f8c8d; font-size:14px;">Email akan digunakan untuk notifikasi laporan.</small>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;" id="loginBtn">🔑 Login</button>
+        </form>
+    </div>
+
+    <div id="reportPanel">
+        <div class="header">
+            <h1>📋 Laporan Taskforce SE2026</h1>
+            <div>
+                <span class="user-info">
+                    <strong id="userNipDisplay">-</strong> &bull;
+                    <span id="userTaskforceDisplay">-</span>
+                </span>
+                <button class="btn-logout" onclick="handleLogout()">🚪 Logout</button>
+            </div>
+        </div>
+        <div id="reportAlert"></div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tabForm" onclick="switchTab('tabForm')">➕ Buat Laporan</button>
+            <button class="tab-btn" data-tab="tabList" onclick="switchTab('tabList')">📂 Daftar Laporan</button>
+        </div>
+
+        <div class="tab-content active" id="tabForm">
+            <form id="reportForm" onsubmit="return handleSubmitReport(event)">
+                <input type="hidden" id="reportId" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reportTanggal">Tanggal <span class="required">*</span></label>
+                        <input type="date" id="reportTanggal" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportTugas">Tugas <span class="required">*</span></label>
+                        <select id="reportTugas" class="form-control" required>
+                            <option value="">-- Pilih Tugas --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reportTim">TIM <span class="required">*</span></label>
+                    <select id="reportTim" class="form-control" required onchange="loadTaskforce()">
+                        <option value="">-- Pilih TIM --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reportTaskforce">Taskforce <span class="required">*</span></label>
+                    <input type="text" id="reportTaskforce" class="form-control" readonly required>
+                </div>
+                <div class="form-group">
+                    <label for="reportPml">NAMA PML <span class="required">*</span></label>
+                    <select id="reportPml" class="form-control" required onchange="loadPpl()">
+                        <option value="">-- Pilih PML --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reportPpl">NAMA PPL <span class="required">*</span></label>
+                    <select id="reportPpl" class="form-control" required onchange="loadSubsls()">
+                        <option value="">-- Pilih PPL --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reportSubsls">ID_SubSLS <span class="required">*</span></label>
+                    <select id="reportSubsls" class="form-control" required onchange="loadSubslsDetail()">
+                        <option value="">-- Pilih ID_SubSLS --</option>
+                    </select>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Total Assigment</label>
+                        <input type="text" id="reportTotalAssigment" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Muatan KK</label>
+                        <input type="text" id="reportMuatanKk" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Muatan Usaha</label>
+                        <input type="text" id="reportMuatanUsaha" class="form-control" readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Total Muatan Wilkerstat</label>
+                    <input type="text" id="reportTotalMuatan" class="form-control" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="reportUraian">Uraian Kegiatan <span class="required" id="uraianRequired">*</span></label>
+                    <textarea id="reportUraian" class="form-control" placeholder="Deskripsikan kegiatan yang dilakukan..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Kuota</label>
+                        <input type="text" id="reportKuota" class="form-control" value="20" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportKunjungan">Kunjungan <span class="required" id="kunjunganRequired">*</span></label>
+                        <input type="number" id="reportKunjungan" class="form-control" min="0" max="20" placeholder="0-20" oninput="updateSisaKuota()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Sisa Kuota Kunjungan</label>
+                    <input type="text" id="reportSisaKuota" class="form-control" readonly>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reportFotoInput">Upload Foto <span class="required" id="fotoRequired">*</span></label>
+                        <input type="file" id="reportFotoInput" class="form-control" accept="image/*" capture="environment" onchange="handleFileSelect(event)">
+                        <div class="file-info">
+                            <span>📸 Maksimal ukuran: <span class="max-size">1 MB (1024 KB)</span></span>
+                            <span id="fileSizeInfo" style="display:none; margin-left:10px;"></span>
+                        </div>
+                        <input type="hidden" id="reportFoto" value="">
+                        <div id="fotoPreview"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportKoordinat">Koordinat <span class="required" id="koordinatRequired">*</span></label>
+                        <input type="text" id="reportKoordinat" class="form-control" placeholder="Contoh: -3.3190, 114.5920">
+                        <button type="button" class="btn btn-secondary" style="margin-top:6px; padding:8px 16px; font-size:14px;" onclick="getLocation()">📍 Ambil Lokasi</button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reportNoSurat">Nomor Surat Tugas <span class="required" id="nosuratRequired">*</span></label>
+                        <input type="text" id="reportNoSurat" class="form-control" placeholder="Contoh: ST/001/2026">
+                    </div>
+                    <div class="form-group">
+                        <label for="reportTglSurat">Tanggal Surat Tugas <span class="required" id="tglsuratRequired">*</span></label>
+                        <input type="date" id="reportTglSurat" class="form-control">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-warning" onclick="setStatus('draft')">💾 Simpan Draft</button>
+                    <button type="submit" class="btn btn-success" onclick="setStatus('final')">✅ Kirim Final</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">↺ Reset</button>
+                </div>
+                <input type="hidden" id="reportStatus" value="draft">
+            </form>
+        </div>
+
+        <div class="tab-content" id="tabList">
+            <div class="form-group" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <label style="font-weight:700; margin:0; font-size:16px;">Filter Status:</label>
+                <select id="filterStatus" class="form-control" style="width:auto; min-width:140px;" onchange="loadReports()">
+                    <option value="">Semua</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Final">Final</option>
+                </select>
+                <button class="btn btn-primary" onclick="loadReports()">↻ Refresh</button>
+            </div>
+            <div id="reportListContainer">
+                <div class="loading">📂 Memuat laporan...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CONFIG = {
+        WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbz4knmevLePPyCO8Yxh5qr5w0X0c_00qP6pmzStz5fdmr2_3M6PHhuqcoGJ8aBoIJOi9g/exec',
+        KUOTA_DEFAULT: 20,
+        MAX_PHOTO_SIZE: 1024 * 1024,
+        NIP_LENGTH: 9,
+    };
+
+    let state = { nip: '', taskforce: '', isLoggedIn: false, currentPhotoBase64: '', cacheSubsls: [] };
+
+    function showAlert(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = `<div class="alert alert-${type === 'danger' ? 'danger' : type}">${message}</div>`;
+    }
+
+    function clearAlert(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) container.innerHTML = '';
+    }
+
+    function getToday() { return new Date().toISOString().split('T')[0]; }
+    function validateNIP(nip) { return /^[0-9]{9}$/.test(nip); }
+
+    function callApi(params) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            const url = new URL(CONFIG.WEBAPP_URL);
+            for (const [key, value] of Object.entries(params)) { url.searchParams.set(key, value); }
+            url.searchParams.set('callback', callbackName);
+
+            const script = document.createElement('script');
+            script.src = url.toString();
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            script.onerror = function() {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error('Gagal terhubung ke server.'));
+            };
+            document.body.appendChild(script);
+        });
+    }
+
+    async function handleLogin(event) {
+        event.preventDefault();
+        const nipInput = document.getElementById('loginNip');
+        const nip = nipInput.value.trim();
+        if (!validateNIP(nip)) { showAlert('loginAlert', '❌ NIP harus 9 digit angka.', 'danger'); return; }
+
+        const taskforce = document.getElementById('loginTaskforce').value;
+        const email = document.getElementById('loginEmail').value.trim();
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true; btn.textContent = '⏳ Memproses...';
+
+        try {
+            let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
+            if (!result.success) { showAlert('loginAlert', '❌ ' + result.message, 'danger'); btn.disabled = false; return; }
+
+            if (result.stage === 'choose_name') {
+                const select = document.getElementById('loginTaskforce');
+                select.innerHTML = '<option value="">-- Pilih Taskforce --</option>';
+                result.options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.taskforce; option.textContent = opt.taskforce;
+                    select.appendChild(option);
+                });
+                document.getElementById('taskforceGroup').style.display = 'block';
+                btn.disabled = false; btn.textContent = '🔑 Login';
+                return;
+            }
+
+            if (result.stage === 'logged_in') {
+                state.nip = result.nip; state.taskforce = result.taskforce; state.isLoggedIn = true;
+                document.getElementById('userNipDisplay').textContent = result.nip;
+                document.getElementById('userTaskforceDisplay').textContent = result.taskforce;
+                document.getElementById('reportTaskforce').value = result.taskforce;
+                document.getElementById('loginPanel').style.display = 'none';
+                document.getElementById('reportPanel').style.display = 'block';
+                document.getElementById('reportTanggal').value = getToday();
+                loadTugasOptions(); loadTim(); loadReports();
+            }
+        } catch (err) { showAlert('loginAlert', '❌ ' + err.message, 'danger'); }
+        btn.disabled = false; btn.textContent = '🔑 Login';
+    }
+
+    function handleLogout() {
+        document.getElementById('loginPanel').style.display = 'block';
+        document.getElementById('reportPanel').style.display = 'none';
+        document.getElementById('taskforceGroup').style.display = 'none';
+        document.getElementById('loginForm').reset(); resetForm();
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    }
+
+    async function loadTugasOptions() {
+        let res = await callApi({ action: 'getTugasOptions' });
+        if(res.success) {
+            let s = document.getElementById('reportTugas'); s.innerHTML = '<option value="">-- Pilih Tugas --</option>';
+            res.data.forEach(v => s.innerHTML += `<option value="${v}">${v}</option>`);
+        }
+    }
+
+    async function loadTim() {
+        let res = await callApi({ action: 'getDropdownData', level: 'tim' });
+        if(res.success) {
+            let s = document.getElementById('reportTim'); s.innerHTML = '<option value="">-- Pilih TIM --</option>';
+            res.data.forEach(v => s.innerHTML += `<option value="${v}">${v}</option>`);
+        }
+    }
+
+    async function loadTaskforce() {
+        const tim = document.getElementById('reportTim').value;
+        let pml = document.getElementById('reportPml'); pml.innerHTML = '<option value="">-- Pilih PML --</option>';
+        if(!tim) return;
+        let res = await callApi({ action: 'getDropdownData', level: 'pml', tim: tim, taskforce: state.taskforce });
+        if(res.success) res.data.forEach(v => pml.innerHTML += `<option value="${v}">${v}</option>`);
+    }
+
+    async function loadPpl() {
+        const tim = document.getElementById('reportTim').value;
+        const pml = document.getElementById('reportPml').value;
+        let ppl = document.getElementById('reportPpl'); ppl.innerHTML = '<option value="">-- Pilih PPL --</option>';
+        if(!tim || !pml) return;
+        let res = await callApi({ action: 'getDropdownData', level: 'ppl', tim: tim, taskforce: state.taskforce, pml: pml });
+        if(res.success) res.data.forEach(v => ppl.innerHTML += `<option value="${v}">${v}</option>`);
+    }
+
+    async function loadSubsls() {
+        const tim = document.getElementById('reportTim').value;
+        const pml = document.getElementById('reportPml').value;
+        const ppl = document.getElementById('reportPpl').value;
+        let sub = document.getElementById('reportSubsls'); sub.innerHTML = '<option value="">-- Pilih ID_SubSLS --</option>';
+        if(!tim || !pml || !ppl) return;
+        let res = await callApi({ action: 'getDropdownData', level: 'subsls', tim: tim, taskforce: state.taskforce, pml: pml, ppl: ppl });
+        if(res.success) {
+            state.cacheSubsls = res.data;
+            res.data.forEach(v => sub.innerHTML += `<option value="${v.id_subsls}">${v.id_subsls}</option>`);
+        }
+    }
+
+    function loadSubslsDetail() {
+        const id = document.getElementById('reportSubsls').value;
+        const matched = state.cacheSubsls.find(v => v.id_subsls === id);
+        if(matched) {
+            document.getElementById('reportTotalAssigment').value = matched.total_assigment || 0;
+            document.getElementById('reportMuatanKk').value = matched.muatan_kk || 0;
+            document.getElementById('reportMuatanUsaha').value = matched.muatan_usaha || 0;
+            document.getElementById('reportTotalMuatan').value = matched.total_muatan || 0;
+        }
+    }
+
+    function updateSisaKuota() {
+        let kun = parseInt(document.getElementById('reportKunjungan').value) || 0;
+        document.getElementById('reportSisaKuota').value = CONFIG.KUOTA_DEFAULT - kun;
+    }
+
+    function handleFileSelect(e) {
+        const file = e.target.files[0]; if(!file) return;
+        if(file.size > CONFIG.MAX_PHOTO_SIZE) { alert("Ukuran file maksimal 1MB!"); e.target.value = ''; return; }
+        const r = new FileReader(); r.onload = function(evt) {
+            state.currentPhotoBase64 = evt.target.result;
+            document.getElementById('fotoPreview').innerHTML = `<img src="${evt.target.result}" class="photo-preview">`;
+        }; r.readAsDataURL(file);
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(p => {
+                document.getElementById('reportKoordinat').value = `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`;
+            }, () => alert("Gagal mengambil lokasi."));
+        }
+    }
+
+    function setStatus(status) { document.getElementById('reportStatus').value = status; }
+
+    async function handleSubmitReport(e) {
+        e.preventDefault();
+        clearAlert('reportAlert');
+        
+        let reportData = {
+            action: 'submitReport',
+            id: document.getElementById('reportId').value,
+            tanggal: document.getElementById('reportTanggal').value,
+            nip: state.nip,
+            taskforce: state.taskforce,
+            tim: document.getElementById('reportTim').value,
+            pml: document.getElementById('reportPml').value,
+            ppl: document.getElementById('reportPpl').value,
+            id_subsls: document.getElementById('reportSubsls').value,
+            total_assigment: document.getElementById('reportTotalAssigment').value,
+            muatan_kk: document.getElementById('reportMuatanKk').value,
+            muatan_usaha: document.getElementById('reportMuatanUsaha').value,
+            total_muatan: document.getElementById('reportTotalMuatan').value,
+            tugas: document.getElementById('reportTugas').value,
+            uraian_kegiatan: document.getElementById('reportUraian').value,
+            kunjungan: document.getElementById('reportKunjungan').value,
+            koordinat: document.getElementById('reportKoordinat').value,
+            nomor_surat_tugas: document.getElementById('reportNoSurat').value,
+            tanggal_surat_tugas: document.getElementById('reportTglSurat').value,
+            status: document.getElementById('reportStatus').value,
+            foto: ''
+        };
+
+        if(state.currentPhotoBase64) {
+            showAlert('reportAlert', '⏳ Mengunggah foto ke Drive...', 'info');
+            let imgRes = await callApi({ action: 'uploadPhoto', base64Data: state.currentPhotoBase64, filename: `FT_${state.nip}_${Date.now()}.jpg` });
+            if(imgRes.success) reportData.foto = imgRes.directLink;
+        }
+
+        showAlert('reportAlert', '⏳ Menyimpan laporan ke database...', 'info');
+        let res = await callApi(reportData);
+        if(res.success) {
+            showAlert('reportAlert', '✅ ' + res.message, 'success'); resetForm();
+        } else {
+            showAlert('reportAlert', '❌ ' + res.message, 'danger');
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('reportForm').reset();
+        document.getElementById('reportId').value = '';
+        document.getElementById('fotoPreview').innerHTML = '';
+        state.currentPhotoBase64 = '';
+        document.getElementById('reportTanggal').value = getToday();
+    }
+
+    async function loadReports() {
+        let container = document.getElementById('reportListContainer');
+        container.innerHTML = '<div class="loading">📂 Memuat laporan...</div>';
+        let filter = document.getElementById('filterStatus').value;
+        let res = await callApi({ action: 'getMyReports', nip: state.nip, taskforce: state.taskforce, status: filter });
+        if(res.success && res.data.length > 0) {
+            container.innerHTML = '';
+            res.data.forEach(r => {
+                container.innerHTML += `
+                    <div class="report-item">
+                        <div class="title">${r.TUGAS} - SLS: ${r.ID_SubSLS}</div>
+                        <div class="meta">
+                            <span>📅 ${r.TANGGAL.split('T')[0]}</span>
+                            <span class="status-badge ${r.STATUS.toLowerCase()}">${r.STATUS}</span>
+                        </div>
+                    </div>`;
+            });
+        } else {
+            container.innerHTML = '<div class="loading">Tidak ada laporan ditemukan.</div>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('loginNip').addEventListener('input', function() {
+            if (this.value.length > 0 && !validateNIP(this.value)) this.classList.add('error');
+            else this.classList.remove('error');
+        });
+    });
+</script>
+</body>
+</html>
