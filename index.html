@@ -1,0 +1,24 @@
+// Cek di database
+function apiLogin(params) {
+    var nip = normalize(params.nip);
+    var emailRows = sheetToObjects(SHEET_EMAIL);
+    
+    // Filter berdasarkan NIP
+    var matches = emailRows.filter(function (row) {
+        return normalize(row['NIP']) === nip;
+    });
+    
+    // Jika tidak ada yang cocok
+    if (matches.length === 0) {
+        return { success: false, message: 'NIP tidak terdaftar. Silakan hubungi admin.' };
+    }
+    
+    // Jika taskforce tidak cocok
+    var found = matches.filter(function (row) {
+        return normalizeUpper(row['TASKFORCE']) === normalizeUpper(taskforceInput);
+    })[0];
+    
+    if (!found) {
+        return { success: false, message: 'Kombinasi NIP dan Nama tidak cocok.' };
+    }
+}
