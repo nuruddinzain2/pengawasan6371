@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Taskforce - Sensus Ekonomi</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #2980b9; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; display: none; }
+        .info-box { background-color: #e8f4fd; border-left: 4px solid #3498db; padding: 10px; margin-top: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Form Dashboard Taskforce</h2>
+    <hr>
+    
+    <div class="form-group">
+        <label for="taskforce">Pilih Taskforce:</label>
+        <select id="taskforce" onchange="loadPML()">
+            <option value="">-- Memuat Data... --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="namaPML">Nama PML:</label>
+        <select id="namaPML" onchange="loadPPL()">
+            <option value="">-- Pilih Taskforce Dahulu --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="namaPPL">Nama PPL:</label>
+        <select id="namaPPL">
+            <option value="">-- Pilih PML Dahulu --</option>
+        </select>
+    </div>
+
+    <button onclick="testSimpanData()">Test Simpan Data Sementara</button>
+    
+    <div id="status"></div>
+</div>
+
+<script>
+    // ⚠️ GANTI DENGAN URL WEB APP KETIKA KAMU DEPLOY DI GOOGLE APPS SCRIPT
+    const URL_GAS = "PASANG_URL_WEB_APP_GAS_KAMU_DISINI";
+
+    // Fungsi Utama untuk menjembatani komunikasi ke doPOST Google Apps Script
+    async function panggilAPI(namaFungsi, parameter = []) {
+        try {
+            const respon = await fetch(URL_GAS, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    function: namaFungsi,
+                    params: parameter
+                })
+            });
+            return await respon.json();
+        } catch (error) {
+            console.error("Error API:", error);
+            return { success: false, message: "Gagal terhubung ke server." };
+        }
+    }
+
+    // Tampilkan pesan status ke user
+    function tampilkanStatus(pesan, sukses = true) {
+        const box = document.getElementById("status");
+        box.style.display = "block";
+        box.style.backgroundColor = sukses ? "#d4edda" : "#f8d7da";
+        box.style.color = sukses ? "#155724" : "#721c24";
+        box.innerText = pesan;
+    }
+
+    // 1. Ambil list Taskforce saat halaman pertama kali dibuka
+    window.onload = async function() {
+        const dropDownTF = document.getElementById("taskforce");
+        const hasil = await panggilAPI("getTaskforceList");
+        
+        if(hasil.success) {
+            dropDownTF.innerHTML = '<option value="">-- Pilih Taskforce --</option>';
+            hasil.data.forEach(tf => {
+                dropDownTF.innerHTML += `<option value="${tf}">${tf}</option>`;
+            });
+        } else {
+            tampilkanStatus("Gagal memuat list Taskforce: " + hasil.message, false);
+        }
+    };
+
+    // 2. Ambil list PML berdasarkan Taskforce yang dipilih
+    async function loadPML() {
+        const tfTerpilih = document.getElementById("taskforce").value;
+        const dropDownPML = document.getElementById("namaPML");
+        
+        if(!tfTerpilih) return;
+        
+        dropDownPML.innerHTML = '<option value="">-- Memuat PML... --</option>';
+        const hasil = await panggilAPI("getNamaPMLByTaskforce", [tfTerpilih]);
+        
+        if(hasil.success) {
+            dropDownPML.innerHTML = '<option value="">-- Pilih PML --</option>';
+            hasil.data.forEach(pml => {
+                dropDownPML.innerHTML += `<option value="${pml}">${pml}</option>`;
+            });
+        }
+    }
+
+    // 3. Ambil list PPL berdasarkan PML dan Taskforce yang dipilih
+    async function loadPPL() {
+        const tfTerpilih = document.getElementById("taskforce").value;
+        const pmlTerpilih = document.getElementById("namaPML").value;
+        const dropDownPPL = document.getElementById("namaPPL");
+        
+        if(!tfTerpilih || !pmlTerpilih) return;
+        
+        dropDownPPL.innerHTML = '<option value="">-- Memuat PPL... --</option>';
+        const hasil = await panggilAPI("getNamaPPLByPML", [pmlTerpilih, tfTerpilih]);
+        
+        if(hasil.success) {
+            dropDownPPL.innerHTML = '<option value="">-- Pilih PPL --</option>';
+            hasil.data.forEach(ppl => {
+                dropDownPPL.innerHTML += `<option value="${ppl}">${ppl}</option>`;
+            });
+        }
+    }
+
+    // 4. Contoh Mengirim / Menyimpan Data Ke Google Sheet (Fungsi saveData)
+    async function testSimpanData() {
+        const tf = document.getElementById("taskforce").value;
+        const pml = document.getElementById("namaPML").value;
+        const ppl = document.getElementById("namaPPL").value;
+
+        if(!tf || !pml || !ppl) {
+            alert("Harap isi semua pilihan terlebih dahulu!");
+            return;
+        }
+
+        // Susun objek sesuai format formData di fungsi saveData(formData, status) kamu
+        const dataForm = {
+            tanggal: new Date().toISOString().split('T')[0], // format YYYY-MM-DD
+            tim: "SENSUS EKONOMI",
+            tugas: "Kunjungan Lapangan",
+            taskforce: tf,
+            kuotaKunjungan: 20,
+            sisaKuota: 20,
+            namaPML: pml,
+            namaPPL: ppl,
+            idSubSLS: "SLS-001" // Contoh dummy data
+        };
+
+        tampilkanStatus("Sedang memproses penyimpanan...");
+        
+        // Panggil fungsi saveData dengan parameter [formData, status]
+        const hasil = await panggilAPI("saveData", [dataForm, "SEMENTARA"]);
+        
+        if(hasil.success) {
+            tampilkanStatus(hasil.message + " ID: " + hasil.id, true);
+        } else {
+            tampilkanStatus("Gagal menyimpan: " + hasil.message, false);
+        }
+    }
+</script>
+
+</body>
+</html>
