@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEM PELAPORAN LAPANGAN</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fdf6f0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(230, 81, 0, 0.1);
+            border: 1px solid #ffe0b2;
+        }
+        .card-header {
+            background-color: #e65100; /* ORANYE GELAP */
+            color: #fff;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            border-top-left-radius: 10px !important;
+            border-top-right-radius: 10px !important;
+            text-transform: uppercase;
+        }
+        .form-label {
+            font-weight: bold;
+            color: #333;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        .btn-primary {
+            background-color: #e65100;
+            border-color: #e65100;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .btn-primary:hover {
+            background-color: #ff9800;
+            border-color: #ff9800;
+        }
+        .btn-secondary {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #e65100;
+            color: #fff;
+            text-transform: uppercase;
+        }
+        .nav-tabs .nav-link {
+            color: #e65100;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .alert-info {
+            background-color: #fff3e0;
+            color: #e65100;
+            border-color: #ffe0b2;
+        }
+        .photo-preview {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border: 2px solid #ffb74d;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        h5.section-title {
+            color: #e65100;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 2px solid #ffe0b2;
+            padding-bottom: 5px;
+            margin-top: 15px;
+        }
+
+        /* Menu titik tiga (⋮) di setiap card laporan, untuk aksi yang
+           sengaja dipisah jauh dari tombol EDIT (saat ini: HAPUS). */
+        .report-menu-dropdown {
+            position: absolute;
+            top: 110%;
+            right: 0;
+            z-index: 20;
+            background: #fff;
+            border: 1px solid #ffe0b2;
+            border-radius: 6px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+            min-width: 170px;
+            overflow: hidden;
+        }
+        .report-menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .report-menu-item:hover {
+            background-color: #fff3e0;
+        }
+
+        /* Overlay modal konfirmasi (delete, peringatan final, dll). */
+        .confirm-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1050;
+            align-items: center;
+            justify-content: center;
+        }
+        .confirm-modal-overlay.show {
+            display: flex;
+        }
+        .confirm-modal-box {
+            background: #fff;
+            border-radius: 10px;
+            max-width: 380px;
+            width: 90%;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        .confirm-modal-box h6 {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .confirm-modal-box p {
+            font-size: 0.9rem;
+            margin-bottom: 18px;
+        }
+
+        /* Highlight merah untuk field yang masih kosong saat SIMPAN DRAFT
+           ditekan tapi ada isian wajib yang belum lengkap. */
+        .field-kosong-warning {
+            border: 2px solid #dc3545 !important;
+            background-color: #fff5f5 !important;
+        }
+
+        /* Tombol PRINT hanya untuk laporan FINAL, dan hanya ditampilkan
+           di layar lebar (PC/laptop). Disembunyikan di HP/tablet sempit. */
+        .btn-print {
+            display: none;
+        }
+        @media (min-width: 992px) {
+            .btn-print {
+                display: inline-block;
+            }
+        }
+
+        /* Area cetak: tersembunyi total di layar normal, hanya ditampilkan
+           browser saat proses print (window.print()). */
+        .print-only {
+            display: none;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .print-only, .print-only * {
+                visibility: visible;
+            }
+            .print-only {
+                display: block;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+            }
+            .print-page {
+                padding: 30px 40px;
+                font-family: 'Times New Roman', Times, serif;
+                color: #000;
+            }
+            .print-header {
+                text-align: center;
+                border-bottom: 3px double #000;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+            }
+            .print-header h2 {
+                margin: 0;
+                font-size: 18px;
+                letter-spacing: 1px;
+            }
+            .print-header p {
+                margin: 2px 0;
+                font-size: 13px;
+            }
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            .print-table td {
+                padding: 6px 8px;
+                border: 1px solid #000;
+                vertical-align: top;
+            }
+            .print-table td.label {
+                width: 35%;
+                font-weight: bold;
+                background-color: #f2f2f2;
+            }
+            .print-uraian {
+                margin-top: 15px;
+                font-size: 13px;
+            }
+            .print-uraian .kotak {
+                border: 1px solid #000;
+                min-height: 80px;
+                padding: 8px;
+                margin-top: 5px;
+            }
+            .print-foto img {
+                max-width: 300px;
+                max-height: 300px;
+                margin-top: 10px;
+                border: 1px solid #000;
+            }
+            .print-signature {
+                margin-top: 50px;
+                display: flex;
+                justify-content: space-between;
+            }
+            .print-signature .sign-block {
+                text-align: center;
+                width: 250px;
+            }
+            .print-signature .sign-line {
+                margin-top: 70px;
+                border-top: 1px solid #000;
+                padding-top: 4px;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loginPanel" class="card">
+        <div class="card-header">🔑 LOGIN PELAPORAN</div>
+        <div class="card-body">
+            <div id="loginAlert"></div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-3">
+                    <label for="loginNip" class="form-label">NIP (NOMOR INDUK PEGAWAI)</label>
+                    <input type="text" id="loginNip" class="form-control" required>
+                </div>
+                
+                <div class="mb-3" id="taskforceGroup" style="display: none;">
+                    <label for="loginTaskforce" class="form-label">PILIH TASKFORCE</label>
+                    <select id="loginTaskforce" class="form-select">
+                        <option value="">-- PILIH TASKFORCE --</option>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="emailGroup" style="display: none;">
+                    <label for="loginEmail" class="form-label">EMAIL AKTIF (REGISTRASI AWAL)</label>
+                    <input type="email" id="loginEmail" class="form-control">
+                </div>
+
+                <button type="submit" id="loginBtn" class="btn btn-primary w-100">MASUK</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="reportPanel" class="card" style="display: none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>📝 MENU UTAMA PELAPORAN</span>
+            <button class="btn btn-danger btn-sm fw-bold" onclick="handleLogout()">KELUAR</button>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info py-2 small">
+                👤 NIP: <span id="userNipDisplay" class="fw-bold"></span> | 💼 TASKFORCE: <span id="userTaskforceDisplay" class="fw-bold"></span>
+            </div>
+
+            <ul class="nav nav-tabs mb-3" id="reportTabs">
+                <li class="nav-item">
+                    <button id="tabFormBtn" class="nav-link active" onclick="switchTab('tabForm', event)">BUAT LAPORAN</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchTab('tabList', event)">RIWAYAT LAPORAN</button>
+                </li>
+            </ul>
+
+            <div id="tabForm" class="tab-content">
+                <div id="reportAlert"></div>
+                <form id="reportForm" onsubmit="handleSubmitReport(event)">
+                    <input type="hidden" id="reportId">
+                    <input type="hidden" id="reportStatus" value="draft">
+                    <input type="hidden" id="reportFoto">
+                    <input type="hidden" id="reportFotoFilename">
+                    <input type="hidden" id="reportTaskforce">
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">PILIH TUGAS</label>
+                            <select id="reportTugas" class="form-select" onchange="handleTugasChange()" required>
+                                <option value="">-- PILIH TUGAS --</option>
+                            </select>
+                            <div class="form-text" id="tugasHint"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">TANGGAL BERANGKAT</label>
+                            <input type="date" id="reportTanggalBerangkat" class="form-control" onchange="handleTanggalBerangkatChange()" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">TANGGAL PULANG</label>
+                            <input type="date" id="reportTanggalPulang" class="form-control" onchange="updateSisaKuota()" required>
+                        </div>
+
+                        <div class="col-12">
+                            <h5 class="section-title">STRUKTUR WILAYAH KERJA</h5>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">TIM</label>
+                            <select id="reportTim" class="form-select" onchange="loadTaskforceDropdown()" required>
+                                <option value="">-- PILIH TIM --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PML</label>
+                            <select id="reportPml" class="form-select" onchange="loadPplDropdown()" required>
+                                <option value="">-- PILIH PML --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PPL</label>
+                            <select id="reportPpl" class="form-select" onchange="loadSubslsDropdown()" required>
+                                <option value="">-- PILIH PPL --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">ID SUBSLS</label>
+                            <select id="reportSubsls" class="form-select" onchange="loadSubslsDetail()" required>
+                                <option value="">-- PILIH ID_SUBSLS --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">NAMA SLS</label>
+                            <input type="text" id="reportNamaSls" class="form-control bg-light" readonly>
+                        </div>
+
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted">TOTAL ASSIGNMENT</label>
+                            <input type="text" id="reportTotalAssigment" class="form-control bg-light" readonly>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted">MUATAN KK</label>
+                            <input type="text" id="reportMuatanKk" class="form-control bg-light" readonly>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted">MUATAN USAHA</label>
+                            <input type="text" id="reportMuatanUsaha" class="form-control bg-light" readonly>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted">TOTAL MUATAN</label>
+                            <input type="text" id="reportTotalMuatan" class="form-control bg-light" readonly>
+                        </div>
+
+                        <div class="col-12">
+                            <h5 class="section-title">CAPAIAN KINERJA & LAMPIRAN</h5>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">URAIAN KEGIATAN</label>
+                            <textarea id="reportUraian" class="form-control" rows="3" placeholder="Tuliskan detail progres lapangan hari ini..." required></textarea>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">JUMLAH KUNJUNGAN (OTOMATIS)</label>
+                            <input type="text" id="reportKunjungan" class="form-control bg-light" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">SISA KUOTA</label>
+                            <input type="text" id="reportSisaKuota" class="form-control bg-light" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">TITIK KOORDINAT</label>
+                            <div class="input-group">
+                                <input type="text" id="reportKoordinat" class="form-control" readonly required>
+                                <button type="button" class="btn btn-outline-secondary fw-bold" onclick="getLocation()">📍 GPS</button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">NOMOR SURAT TUGAS</label>
+                            <input type="text" id="reportNoSurat" class="form-control" placeholder="Contoh: ST-001/...">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">TANGGAL SURAT TUGAS</label>
+                            <input type="date" id="reportTglSurat" class="form-control">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">DOKUMENTASI FOTO LAPANGAN (FOTO AKAN DIKOMPRES OTOMATIS)</label>
+                            <input type="file" class="form-control" accept="image/*" onchange="handleFileSelect(event)">
+                            <div id="fotoPreview"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-secondary w-50" onclick="setStatus('draft')">SIMPAN DRAFT</button>
+                        <button type="submit" class="btn btn-primary w-50" onclick="setStatus('final')">KIRIM FINAL</button>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <button type="button" id="btnBatalEdit" class="btn btn-outline-secondary btn-sm w-100" style="display:none;" onclick="batalEdit()">BATAL EDIT &amp; BUAT LAPORAN BARU</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="tabList" class="tab-content" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-uppercase">RIWAYAT PELAPORAN ANDA</h6>
+                    <select id="filterStatus" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="loadReports()">
+                        <option value="">SEMUA STATUS</option>
+                        <option value="draft">DRAFT</option>
+                        <option value="final">FINAL</option>
+                    </select>
+                </div>
+                <div id="reportListContainer"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     AREA CETAK (PRINT) - hanya untuk laporan berstatus FINAL.
+     Disembunyikan di layar normal (display:none), hanya tampil saat
+     proses cetak (lihat @media print di bagian <style> dan fungsi
+     printReport() di bagian JavaScript di bawah).
+================================================================= -->
+<div id="printArea" class="print-only"></div>
+
+<!-- ================================================================
+     MODAL KONFIRMASI GENERIK
+     Dipakai untuk: konfirmasi HAPUS laporan, dan peringatan saat KIRIM
+     FINAL ditekan tapi Nomor/Tanggal Surat Tugas masih kosong.
+================================================================= -->
+<div id="confirmModalOverlay" class="confirm-modal-overlay">
+    <div class="confirm-modal-box">
+        <h6 id="confirmModalTitle">KONFIRMASI</h6>
+        <p id="confirmModalBody">Apakah Anda yakin?</p>
+        <div class="d-flex gap-2">
+            <button type="button" id="confirmModalCancelBtn" class="btn btn-outline-secondary btn-sm w-50 fw-bold">BATAL</button>
+            <button type="button" id="confirmModalOkBtn" class="btn btn-danger btn-sm w-50 fw-bold">YA, LANJUTKAN</button>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    const CONFIG = {
+        WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbz4knmevLePPyCO8Yxh5qr5w0X0c_00qP6pmzStz5fdmr2_3M6PHhuqcoGJ8aBoIJOi9g/exec',
+        KUOTA_DEFAULT: 20,
+        MAX_PHOTO_SIZE: 500 * 1024
+    };
+
+    let state = { nip: '', taskforce: '', isLoggedIn: false };
+
+    function showAlert(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        if (container) container.innerHTML = `<div class="alert alert-${type} py-2 small fw-bold">${message}</div>`;
+    }
+
+    function clearAlert(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) container.innerHTML = '';
+    }
+
+    function getToday() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    async function callApi(params) {
+        const url = new URL(CONFIG.WEBAPP_URL);
+        for (const [key, value] of Object.entries(params)) {
+            url.searchParams.set(key, String(value).trim());
+        }
+        try {
+            const response = await fetch(url.toString(), { method: 'GET', mode: 'cors' });
+            if (!response.ok) throw new Error();
+            return await response.json();
+        } catch (err) {
+            return await callApiJsonp(params);
+        }
+    }
+
+    function callApiJsonp(params) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'jsonp_' + Date.now();
+            const url = new URL(CONFIG.WEBAPP_URL);
+            for (const [key, value] of Object.entries(params)) {
+                url.searchParams.set(key, String(value).trim());
+            }
+            url.searchParams.set('callback', callbackName);
+
+            const script = document.createElement('script');
+            script.src = url.toString();
+
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            script.onerror = () => reject(new Error('Koneksi server gagal.'));
+            document.body.appendChild(script);
+        });
+    }
+
+    // Upload foto memakai POST (bukan GET) karena base64 foto bisa sangat panjang
+    // dan akan melebihi batas panjang URL kalau dikirim lewat parameter GET biasa.
+    //
+    // PENTING: diberi TIMEOUT eksplisit (45 detik). Tanpa ini, kalau koneksi
+    // lambat/putus di tengah jalan, fetch() bisa menggantung TANPA PERNAH
+    // resolve maupun reject — sehingga tombol SIMPAN terlihat diam/loading
+    // terus tanpa pesan error apapun ke pengguna.
+    const UPLOAD_TIMEOUT_MS = 45000;
+
+    async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
+        const formData = new FormData();
+        formData.append('action', 'uploadPhoto');
+        formData.append('base64Data', base64Data);
+        formData.append('filename', filename);
+        formData.append('tim', tim || '');
+        formData.append('taskforce', taskforce || '');
+        formData.append('id', id || '');
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
+        try {
+            const response = await fetch(CONFIG.WEBAPP_URL, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error('Server menolak permintaan upload (status ' + response.status + ').');
+            }
+
+            let result;
+            try {
+                result = await response.json();
+            } catch (parseErr) {
+                throw new Error('Respon server tidak valid saat upload foto. Coba lagi atau gunakan foto yang lebih kecil.');
+            }
+            return result;
+
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                throw new Error('UPLOAD FOTO TERLALU LAMA (TIMEOUT). Periksa koneksi internet Anda atau coba dengan foto yang lebih kecil.');
+            }
+            throw new Error('Gagal terhubung ke server saat upload foto: ' + err.message);
+        }
+    }
+
+    async function handleLogin(event) {
+        event.preventDefault();
+        const nip = document.getElementById('loginNip').value.trim();
+        const taskforce = document.getElementById('loginTaskforce').value;
+        const email = document.getElementById('loginEmail').value.trim();
+        const btn = document.getElementById('loginBtn');
+
+        btn.disabled = true;
+        btn.textContent = 'MEMPROSES...';
+        clearAlert('loginAlert');
+
+        try {
+            let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
+            if (!result.success) {
+                showAlert('loginAlert', '❌ ' + result.message.toUpperCase(), 'danger');
+                btn.disabled = false; btn.textContent = 'MASUK';
+                return;
+            }
+
+            if (result.stage === 'choose_name') {
+                const select = document.getElementById('loginTaskforce');
+                select.innerHTML = '<option value="">-- PILIH TASKFORCE --</option>';
+                result.options.forEach(opt => {
+                    select.innerHTML += `<option value="${opt.taskforce.trim()}">${opt.taskforce.trim().toUpperCase()}</option>`;
+                });
+                document.getElementById('taskforceGroup').style.display = 'block';
+                showAlert('loginAlert', 'ℹ️ SILAKAN PILIH NAMA TASKFORCE ANDA.', 'info');
+            } 
+            else if (result.stage === 'logged_in') {
+                if (result.needEmail && !email) {
+                    showAlert('loginAlert', '📧 MASUKKAN EMAIL UNTUK REGISTRASI AWAL.', 'warning');
+                    document.getElementById('emailGroup').style.display = 'block';
+                } else {
+                    if (result.needEmail && email) {
+                        await callApi({ action: 'saveEmail', nip: nip, taskforce: taskforce, email: email });
+                    }
+                    state.nip = result.nip;
+                    state.taskforce = result.taskforce;
+                    
+                    // Simpan NIP di HP/browser ini supaya tidak perlu diketik ulang saat buka halaman lagi
+                    try { localStorage.setItem('lastNip', result.nip); } catch (e) {}
+                    
+                    document.getElementById('userNipDisplay').textContent = result.nip;
+                    document.getElementById('userTaskforceDisplay').textContent = result.taskforce.toUpperCase();
+                    document.getElementById('reportTaskforce').value = result.taskforce;
+                    
+                    document.getElementById('loginPanel').style.display = 'none';
+                    document.getElementById('reportPanel').style.display = 'block';
+                    
+                    await loadTugasOptions();
+                    await loadTimDropdown();
+                    loadReports();
+                }
+            }
+        } catch (err) {
+            showAlert('loginAlert', '❌ TERJADI GALAT: ' + err.message.toUpperCase(), 'danger');
+        }
+        btn.disabled = false; btn.textContent = 'MASUK';
+    }
+
+    function handleLogout() {
+        document.getElementById('loginPanel').style.display = 'block';
+        document.getElementById('reportPanel').style.display = 'none';
+        document.getElementById('loginForm').reset();
+        resetForm();
+
+        // form.reset() ikut mengosongkan NIP, jadi isi ulang dari penyimpanan HP ini
+        try {
+            const savedNip = localStorage.getItem('lastNip');
+            if (savedNip) {
+                document.getElementById('loginNip').value = savedNip;
+            }
+        } catch (e) {}
+    }
+
+    function switchTab(tabId, event) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('#reportTabs .nav-link').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(tabId).style.display = 'block';
+        if (event && event.target) {
+            event.target.classList.add('active');
+        }
+        if (tabId === 'tabList') loadReports();
+    }
+
+    // TUGAS yang WAJIB rentang 1 hari (Tanggal Berangkat harus sama dengan Tanggal Pulang).
+    // 'Konsultasi' sengaja tidak dimasukkan di sini karena dia boleh lebih dari 1 hari.
+    const TUGAS_WAJIB_SATU_HARI = ['pengawasan', 'pemeriksaan', 'supervisi'];
+
+    async function loadTugasOptions() {
+        let res = await callApi({ action: 'getTugasOptions' });
+        if (res.success) {
+            const select = document.getElementById('reportTugas');
+            select.innerHTML = '<option value="">-- PILIH TUGAS --</option>';
+            res.data.forEach(opt => select.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+        }
+    }
+
+    // Dipanggil saat dropdown TUGAS berubah. Jika tugas termasuk yang wajib
+    // 1 hari, Tanggal Pulang dikunci (readonly) dan otomatis disamakan
+    // dengan Tanggal Berangkat, supaya user tidak mungkin salah input.
+    function handleTugasChange() {
+        const tugas = document.getElementById('reportTugas').value;
+        const tugasNorm = tugas.trim().toLowerCase();
+        const pulangInput = document.getElementById('reportTanggalPulang');
+        const hint = document.getElementById('tugasHint');
+        const wajibSatuHari = TUGAS_WAJIB_SATU_HARI.includes(tugasNorm);
+
+        if (wajibSatuHari) {
+            pulangInput.value = document.getElementById('reportTanggalBerangkat').value;
+            pulangInput.readOnly = true;
+            hint.textContent = 'ℹ️ TUGAS INI WAJIB 1 HARI: TANGGAL PULANG OTOMATIS DISAMAKAN DENGAN TANGGAL BERANGKAT.';
+        } else {
+            pulangInput.readOnly = false;
+            hint.textContent = tugas ? 'ℹ️ TUGAS KONSULTASI BOLEH LEBIH DARI 1 HARI.' : '';
+        }
+        updateSisaKuota();
+    }
+
+    // Saat Tanggal Berangkat diubah, jika tugas wajib 1 hari, Tanggal Pulang
+    // ikut disamakan otomatis.
+    function handleTanggalBerangkatChange() {
+        const tugas = document.getElementById('reportTugas').value.trim().toLowerCase();
+        if (TUGAS_WAJIB_SATU_HARI.includes(tugas)) {
+            document.getElementById('reportTanggalPulang').value = document.getElementById('reportTanggalBerangkat').value;
+        }
+        updateSisaKuota();
+    }
+
+    async function loadTimDropdown() {
+        let res = await callApi({ action: 'getDropdownData', level: 'tim' });
+        if (res.success) {
+            const select = document.getElementById('reportTim');
+            select.innerHTML = '<option value="">-- PILIH TIM --</option>';
+            res.data.forEach(opt => select.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+        }
+    }
+
+    async function loadTaskforceDropdown() {
+        const tim = document.getElementById('reportTim').value;
+        const pmlSelect = document.getElementById('reportPml');
+        const pplSelect = document.getElementById('reportPpl');
+        const subslsSelect = document.getElementById('reportSubsls');
+        
+        pmlSelect.innerHTML = '<option value="">-- PILIH PML --</option>';
+        pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
+        subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
+        clearDetailFields();
+        
+        if (!tim) return;
+        
+        let res = await callApi({ action: 'getDropdownData', level: 'pml', tim: tim, taskforce: state.taskforce });
+        if (res.success) {
+            res.data.forEach(opt => pmlSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+        }
+    }
+
+    async function loadPplDropdown() {
+        const tim = document.getElementById('reportTim').value;
+        const pml = document.getElementById('reportPml').value;
+        const pplSelect = document.getElementById('reportPpl');
+        const subslsSelect = document.getElementById('reportSubsls');
+        
+        pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
+        subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
+        clearDetailFields();
+        
+        if (!tim || !pml) return;
+
+        let res = await callApi({ action: 'getDropdownData', level: 'ppl', tim: tim, pml: pml, taskforce: state.taskforce });
+        if (res.success) {
+            res.data.forEach(opt => pplSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+        }
+    }
+
+    async function loadSubslsDropdown() {
+        const tim = document.getElementById('reportTim').value;
+        const pml = document.getElementById('reportPml').value;
+        const ppl = document.getElementById('reportPpl').value;
+        const subslsSelect = document.getElementById('reportSubsls');
+        
+        subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
+        clearDetailFields();
+        
+        if (!tim || !pml || !ppl) return;
+
+        let res = await callApi({ action: 'getDropdownData', level: 'subsls', tim: tim, pml: pml, ppl: ppl, taskforce: state.taskforce });
+        if (res.success) {
+            subslsSelect.dataValues = res.data; 
+            res.data.forEach(opt => {
+                subslsSelect.innerHTML += `<option value="${String(opt.id_subsls).trim()}">${String(opt.id_subsls).trim()}</option>`;
+            });
+        }
+    }
+
+    function loadSubslsDetail() {
+        const select = document.getElementById('reportSubsls');
+        const id = select.value.trim();
+        clearDetailFields();
+        if (!id || !select.dataValues) return;
+
+        const matched = select.dataValues.find(v => String(v.id_subsls).trim() === id);
+        if (matched) {
+            document.getElementById('reportNamaSls').value = matched.nama_sls || '';
+            document.getElementById('reportTotalAssigment').value = matched.total_assigment || '0';
+            document.getElementById('reportMuatanKk').value = matched.muatan_kk || '0';
+            document.getElementById('reportMuatanUsaha').value = matched.muatan_usaha || '0';
+            document.getElementById('reportTotalMuatan').value = matched.total_muatan || '0';
+        }
+    }
+
+    function clearDetailFields() {
+        document.getElementById('reportNamaSls').value = '';
+        document.getElementById('reportTotalAssigment').value = '';
+        document.getElementById('reportMuatanKk').value = '';
+        document.getElementById('reportMuatanUsaha').value = '';
+        document.getElementById('reportTotalMuatan').value = '';
+    }
+
+    // Menghitung JUMLAH KUNJUNGAN secara otomatis dari rentang Tanggal
+    // Berangkat - Tanggal Pulang (inklusif), lalu menampilkan sisa kuotanya.
+    function updateSisaKuota() {
+        const berangkatStr = document.getElementById('reportTanggalBerangkat').value;
+        const pulangStr = document.getElementById('reportTanggalPulang').value;
+
+        if (!berangkatStr || !pulangStr) {
+            document.getElementById('reportKunjungan').value = '';
+            document.getElementById('reportSisaKuota').value = '';
+            return;
+        }
+
+        const berangkat = new Date(berangkatStr + 'T00:00:00');
+        const pulang = new Date(pulangStr + 'T00:00:00');
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        const jumlahHari = Math.round((pulang - berangkat) / MS_PER_DAY) + 1;
+
+        if (jumlahHari < 1) {
+            document.getElementById('reportKunjungan').value = 'TANGGAL TIDAK VALID';
+            document.getElementById('reportSisaKuota').value = '';
+            return;
+        }
+
+        document.getElementById('reportKunjungan').value = jumlahHari;
+        document.getElementById('reportSisaKuota').value = CONFIG.KUOTA_DEFAULT - jumlahHari;
+    }
+
+    // Foto dari kamera biasanya sudah otomatis kecil, tapi foto dari GALERI sering
+    // beresolusi tinggi (bisa 3-10 MB) walau preview-nya terlihat kecil di HP.
+    // Supaya selalu ringan dan konsisten dikirim ke server (apapun sumbernya),
+    // foto di-resize & dikompres ulang lewat <canvas> sebelum diubah jadi base64.
+    const PHOTO_MAX_DIMENSION = 1280; // sisi terpanjang foto, dalam pixel
+    const PHOTO_JPEG_QUALITY = 0.7;   // 0.0 - 1.0, makin kecil makin ringan tapi makin buram
+
+    function handleFileSelect(event) {
+        const file = event.target.files[0]; if (!file) return;
+
+        if (!file.type || !file.type.startsWith('image/')) {
+            alert('BERKAS HARUS BERUPA FOTO/GAMBAR!'); event.target.value = ''; return;
+        }
+
+        document.getElementById('reportFotoFilename').value = 'photo.jpg'; // selalu jpg karena hasil kompresi
+        document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MEMPROSES FOTO...</div>';
+
+        compressImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY)
+            .then(function(dataUrl) {
+                document.getElementById('reportFoto').value = dataUrl;
+                document.getElementById('fotoPreview').innerHTML = `<img src="${dataUrl}" class="photo-preview">`;
+
+                // info ukuran setelah kompresi, supaya kelihatan kalau sudah ringan
+                const approxKb = Math.round((dataUrl.length * 0.75) / 1024);
+                document.getElementById('fotoPreview').innerHTML += `<div class="small text-muted mt-1">UKURAN SETELAH KOMPRESI: ~${approxKb} KB</div>`;
+            })
+            .catch(function(err) {
+                alert('GAGAL MEMPROSES FOTO: ' + err.message);
+                document.getElementById('fotoPreview').innerHTML = '';
+                event.target.value = '';
+            });
+    }
+
+    // Membaca file gambar, menggambarnya ke <canvas> dengan ukuran yang diperkecil
+    // (kalau perlu), lalu mengembalikan hasilnya sebagai base64 JPEG yang sudah dikompres.
+    function compressImageFile(file, maxDimension, quality) {
+        return new Promise(function(resolve, reject) {
+            const reader = new FileReader();
+            reader.onerror = function() { reject(new Error('Gagal membaca berkas foto.')); };
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onerror = function() { reject(new Error('Berkas bukan gambar yang valid.')); };
+                img.onload = function() {
+                    let { width, height } = img;
+
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width >= height) {
+                            height = Math.round(height * (maxDimension / width));
+                            width = maxDimension;
+                        } else {
+                            width = Math.round(width * (maxDimension / height));
+                            height = maxDimension;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    try {
+                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        resolve(dataUrl);
+                    } catch (e) {
+                        reject(new Error('Gagal mengompresi foto: ' + e.message));
+                    }
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(p => {
+                document.getElementById('reportKoordinat').value = `${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`;
+            }, () => alert("GAGAL MENDAPATKAN LOKASI. PASTIKAN IZIN GPS AKTIF."));
+        }
+    }
+
+    function setStatus(status) { document.getElementById('reportStatus').value = status; }
+
+    // =====================================================================
+    // VALIDASI FIELD KOSONG (BARU)
+    // =====================================================================
+    // Daftar field "wajib lengkap secara logis" pada form laporan beserta
+    // label tampilannya. Dipakai untuk dua hal:
+    //  1. Saat SIMPAN DRAFT ditekan -- field yang masih kosong diberi
+    //     highlight merah sebagai peringatan visual, TAPI laporan tetap
+    //     boleh tersimpan sebagai draft (data tidak hilang).
+    //  2. Saat KIRIM FINAL ditekan -- field yang masih kosong (termasuk
+    //     Nomor & Tanggal Surat Tugas) memblokir pengiriman sepenuhnya.
+    const FIELD_WAJIB_LAPORAN = [
+        { id: 'reportTugas', label: 'PILIH TUGAS' },
+        { id: 'reportTanggalBerangkat', label: 'TANGGAL BERANGKAT' },
+        { id: 'reportTanggalPulang', label: 'TANGGAL PULANG' },
+        { id: 'reportTim', label: 'TIM' },
+        { id: 'reportPml', label: 'PML' },
+        { id: 'reportPpl', label: 'PPL' },
+        { id: 'reportSubsls', label: 'ID SUBSLS' },
+        { id: 'reportUraian', label: 'URAIAN KEGIATAN' },
+        { id: 'reportKoordinat', label: 'TITIK KOORDINAT' }
+    ];
+
+    // Field khusus syarat FINAL (tidak wajib untuk draft).
+    const FIELD_WAJIB_FINAL = [
+        { id: 'reportNoSurat', label: 'NOMOR SURAT TUGAS' },
+        { id: 'reportTglSurat', label: 'TANGGAL SURAT TUGAS' }
+    ];
+
+    // Membersihkan semua highlight merah sebelumnya.
+    function clearFieldWarnings(fieldList) {
+        fieldList.forEach(f => {
+            const el = document.getElementById(f.id);
+            if (el) el.classList.remove('field-kosong-warning');
+        });
+    }
+
+    // Memberi highlight merah pada field yang kosong dari fieldList yang
+    // diberikan. Mengembalikan array label field yang kosong.
+    function tandaiFieldKosong(fieldList) {
+        const kosong = [];
+        fieldList.forEach(f => {
+            const el = document.getElementById(f.id);
+            if (!el) return;
+            const isKosong = !String(el.value || '').trim();
+            if (isKosong) {
+                el.classList.add('field-kosong-warning');
+                kosong.push(f.label);
+            } else {
+                el.classList.remove('field-kosong-warning');
+            }
+        });
+        return kosong;
+    }
+
+    // FLAG PENGAMAN GANDA: mencegah pengiriman dobel kalau tombol ditekan
+    // cepat berkali-kali (misal saat HP lag/loading lambat) sebelum tombol
+    // sempat ter-disable secara visual. Tanpa flag ini, dua klik beruntun
+    // bisa lolos keduanya sebelum baris `disabled = true` di bawah dieksekusi.
+    let isSubmitting = false;
+
+    async function handleSubmitReport(e) {
+        e.preventDefault();
+
+        if (isSubmitting) {
+            return; // sudah ada proses simpan yang berjalan, abaikan klik tambahan
+        }
+
+        clearAlert('reportAlert');
+        let status = document.getElementById('reportStatus').value;
+
+        // -----------------------------------------------------------------
+        // VALIDASI 1: Field umum yang masih kosong -> highlight merah.
+        // Untuk DRAFT, ini hanya peringatan visual (tetap boleh disimpan).
+        // Untuk FINAL, field-field ini WAJIB lengkap, jadi turut memblokir.
+        // -----------------------------------------------------------------
+        clearFieldWarnings(FIELD_WAJIB_FINAL);
+        const fieldUmumKosong = tandaiFieldKosong(FIELD_WAJIB_LAPORAN);
+
+        if (status === 'final') {
+            // -------------------------------------------------------------
+            // VALIDASI 2: Khusus KIRIM FINAL -- Nomor & Tanggal Surat Tugas
+            // wajib terisi. Jika kosong, BLOKIR sepenuhnya (tidak terkirim
+            // ke server sama sekali), tampilkan modal peringatan yang jelas.
+            // -------------------------------------------------------------
+            const suratKosong = tandaiFieldKosong(FIELD_WAJIB_FINAL);
+            const semuaKosong = fieldUmumKosong.concat(suratKosong);
+
+            if (suratKosong.length > 0) {
+                await showConfirmModal(
+                    '❌ TIDAK BISA SIMPAN FINAL',
+                    'Laporan <b>tidak dapat dikirim sebagai FINAL</b> karena isian <b>Surat Tugas masih kosong</b>: ' +
+                        '<br><b>' + suratKosong.join(', ') + '</b>.' +
+                        '<br><br>Silakan lengkapi isian tersebut terlebih dahulu, atau simpan sebagai DRAFT.',
+                    'MENGERTI',
+                    'btn-primary',
+                    true
+                );
+                // Sembunyikan tombol BATAL pada modal peringatan ini karena
+                // tidak ada aksi "lanjutkan" yang valid -- cukup tombol OK.
+                showAlert('reportAlert', '❌ TIDAK BISA SIMPAN FINAL: SURAT TUGAS (' + suratKosong.join(', ') + ') MASIH KOSONG.', 'danger');
+                return;
+            }
+
+            if (semuaKosong.length > 0) {
+                showAlert('reportAlert', '⚠️ MASIH ADA ISIAN WAJIB YANG KOSONG (DITANDAI MERAH): ' + fieldUmumKosong.join(', ').toUpperCase() + '.', 'danger');
+                return;
+            }
+        } else {
+            // SIMPAN DRAFT: kalau ada field kosong, tetap lanjut simpan,
+            // tapi beri tahu user lewat alert + highlight merah di form.
+            if (fieldUmumKosong.length > 0) {
+                showAlert('reportAlert', '⚠️ DRAFT DISIMPAN, NAMUN ADA ISIAN YANG MASIH KOSONG (DITANDAI MERAH): ' + fieldUmumKosong.join(', ').toUpperCase() + '.', 'warning');
+            }
+        }
+
+        isSubmitting = true;
+        let fotoValue = document.getElementById('reportFoto').value; // base64 (kalau ada foto baru) atau link lama (kalau edit tanpa ganti foto)
+
+        const submitButtons = document.querySelectorAll('#reportForm button[type="submit"]');
+        submitButtons.forEach(btn => btn.disabled = true);
+
+        try {
+            // Kalau fotoValue berupa base64 baru (diawali "data:"), upload dulu ke Google Drive
+            // supaya yang tersimpan di Spreadsheet hanya LINK-nya, bukan teks base64 raksasa.
+            if (fotoValue && fotoValue.startsWith('data:')) {
+                showAlert('reportAlert', '⏳ MENGUNGGAH FOTO... (JANGAN TUTUP HALAMAN INI)', 'info');
+                const filename = document.getElementById('reportFotoFilename').value || 'photo.jpg';
+                const reportId = document.getElementById('reportId').value || ('REP_' + Date.now());
+                document.getElementById('reportId').value = reportId; // pastikan ID konsisten dipakai juga saat submitReport
+                const uploadRes = await uploadPhotoToServer(
+                    fotoValue,
+                    filename,
+                    document.getElementById('reportTim').value,
+                    state.taskforce,
+                    reportId
+                );
+
+                if (!uploadRes.success) {
+                    showAlert('reportAlert', '❌ GAGAL UNGGAH FOTO: ' + (uploadRes.message || '').toUpperCase(), 'danger');
+                    return;
+                }
+                fotoValue = uploadRes.imageLink || uploadRes.directLink;
+            }
+
+            const tanggalBerangkat = document.getElementById('reportTanggalBerangkat').value;
+            const tanggalPulang = document.getElementById('reportTanggalPulang').value;
+
+            if (!tanggalBerangkat || !tanggalPulang) {
+                showAlert('reportAlert', '❌ TANGGAL BERANGKAT DAN TANGGAL PULANG WAJIB DIISI.', 'danger');
+                return;
+            }
+            if (tanggalPulang < tanggalBerangkat) {
+                showAlert('reportAlert', '❌ TANGGAL PULANG TIDAK BOLEH LEBIH AWAL DARI TANGGAL BERANGKAT.', 'danger');
+                return;
+            }
+
+            let reportData = {
+                action: 'submitReport',
+                id: document.getElementById('reportId').value,
+                tanggal_berangkat: tanggalBerangkat,
+                tanggal_pulang: tanggalPulang,
+                nip: state.nip, 
+                taskforce: state.taskforce,
+                tim: document.getElementById('reportTim').value,
+                pml: document.getElementById('reportPml').value,
+                ppl: document.getElementById('reportPpl').value,
+                id_subsls: document.getElementById('reportSubsls').value,
+                nama_sls: document.getElementById('reportNamaSls').value,
+                total_assigment: document.getElementById('reportTotalAssigment').value,
+                muatan_kk: document.getElementById('reportMuatanKk').value,
+                muatan_usaha: document.getElementById('reportMuatanUsaha').value,
+                total_muatan: document.getElementById('reportTotalMuatan').value,
+                tugas: document.getElementById('reportTugas').value,
+                uraian_kegiatan: document.getElementById('reportUraian').value,
+                koordinat: document.getElementById('reportKoordinat').value,
+                nomor_surat_tugas: document.getElementById('reportNoSurat').value,
+                tanggal_surat_tugas: document.getElementById('reportTglSurat').value,
+                status: status,
+                foto: fotoValue
+            };
+
+            showAlert('reportAlert', '⏳ MENYIMPAN DATA...', 'info');
+            let res = await callApi(reportData);
+            if (res.success) { 
+                if (res.forcedDraft) {
+                    showAlert('reportAlert', '⚠️ ' + res.message.toUpperCase(), 'warning');
+                } else {
+                    showAlert('reportAlert', `✅ BERHASIL DISIMPAN SEBAGAI ${status.toUpperCase()}!`, 'success'); 
+                }
+                resetForm(); 
+                switchTab('tabList');
+            } else { 
+                showAlert('reportAlert', '❌ ' + res.message.toUpperCase(), 'danger'); 
+            }
+        } catch (err) { 
+            showAlert('reportAlert', '❌ GAGAL: ' + err.message.toUpperCase(), 'danger'); 
+        } finally {
+            submitButtons.forEach(btn => btn.disabled = false);
+            isSubmitting = false;
+        }
+    }
+
+    // Status mode edit: null jika sedang membuat laporan baru, atau berisi
+    // ID laporan yang sedang diedit.
+    let editingReportId = null;
+
+    function resetForm() {
+        document.getElementById('reportForm').reset();
+        document.getElementById('fotoPreview').innerHTML = '';
+        document.getElementById('reportId').value = '';
+        document.getElementById('reportFoto').value = '';
+        document.getElementById('reportFotoFilename').value = '';
+        document.getElementById('reportNamaSls').value = '';
+        clearFieldWarnings(FIELD_WAJIB_LAPORAN);
+        clearFieldWarnings(FIELD_WAJIB_FINAL);
+        document.getElementById('reportTanggalBerangkat').value = getToday();
+        document.getElementById('reportTanggalPulang').value = getToday();
+        document.getElementById('reportTanggalPulang').readOnly = false;
+        document.getElementById('tugasHint').textContent = '';
+        editingReportId = null;
+        document.getElementById('tabFormBtn').textContent = 'BUAT LAPORAN';
+        document.getElementById('btnBatalEdit').style.display = 'none';
+        updateSisaKuota();
+        clearDetailFields();
+    }
+
+    function batalEdit() {
+        resetForm();
+        clearAlert('reportAlert');
+    }
+
+    // =====================================================================
+    // EDIT LAPORAN
+    // =====================================================================
+    // Mengisi ulang seluruh form (termasuk dropdown berjenjang TIM->PML->
+    // PPL->SubSLS) dengan data laporan yang dipilih dari riwayat, lalu
+    // pindah ke tab BUAT LAPORAN dalam mode edit.
+    async function editReport(id) {
+        const r = reportListCache[id];
+        if (!r) {
+            alert('DATA LAPORAN TIDAK DITEMUKAN. SILAKAN MUAT ULANG RIWAYAT.');
+            return;
+        }
+
+        switchTab('tabForm');
+        document.querySelectorAll('#reportTabs .nav-link').forEach(el => el.classList.remove('active'));
+        document.getElementById('tabFormBtn').classList.add('active');
+
+        clearFieldWarnings(FIELD_WAJIB_LAPORAN);
+        clearFieldWarnings(FIELD_WAJIB_FINAL);
+        clearAlert('reportAlert');
+        showAlert('reportAlert', '⏳ MEMUAT DATA LAPORAN UNTUK DIEDIT...', 'info');
+
+        editingReportId = id;
+        document.getElementById('reportId').value = id;
+        document.getElementById('tabFormBtn').textContent = '✏️ EDIT LAPORAN';
+        document.getElementById('btnBatalEdit').style.display = 'block';
+
+        // --- Field sederhana (tanpa dropdown berjenjang) ---
+        const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+        const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+        document.getElementById('reportTanggalBerangkat').value = tglBerangkat;
+        document.getElementById('reportTanggalPulang').value = tglPulang;
+
+        document.getElementById('reportTugas').value = r.TUGAS || '';
+        handleTugasChange(); // ini juga akan memanggil updateSisaKuota()
+        // handleTugasChange mungkin menimpa tanggal pulang jika tugas wajib 1 hari;
+        // pastikan tetap konsisten dengan data asli (seharusnya sudah sama).
+        document.getElementById('reportTanggalPulang').value = tglPulang;
+        updateSisaKuota();
+
+        document.getElementById('reportUraian').value = r['URAIAN KEGIATAN'] || '';
+        document.getElementById('reportKoordinat').value = r.KOORDINAT || '';
+        document.getElementById('reportNoSurat').value = r['NOMOR SURAT TUGAS'] || '';
+        const tglSurat = String(r['TANGGAL SURAT TUGAS'] || '').split('T')[0];
+        document.getElementById('reportTglSurat').value = tglSurat;
+
+        // --- Foto: tampilkan preview dari link lama, JANGAN upload ulang
+        // kecuali user memilih foto baru lewat input file ---
+        document.getElementById('reportFoto').value = r.FOTO || '';
+        document.getElementById('reportFotoFilename').value = '';
+        if (r.FOTO) {
+            document.getElementById('fotoPreview').innerHTML =
+                `<img src="${r.FOTO}" class="photo-preview"><div class="small text-muted mt-1">FOTO SAAT INI (PILIH FOTO BARU UNTUK MENGGANTI)</div>`;
+        } else {
+            document.getElementById('fotoPreview').innerHTML = '';
+        }
+
+        // --- Dropdown berjenjang: TIM -> PML -> PPL -> SubSLS ---
+        // Setiap tahap menunggu (await) daftar opsi termuat lebih dulu,
+        // baru nilai lama di-set, sebelum lanjut memuat tahap berikutnya.
+        try {
+            await loadTimDropdown();
+            document.getElementById('reportTim').value = r.TIM || '';
+
+            await loadTaskforceDropdown(); // sebenarnya memuat dropdown PML berdasar TIM (lihat definisi fungsi)
+            document.getElementById('reportPml').value = r['NAMA PML'] || '';
+
+            await loadPplDropdown();
+            document.getElementById('reportPpl').value = r['NAMA PPL'] || '';
+
+            await loadSubslsDropdown();
+            document.getElementById('reportSubsls').value = String(r.ID_SubSLS || '').trim();
+            loadSubslsDetail();
+
+            // Jika data muatan dari dropdown SubSLS tidak ketemu (misalnya data
+            // master di sheet DATABASE berubah), tetap tampilkan nilai yang
+            // tersimpan di laporan supaya tidak hilang.
+            if (!document.getElementById('reportTotalAssigment').value) {
+                document.getElementById('reportNamaSls').value = r['NAMA SLS'] || '';
+                document.getElementById('reportTotalAssigment').value = r['Total Assigment'] || '0';
+                document.getElementById('reportMuatanKk').value = r['Muatan Kk Wilkerstat'] || '0';
+                document.getElementById('reportMuatanUsaha').value = r['Muatan Usaha Wilkerstat'] || '0';
+                document.getElementById('reportTotalMuatan').value = r['Total Muatan Wilkerstat'] || '0';
+            }
+
+            clearAlert('reportAlert');
+            showAlert('reportAlert', 'ℹ️ MODE EDIT: UBAH DATA YANG DIPERLUKAN, LALU SIMPAN DRAFT ATAU KIRIM FINAL.', 'info');
+        } catch (err) {
+            showAlert('reportAlert', '❌ SEBAGIAN DATA GAGAL DIMUAT (DROPDOWN WILAYAH): ' + err.message.toUpperCase(), 'danger');
+        }
+    }
+
+    // =====================================================================
+    // PRINT LAPORAN (khusus status FINAL, tombol hanya tampil di PC/laptop)
+    // =====================================================================
+    function printReport(id) {
+        const r = reportListCache[id];
+        if (!r) {
+            alert('DATA LAPORAN TIDAK DITEMUKAN. SILAKAN MUAT ULANG RIWAYAT.');
+            return;
+        }
+        if (norm(r.STATUS) !== 'final') {
+            alert('HANYA LAPORAN DENGAN STATUS FINAL YANG DAPAT DICETAK.');
+            return;
+        }
+
+        const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+        const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+        const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+        const tglSurat = String(r['TANGGAL SURAT TUGAS'] || '').split('T')[0];
+
+        const fotoHtml = r.FOTO
+            ? `<div class="print-foto"><img src="${r.FOTO}"></div>`
+            : '';
+
+        document.getElementById('printArea').innerHTML = `
+            <div class="print-page">
+                <div class="print-header">
+                    <h2>LAPORAN HASIL ${String(r.TUGAS).toUpperCase()} LAPANGAN</h2>
+                    <p>SISTEM PELAPORAN LAPANGAN</p>
+                </div>
+                <table class="print-table">
+                    <tr><td class="label">NOMOR SURAT TUGAS</td><td>${r['NOMOR SURAT TUGAS'] || '-'}</td></tr>
+                    <tr><td class="label">TANGGAL SURAT TUGAS</td><td>${tglSurat || '-'}</td></tr>
+                    <tr><td class="label">TANGGAL PELAKSANAAN</td><td>${rentangTgl}</td></tr>
+                    <tr><td class="label">JENIS TUGAS</td><td>${String(r.TUGAS).toUpperCase()}</td></tr>
+                    <tr><td class="label">TASKFORCE</td><td>${r.TASKFORCE || '-'}</td></tr>
+                    <tr><td class="label">NIP</td><td>${r.NIP || '-'}</td></tr>
+                    <tr><td class="label">TIM</td><td>${r.TIM || '-'}</td></tr>
+                    <tr><td class="label">NAMA PML</td><td>${r['NAMA PML'] || '-'}</td></tr>
+                    <tr><td class="label">NAMA PPL</td><td>${r['NAMA PPL'] || '-'}</td></tr>
+                    <tr><td class="label">ID SUBSLS</td><td>${r.ID_SubSLS || '-'}</td></tr>
+                    <tr><td class="label">NAMA SLS</td><td>${r['NAMA SLS'] || '-'}</td></tr>
+                    <tr><td class="label">TOTAL ASSIGNMENT</td><td>${r['Total Assigment'] || '-'}</td></tr>
+                    <tr><td class="label">MUATAN KK WILKERSTAT</td><td>${r['Muatan Kk Wilkerstat'] || '-'}</td></tr>
+                    <tr><td class="label">MUATAN USAHA WILKERSTAT</td><td>${r['Muatan Usaha Wilkerstat'] || '-'}</td></tr>
+                    <tr><td class="label">TOTAL MUATAN WILKERSTAT</td><td>${r['Total Muatan Wilkerstat'] || '-'}</td></tr>
+                    <tr><td class="label">JUMLAH KUNJUNGAN</td><td>${r.KUNJUNGAN || '-'}</td></tr>
+                    <tr><td class="label">KOORDINAT</td><td>${r.KOORDINAT || '-'}</td></tr>
+                </table>
+                <div class="print-uraian">
+                    <b>URAIAN KEGIATAN:</b>
+                    <div class="kotak">${(r['URAIAN KEGIATAN'] || '').replace(/\n/g, '<br>')}</div>
+                </div>
+                ${fotoHtml}
+                <div class="print-signature">
+                    <div class="sign-block">
+                        <div>MENGETAHUI,</div>
+                        <div class="sign-line">(.....................................)</div>
+                    </div>
+                    <div class="sign-block">
+                        <div>${tglSurat || '..........................'}</div>
+                        <div>YANG MELAKSANAKAN,</div>
+                        <div class="sign-line">${r.NIP || ''}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        window.print();
+    }
+
+    // =====================================================================
+    // MODAL KONFIRMASI GENERIK
+    // =====================================================================
+    // Dipakai berulang untuk: konfirmasi HAPUS laporan, dan peringatan
+    // KIRIM FINAL ketika Nomor/Tanggal Surat Tugas masih kosong.
+    // showConfirmModal mengembalikan Promise<boolean> -- true jika user
+    // menekan tombol lanjut, false jika batal/menutup modal.
+    function showConfirmModal(title, bodyHtml, okLabel, okBtnClass, hideCancel) {
+        return new Promise(function(resolve) {
+            const overlay = document.getElementById('confirmModalOverlay');
+            const okBtn = document.getElementById('confirmModalOkBtn');
+            const cancelBtn = document.getElementById('confirmModalCancelBtn');
+
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalBody').innerHTML = bodyHtml;
+            okBtn.textContent = okLabel || 'YA, LANJUTKAN';
+            okBtn.className = 'btn btn-sm fw-bold ' + (hideCancel ? 'w-100 ' : 'w-50 ') + (okBtnClass || 'btn-danger');
+            cancelBtn.style.display = hideCancel ? 'none' : '';
+
+            function cleanup(result) {
+                overlay.classList.remove('show');
+                okBtn.removeEventListener('click', onOk);
+                cancelBtn.removeEventListener('click', onCancel);
+                resolve(result);
+            }
+            function onOk() { cleanup(true); }
+            function onCancel() { cleanup(false); }
+
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+            overlay.classList.add('show');
+        });
+    }
+
+    // =====================================================================
+    // MENU TITIK TIGA (⋮) PADA SETIAP CARD LAPORAN
+    // =====================================================================
+    // Sengaja dipisah dari tombol EDIT supaya aksi HAPUS tidak mudah
+    // tertekan tidak sengaja. Hanya satu menu yang boleh terbuka sekaligus.
+    function closeAllReportMenus() {
+        document.querySelectorAll('.report-menu-dropdown').forEach(el => el.style.display = 'none');
+    }
+
+    function toggleReportMenu(event, id) {
+        event.stopPropagation();
+        const menu = document.getElementById('reportMenu_' + id);
+        const isOpen = menu.style.display === 'block';
+        closeAllReportMenus();
+        menu.style.display = isOpen ? 'none' : 'block';
+    }
+
+    // Klik di luar menu manapun otomatis menutup semua menu yang terbuka.
+    document.addEventListener('click', closeAllReportMenus);
+
+    // =====================================================================
+    // HAPUS LAPORAN
+    // =====================================================================
+    async function confirmDeleteReport(id) {
+        closeAllReportMenus();
+        const r = reportListCache[id];
+        const namaTugas = r ? String(r.TUGAS || '').toUpperCase() : '';
+        const idSub = r ? (r.ID_SubSLS || '-') : '-';
+
+        const ok = await showConfirmModal(
+            '⚠️ HAPUS LAPORAN',
+            `Anda yakin akan menghapus laporan <b>${namaTugas}</b> (${idSub}) ini? Tindakan ini <b>tidak dapat dibatalkan</b>.`,
+            'YA, HAPUS',
+            'btn-danger'
+        );
+        if (!ok) return;
+
+        try {
+            let res = await callApi({ action: 'deleteReport', id: id, nip: state.nip });
+            if (res.success) {
+                loadReports();
+            } else {
+                alert('❌ ' + (res.message || 'GAGAL MENGHAPUS LAPORAN.').toUpperCase());
+            }
+        } catch (err) {
+            alert('❌ GAGAL MENGHAPUS LAPORAN: ' + err.message.toUpperCase());
+        }
+    }
+
+    // Cache laporan yang sedang ditampilkan di tab riwayat, supaya tombol
+    // EDIT dan PRINT tidak perlu fetch ulang ke server saat diklik --
+    // cukup ambil dari sini berdasarkan ID.
+    let reportListCache = {};
+
+    async function loadReports() {
+        let container = document.getElementById('reportListContainer');
+        container.innerHTML = '<div class="small text-muted fw-bold">MEMUAT DATA...</div>';
+        try {
+            let filter = document.getElementById('filterStatus').value;
+            let res = await callApi({ action: 'getMyReports', nip: state.nip, status: filter });
+            if (res.success && res.data.length > 0) {
+                reportListCache = {};
+                container.innerHTML = '<ul class="list-group small fw-bold">';
+                res.data.forEach(r => {
+                    reportListCache[r.ID] = r;
+                    const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+                    const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+                    const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+                    const isFinal = norm(r.STATUS) === 'final';
+                    const printBtn = isFinal
+                        ? `<button type="button" class="btn btn-outline-dark btn-sm fw-bold btn-print" onclick="printReport('${r.ID}')">🖨️ PRINT</button>`
+                        : '';
+                    container.innerHTML += `<li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><b>${rentangTgl}</b> - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-secondary">${String(r.STATUS).toUpperCase()}</span>
+                                <div class="report-menu-wrap position-relative">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm fw-bold py-0 px-2" onclick="toggleReportMenu(event, '${r.ID}')" aria-label="MENU LAINNYA">&#8942;</button>
+                                    <div id="reportMenu_${r.ID}" class="report-menu-dropdown" style="display:none;">
+                                        <button type="button" class="report-menu-item text-danger" onclick="confirmDeleteReport('${r.ID}')">🗑️ HAPUS LAPORAN</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editReport('${r.ID}')">✏️ EDIT</button>
+                            ${printBtn}
+                        </div>
+                    </li>`;
+                });
+                container.innerHTML += '</ul>';
+            } else { 
+                container.innerHTML = '<div class="small text-muted py-2 text-center fw-bold">BELUM ADA DATA LAPORAN.</div>'; 
+            }
+        } catch (e) { 
+            container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT RIWAYAT LAPORAN.</div>'; 
+        }
+    }
+
+    // norm() versi javascript sederhana, dipakai untuk perbandingan status
+    // di sisi client (mirip helper norm() di backend Apps Script).
+    function norm(val) {
+        return String(val == null ? '' : val).trim().toLowerCase();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('reportTanggalBerangkat').value = getToday();
+        document.getElementById('reportTanggalPulang').value = getToday();
+        updateSisaKuota();
+
+        // Isi otomatis NIP dari penyimpanan HP/browser ini (kalau pernah login sebelumnya)
+        try {
+            const savedNip = localStorage.getItem('lastNip');
+            if (savedNip) {
+                document.getElementById('loginNip').value = savedNip;
+            }
+        } catch (e) {}
+    });
+</script>
+</body>
+</html>
