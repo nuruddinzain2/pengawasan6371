@@ -717,15 +717,15 @@
                         <div class="row g-2">
                             <div class="col-12">
                                 <label class="form-label small">TASKFORCE</label>
-                                <input type="text" id="anggotaTaskforce" class="form-control form-control-sm">
+                                <input type="text" id="anggotaTaskforce" class="form-control form-control-sm" list="datalistTaskforce" autocomplete="off">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PML</label>
-                                <input type="text" id="anggotaPml" class="form-control form-control-sm">
+                                <input type="text" id="anggotaPml" class="form-control form-control-sm" list="datalistPml" autocomplete="off">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PPL</label>
-                                <input type="text" id="anggotaPpl" class="form-control form-control-sm">
+                                <input type="text" id="anggotaPpl" class="form-control form-control-sm" list="datalistPpl" autocomplete="off">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">ID SUBSLS</label>
@@ -743,6 +743,15 @@
                     </div>
                 </div>
 
+                <!-- Sumber suggestion/autocomplete untuk field TASKFORCE, PML, PPL
+                     di form TAMBAH ANGGOTA & TAMBAH TIM BARU. Diisi lewat JS
+                     (loadKelolaNamaOptions()) dari nama-nama yang sudah pernah
+                     dipakai di seluruh sheet DATABASE -- supaya tinggal klik,
+                     tapi tetap bisa ketik nama baru kalau belum ada. -->
+                <datalist id="datalistTaskforce"></datalist>
+                <datalist id="datalistPml"></datalist>
+                <datalist id="datalistPpl"></datalist>
+
                 <!-- Form TAMBAH TIM BARU (khusus ADMIN). TIM baru dibuat dengan
                      langsung menambahkan anggota pertamanya -- karena sistem
                      menentukan daftar TIM dari nilai unik kolom TIM di sheet
@@ -758,15 +767,15 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label small">TASKFORCE (ANGGOTA PERTAMA)</label>
-                                <input type="text" id="timBaruTaskforce" class="form-control form-control-sm">
+                                <input type="text" id="timBaruTaskforce" class="form-control form-control-sm" list="datalistTaskforce" autocomplete="off">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PML</label>
-                                <input type="text" id="timBaruPml" class="form-control form-control-sm">
+                                <input type="text" id="timBaruPml" class="form-control form-control-sm" list="datalistPml" autocomplete="off">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PPL</label>
-                                <input type="text" id="timBaruPpl" class="form-control form-control-sm">
+                                <input type="text" id="timBaruPpl" class="form-control form-control-sm" list="datalistPpl" autocomplete="off">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">ID SUBSLS</label>
@@ -1759,6 +1768,33 @@
     // =====================================================================
     let kelolaTimAktif = '';
     let kelolaMemberCache = {};
+    let kelolaNamaOptionsLoaded = false;
+
+    // Mengambil daftar nama TASKFORCE/PML/PPL yang sudah pernah dipakai
+    // (lintas TIM) dan mengisinya ke <datalist>, supaya saat mengisi form
+    // TAMBAH ANGGOTA / TAMBAH TIM BARU pengguna tinggal klik dari saran yang
+    // muncul -- tidak wajib ketik manual. Dipanggil sekali per sesi (di-cache
+    // dengan kelolaNamaOptionsLoaded) supaya tidak request berulang setiap
+    // kali form dibuka.
+    async function loadKelolaNamaOptions(force) {
+        if (kelolaNamaOptionsLoaded && !force) return;
+        try {
+            let res = await callApi({ action: 'getAllNames', nip: state.nip, requester_taskforce: state.taskforce });
+            if (!res.success) return;
+            const data = res.data || {};
+            const fill = (listId, arr) => {
+                const el = document.getElementById(listId);
+                el.innerHTML = (arr || []).map(v => `<option value="${String(v).replace(/"/g, '&quot;')}"></option>`).join('');
+            };
+            fill('datalistTaskforce', data.taskforce);
+            fill('datalistPml', data.pml);
+            fill('datalistPpl', data.ppl);
+            kelolaNamaOptionsLoaded = true;
+        } catch (err) {
+            // Diam-diam gagal -- field tetap bisa diketik manual seperti biasa,
+            // jadi tidak perlu mengganggu pengguna dengan alert kalau ini gagal.
+        }
+    }
 
     async function loadKelolaData() {
         clearAlert('kelolaAlert');
@@ -1771,6 +1807,7 @@
         // NIP/role berbeda) -- biar tidak nyangkut di sub-tab SURAT TUGAS
         // dari sesi sebelumnya.
         switchKelolaSub('anggota');
+        loadKelolaNamaOptions();
 
         try {
             let res = await callApi({ action: 'getManagedTeams', nip: state.nip, taskforce: state.taskforce });
@@ -1986,6 +2023,7 @@
                 const targetBtn = document.getElementById('btnTambahAnggota');
                 showInlineFeedback(targetBtn, 'TERSIMPAN: ' + (res.message || 'ANGGOTA DISIMPAN.'), true);
                 loadKelolaTeamData(kelolaTimAktif);
+                loadKelolaNamaOptions(true); // nama baru (kalau ada) langsung ikut jadi saran berikutnya
             } else {
                 alert('❌ ' + (res.message || 'GAGAL MENYIMPAN ANGGOTA.').toUpperCase());
             }
