@@ -718,7 +718,7 @@
                         <div class="row g-2">
                             <div class="col-12">
                                 <label class="form-label small fw-bold">NIP <span class="text-muted fw-normal">(WAJIB, supaya orangnya dikenali sistem saat login)</span></label>
-                                <input type="text" id="anggotaNip" class="form-control form-control-sm" inputmode="numeric">
+                                <input type="text" id="anggotaNip" class="form-control form-control-sm" list="datalistNip" autocomplete="off" inputmode="numeric" oninput="autoIsiNamaDariNip('anggotaNip','anggotaTaskforce')">
                             </div>
                             <div class="col-12">
                                 <label class="form-label small">TASKFORCE</label>
@@ -756,6 +756,7 @@
                 <datalist id="datalistTaskforce"></datalist>
                 <datalist id="datalistPml"></datalist>
                 <datalist id="datalistPpl"></datalist>
+                <datalist id="datalistNip"></datalist>
 
                 <!-- Form TAMBAH TIM BARU (khusus ADMIN). TIM baru dibuat dengan
                      langsung menambahkan anggota pertamanya -- karena sistem
@@ -776,7 +777,7 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-bold">NIP <span class="text-muted fw-normal">(WAJIB)</span></label>
-                                <input type="text" id="timBaruNip" class="form-control form-control-sm" inputmode="numeric">
+                                <input type="text" id="timBaruNip" class="form-control form-control-sm" list="datalistNip" autocomplete="off" inputmode="numeric" oninput="autoIsiNamaDariNip('timBaruNip','timBaruTaskforce')">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PML</label>
@@ -1778,6 +1779,7 @@
     let kelolaTimAktif = '';
     let kelolaMemberCache = {};
     let kelolaNamaOptionsLoaded = false;
+    let kelolaEmailDirectory = {}; // { "NIP": "NAMA" } -- untuk autocomplete + auto-isi nama
 
     // Mengambil daftar nama TASKFORCE/PML/PPL yang sudah pernah dipakai
     // (lintas TIM) dan mengisinya ke <datalist>, supaya saat mengisi form
@@ -1788,20 +1790,48 @@
     async function loadKelolaNamaOptions(force) {
         if (kelolaNamaOptionsLoaded && !force) return;
         try {
-            let res = await callApi({ action: 'getAllNames', nip: state.nip, requester_taskforce: state.taskforce });
-            if (!res.success) return;
-            const data = res.data || {};
-            const fill = (listId, arr) => {
-                const el = document.getElementById(listId);
-                el.innerHTML = (arr || []).map(v => `<option value="${String(v).replace(/"/g, '&quot;')}"></option>`).join('');
-            };
-            fill('datalistTaskforce', data.taskforce);
-            fill('datalistPml', data.pml);
-            fill('datalistPpl', data.ppl);
+            const [resNames, resEmail] = await Promise.all([
+                callApi({ action: 'getAllNames', nip: state.nip, requester_taskforce: state.taskforce }),
+                callApi({ action: 'getEmailDirectory', nip: state.nip, requester_taskforce: state.taskforce })
+            ]);
+
+            if (resNames.success) {
+                const data = resNames.data || {};
+                const fill = (listId, arr) => {
+                    const el = document.getElementById(listId);
+                    el.innerHTML = (arr || []).map(v => `<option value="${String(v).replace(/"/g, '&quot;')}"></option>`).join('');
+                };
+                fill('datalistTaskforce', data.taskforce);
+                fill('datalistPml', data.pml);
+                fill('datalistPpl', data.ppl);
+            }
+
+            if (resEmail.success) {
+                kelolaEmailDirectory = {};
+                const nipList = document.getElementById('datalistNip');
+                nipList.innerHTML = (resEmail.data || []).map(p => {
+                    kelolaEmailDirectory[p.nip] = p.nama;
+                    return `<option value="${p.nip}">${p.nip} — ${String(p.nama).toUpperCase()}</option>`;
+                }).join('');
+            }
+
             kelolaNamaOptionsLoaded = true;
         } catch (err) {
             // Diam-diam gagal -- field tetap bisa diketik manual seperti biasa,
             // jadi tidak perlu mengganggu pengguna dengan alert kalau ini gagal.
+        }
+    }
+
+    // Begitu admin memilih/mengetik NIP yang sudah dikenal (ada di sheet
+    // EMAIL), field NAMA/TASKFORCE di sebelahnya langsung ikut terisi
+    // otomatis -- supaya "tinggal klik" dan tidak perlu ketik nama lagi.
+    // Kalau field nama sudah diisi manual sebelumnya, TIDAK ditimpa.
+    function autoIsiNamaDariNip(nipFieldId, namaFieldId) {
+        const nipVal = document.getElementById(nipFieldId).value.trim();
+        const namaField = document.getElementById(namaFieldId);
+        const namaDikenal = kelolaEmailDirectory[nipVal];
+        if (namaDikenal && !namaField.value.trim()) {
+            namaField.value = namaDikenal;
         }
     }
 
