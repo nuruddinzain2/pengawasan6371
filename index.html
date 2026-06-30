@@ -183,6 +183,48 @@
             background: #e65100;
             color: #fff;
         }
+        /* Notifikasi kecil yang muncul tepat di sebelah tombol yang diklik
+           (SET kuota, SET jabatan, dll) supaya pengguna langsung tahu data
+           sudah tersimpan/gagal TANPA harus melihat ke atas halaman. */
+        .inline-feedback {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 8px;
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(-3px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            pointer-events: none;
+        }
+        .inline-feedback.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .inline-feedback-success {
+            background-color: #d1f7e0;
+            color: #0a7a3d;
+        }
+        .inline-feedback-danger {
+            background-color: #fde2e2;
+            color: #b42318;
+        }
+        .btn-tambah-tim {
+            border: 2px dashed #e65100;
+            color: #e65100;
+            background: #fff7f0;
+            border-radius: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .btn-tambah-tim:hover {
+            background: #e65100;
+            color: #fff;
+        }
         .alert-info {
             background-color: #fff3e0;
             color: #e65100;
@@ -596,14 +638,17 @@
                          boleh dikelola -- misal ADMIN yang lihat semua TIM, atau
                          Ketua yang menjabat di lebih dari 1 TIM). -->
                     <div id="kelolaTimPicker" class="mb-3" style="display:none;">
-                        <h6 class="fw-bold text-uppercase mb-2">PILIH TIM YANG DIKELOLA</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-uppercase mb-0">PILIH TIM YANG DIKELOLA</h6>
+                            <button type="button" id="btnTambahTim" class="btn btn-tambah-tim btn-sm" style="display:none;" onclick="bukaFormTimBaru()">➕ TAMBAH TIM BARU</button>
+                        </div>
                         <div id="kelolaTimPickerList" class="d-flex flex-wrap gap-2"></div>
                     </div>
 
                     <div id="kelolaContent" style="display:none;">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="fw-bold text-uppercase mb-0">ANGGOTA TIM: <span id="kelolaTimAktifLabel"></span></h6>
-                            <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="bukaFormAnggota()">➕ TAMBAH ANGGOTA</button>
+                            <button type="button" id="btnTambahAnggota" class="btn btn-primary btn-sm fw-bold" onclick="bukaFormAnggota()">➕ TAMBAH ANGGOTA</button>
                         </div>
                         <div id="kelolaMemberList"></div>
 
@@ -625,7 +670,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" onclick="submitSetJabatan()">SET</button>
+                                    <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" onclick="submitSetJabatan(this)">SET</button>
                                 </div>
                             </div>
                         </div>
@@ -697,6 +742,48 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Form TAMBAH TIM BARU (khusus ADMIN). TIM baru dibuat dengan
+                     langsung menambahkan anggota pertamanya -- karena sistem
+                     menentukan daftar TIM dari nilai unik kolom TIM di sheet
+                     DATABASE, bukan dari tabel TIM terpisah. -->
+                <div id="timFormOverlay" class="confirm-modal-overlay">
+                    <div class="confirm-modal-box" style="max-width: 480px;">
+                        <h6>➕ TAMBAH TIM BARU</h6>
+                        <p class="small text-muted">Isi nama TIM baru dan data anggota pertamanya. TIM ini akan otomatis muncul di daftar TIM setelah disimpan.</p>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">NAMA TIM BARU</label>
+                                <input type="text" id="timBaruNama" class="form-control form-control-sm" placeholder="Contoh: SENSUS PERTANIAN">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small">TASKFORCE (ANGGOTA PERTAMA)</label>
+                                <input type="text" id="timBaruTaskforce" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">PML</label>
+                                <input type="text" id="timBaruPml" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">PPL</label>
+                                <input type="text" id="timBaruPpl" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">ID SUBSLS</label>
+                                <input type="text" id="timBaruIdsubsls" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">NAMA SLS</label>
+                                <input type="text" id="timBaruNamaSls" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        <div id="timBaruAlert" class="mt-2"></div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-50 fw-bold" onclick="tutupFormTimBaru()">BATAL</button>
+                            <button type="button" id="btnSimpanTimBaru" class="btn btn-primary btn-sm w-50 fw-bold" onclick="submitFormTimBaru()">SIMPAN</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -745,6 +832,30 @@
     function clearAlert(containerId) {
         const container = document.getElementById(containerId);
         if (container) container.innerHTML = '';
+    }
+
+    // Menampilkan badge kecil ✅/❌ TEPAT DI SEBELAH tombol yang diklik
+    // (misal tombol SET), supaya pengguna langsung tahu hasilnya tanpa
+    // perlu melihat ke bagian atas halaman. Badge ini hilang sendiri
+    // setelah beberapa detik. Kalau elemen tombolnya tidak ada (null),
+    // fallback ke kotak alert biasa supaya tidak pernah diam-diam gagal.
+    function showInlineFeedback(btnEl, message, success) {
+        if (!btnEl || !btnEl.parentNode) {
+            showAlert('kelolaAlert', (success ? '✅ ' : '❌ ') + message.toUpperCase(), success ? 'success' : 'danger');
+            return;
+        }
+        const existing = btnEl.parentNode.querySelector('.inline-feedback');
+        if (existing) existing.remove();
+
+        const badge = document.createElement('span');
+        badge.className = 'inline-feedback ' + (success ? 'inline-feedback-success' : 'inline-feedback-danger');
+        badge.textContent = (success ? '✅ ' : '❌ ') + message;
+        btnEl.insertAdjacentElement('afterend', badge);
+        requestAnimationFrame(() => badge.classList.add('show'));
+        setTimeout(() => {
+            badge.classList.remove('show');
+            setTimeout(() => badge.remove(), 250);
+        }, 2200);
     }
 
     function getToday() {
@@ -1653,6 +1764,7 @@
         clearAlert('kelolaAlert');
         document.getElementById('kelolaContent').style.display = 'none';
         document.getElementById('kelolaTimPicker').style.display = 'none';
+        document.getElementById('btnTambahTim').style.display = state.role === 'admin' ? 'inline-block' : 'none';
 
         // Pastikan sub-tab "ANGGOTA & KUOTA" yang aktif sebagai default
         // setiap kali tab KELOLA dibuka (mis. setelah login ulang dengan
@@ -1667,30 +1779,25 @@
                 return;
             }
             const timList = res.data || [];
-            if (timList.length === 0) {
+            if (timList.length === 0 && state.role !== 'admin') {
                 showAlert('kelolaAlert', 'ℹ️ ANDA TIDAK MEMILIKI TIM YANG DAPAT DIKELOLA.', 'info');
                 return;
             }
 
-            if (timList.length > 1) {
+            // Picker TIM ditampilkan kalau ada lebih dari 1 TIM (perlu
+            // dipilih), ATAU kalau role-nya admin (admin perlu melihat
+            // tombol "TAMBAH TIM BARU" walau baru ada 0/1 TIM).
+            if (timList.length > 1 || state.role === 'admin') {
                 const picker = document.getElementById('kelolaTimPicker');
-                const pickerList = document.getElementById('kelolaTimPickerList');
-                pickerList.innerHTML = '';
-                timList.forEach(t => {
-                    const pill = document.createElement('button');
-                    pill.type = 'button';
-                    pill.className = 'kelola-tim-pill' + (t === kelolaTimAktif ? ' active' : '');
-                    pill.textContent = t;
-                    pill.onclick = () => { kelolaTimAktif = t; loadKelolaTeamData(t); renderKelolaTimPicker(timList); };
-                    pickerList.appendChild(pill);
-                });
+                renderKelolaTimPicker(timList);
                 picker.style.display = 'block';
             }
+
+            if (timList.length === 0) return; // admin tanpa TIM apa pun -- cukup tombol TAMBAH TIM BARU yang muncul
 
             if (!kelolaTimAktif || !timList.some(t => norm(t) === norm(kelolaTimAktif))) {
                 kelolaTimAktif = timList[0];
             }
-            if (timList.length > 1) renderKelolaTimPicker(timList);
             await loadKelolaTeamData(kelolaTimAktif);
         } catch (err) {
             showAlert('kelolaAlert', '❌ GAGAL MEMUAT DATA KELOLA: ' + err.message.toUpperCase(), 'danger');
@@ -1757,7 +1864,7 @@
                         </div>
                         <div class="d-flex gap-1">
                             <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="bukaFormAnggota('${key}')">✏️</button>
-                            <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusAnggota('${key}')">🗑️</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusAnggota('${key}', this)">🗑️</button>
                         </div>
                     </div>
                 </div>`;
@@ -1804,7 +1911,7 @@
                 html += `<div class="d-flex align-items-center gap-2 mb-2">
                     <div class="flex-grow-1 small fw-bold text-uppercase">${row.taskforce}</div>
                     <input type="number" min="0" class="form-control form-control-sm" style="width:90px;" id="kuotaInput_${idx}" value="${row.kuota}">
-                    <button type="button" class="btn btn-secondary btn-sm fw-bold" onclick="submitSetKuota('${tim.replace(/'/g, "\\'")}','${String(row.taskforce).replace(/'/g, "\\'")}', ${idx})">SET</button>
+                    <button type="button" class="btn btn-secondary btn-sm fw-bold" onclick="submitSetKuota('${tim.replace(/'/g, "\\'")}','${String(row.taskforce).replace(/'/g, "\\'")}', ${idx}, this)">SET</button>
                 </div>`;
             });
             html += '</div>';
@@ -1814,18 +1921,18 @@
         }
     }
 
-    async function submitSetKuota(tim, taskforce, idx) {
+    async function submitSetKuota(tim, taskforce, idx, btnEl) {
         const input = document.getElementById('kuotaInput_' + idx);
         const nilai = input.value;
         try {
             let res = await callApi({ action: 'setKuota', nip: state.nip, requester_taskforce: state.taskforce, tim: tim, taskforce: taskforce, kuota: nilai });
             if (res.success) {
-                showAlert('kelolaAlert', '✅ ' + res.message.toUpperCase(), 'success');
+                showInlineFeedback(btnEl, 'TERSIMPAN, KUOTA JADI ' + nilai, true);
             } else {
-                showAlert('kelolaAlert', '❌ ' + (res.message || 'GAGAL MENGUBAH KUOTA.').toUpperCase(), 'danger');
+                showInlineFeedback(btnEl, res.message || 'GAGAL MENGUBAH KUOTA.', false);
             }
         } catch (err) {
-            showAlert('kelolaAlert', '❌ GAGAL MENGUBAH KUOTA: ' + err.message.toUpperCase(), 'danger');
+            showInlineFeedback(btnEl, 'GAGAL: ' + err.message, false);
         }
     }
 
@@ -1876,7 +1983,8 @@
             let res = await callApi(payload);
             if (res.success) {
                 tutupFormAnggota();
-                showAlert('kelolaAlert', '✅ ' + res.message.toUpperCase(), 'success');
+                const targetBtn = document.getElementById('btnTambahAnggota');
+                showInlineFeedback(targetBtn, 'TERSIMPAN: ' + (res.message || 'ANGGOTA DISIMPAN.'), true);
                 loadKelolaTeamData(kelolaTimAktif);
             } else {
                 alert('❌ ' + (res.message || 'GAGAL MENYIMPAN ANGGOTA.').toUpperCase());
@@ -1886,7 +1994,7 @@
         }
     }
 
-    async function confirmHapusAnggota(memberKey) {
+    async function confirmHapusAnggota(memberKey, btnEl) {
         const m = kelolaMemberCache[memberKey];
         if (!m) return;
         const taskforce = m.TASKFORCE || m.Taskforce || '-';
@@ -1910,8 +2018,8 @@
                 id_subsls: String(m.ID_SubSLS || '').replace(/^'/, '')
             });
             if (res.success) {
-                showAlert('kelolaAlert', '✅ ' + res.message.toUpperCase(), 'success');
-                loadKelolaTeamData(kelolaTimAktif);
+                showInlineFeedback(btnEl, 'ANGGOTA TERHAPUS', true);
+                setTimeout(() => loadKelolaTeamData(kelolaTimAktif), 900);
             } else {
                 alert('❌ ' + (res.message || 'GAGAL MENGHAPUS ANGGOTA.').toUpperCase());
             }
@@ -1923,23 +2031,85 @@
     // ---------------------------------------------------------------------
     // KELOLA KETUA TIM (KHUSUS ADMIN)
     // ---------------------------------------------------------------------
-    async function submitSetJabatan() {
+    async function submitSetJabatan(btnEl) {
         const taskforce = document.getElementById('kelolaJabatanTaskforce').value;
         const jabatan = document.getElementById('kelolaJabatanBaru').value;
         if (!taskforce) {
-            showAlert('kelolaAlert', '⚠️ PILIH TASKFORCE TERLEBIH DAHULU.', 'warning');
+            showInlineFeedback(btnEl, 'PILIH TASKFORCE TERLEBIH DAHULU.', false);
             return;
         }
         try {
             let res = await callApi({ action: 'setJabatan', nip: state.nip, tim: kelolaTimAktif, taskforce: taskforce, jabatan: jabatan });
             if (res.success) {
-                showAlert('kelolaAlert', '✅ ' + res.message.toUpperCase(), 'success');
-                loadKelolaTeamData(kelolaTimAktif);
+                showInlineFeedback(btnEl, jabatan === 'ketua' ? 'TERSIMPAN, DIJADIKAN KETUA' : 'TERSIMPAN, DIJADIKAN ANGGOTA', true);
+                // Tunda reload sebentar supaya badge notifikasi di atas
+                // sempat terlihat dulu sebelum tombolnya dirender ulang.
+                setTimeout(() => loadKelolaTeamData(kelolaTimAktif), 1400);
             } else {
-                showAlert('kelolaAlert', '❌ ' + (res.message || 'GAGAL MENGUBAH JABATAN.').toUpperCase(), 'danger');
+                showInlineFeedback(btnEl, res.message || 'GAGAL MENGUBAH JABATAN.', false);
             }
         } catch (err) {
-            showAlert('kelolaAlert', '❌ GAGAL MENGUBAH JABATAN: ' + err.message.toUpperCase(), 'danger');
+            showInlineFeedback(btnEl, 'GAGAL: ' + err.message, false);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // TAMBAH TIM BARU (KHUSUS ADMIN)
+    // ---------------------------------------------------------------------
+    function bukaFormTimBaru() {
+        document.getElementById('timBaruNama').value = '';
+        document.getElementById('timBaruTaskforce').value = '';
+        document.getElementById('timBaruPml').value = '';
+        document.getElementById('timBaruPpl').value = '';
+        document.getElementById('timBaruIdsubsls').value = '';
+        document.getElementById('timBaruNamaSls').value = '';
+        document.getElementById('timBaruAlert').innerHTML = '';
+        document.getElementById('timFormOverlay').classList.add('show');
+    }
+
+    function tutupFormTimBaru() {
+        document.getElementById('timFormOverlay').classList.remove('show');
+    }
+
+    async function submitFormTimBaru() {
+        const namaTim = document.getElementById('timBaruNama').value.trim();
+        const taskforce = document.getElementById('timBaruTaskforce').value.trim();
+        const alertBox = document.getElementById('timBaruAlert');
+        alertBox.innerHTML = '';
+
+        if (!namaTim) {
+            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ NAMA TIM WAJIB DIISI.</div>';
+            return;
+        }
+        if (!taskforce) {
+            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ TASKFORCE (ANGGOTA PERTAMA) WAJIB DIISI.</div>';
+            return;
+        }
+
+        const payload = {
+            action: 'addOrUpdateMember',
+            nip: state.nip,
+            requester_taskforce: state.taskforce,
+            tim: namaTim,
+            taskforce: taskforce,
+            pml: document.getElementById('timBaruPml').value.trim(),
+            ppl: document.getElementById('timBaruPpl').value.trim(),
+            id_subsls: document.getElementById('timBaruIdsubsls').value.trim(),
+            nama_sls: document.getElementById('timBaruNamaSls').value.trim()
+        };
+
+        try {
+            let res = await callApi(payload);
+            if (res.success) {
+                tutupFormTimBaru();
+                showInlineFeedback(document.getElementById('btnTambahTim'), 'TIM "' + namaTim.toUpperCase() + '" TERSIMPAN', true);
+                kelolaTimAktif = namaTim;
+                await loadKelolaData(); // muat ulang daftar TIM supaya TIM baru langsung muncul & terpilih
+            } else {
+                alertBox.innerHTML = `<div class="alert alert-danger py-2 small fw-bold">❌ ${(res.message || 'GAGAL MENYIMPAN TIM BARU.').toUpperCase()}</div>`;
+            }
+        } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-danger py-2 small fw-bold">❌ GAGAL: ${err.message.toUpperCase()}</div>`;
         }
     }
 
