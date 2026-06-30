@@ -714,7 +714,12 @@
                         <input type="hidden" id="anggotaMatchPml">
                         <input type="hidden" id="anggotaMatchPpl">
                         <input type="hidden" id="anggotaMatchIdsubsls">
+                        <input type="hidden" id="anggotaMatchNip">
                         <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">NIP <span class="text-muted fw-normal">(WAJIB, supaya orangnya dikenali sistem saat login)</span></label>
+                                <input type="text" id="anggotaNip" class="form-control form-control-sm" inputmode="numeric">
+                            </div>
                             <div class="col-12">
                                 <label class="form-label small">TASKFORCE</label>
                                 <input type="text" id="anggotaTaskforce" class="form-control form-control-sm" list="datalistTaskforce" autocomplete="off">
@@ -768,6 +773,10 @@
                             <div class="col-12">
                                 <label class="form-label small">TASKFORCE (ANGGOTA PERTAMA)</label>
                                 <input type="text" id="timBaruTaskforce" class="form-control form-control-sm" list="datalistTaskforce" autocomplete="off">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">NIP <span class="text-muted fw-normal">(WAJIB)</span></label>
+                                <input type="text" id="timBaruNip" class="form-control form-control-sm" inputmode="numeric">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PML</label>
@@ -1887,6 +1896,7 @@
                 const key = 'm' + idx;
                 kelolaMemberCache[key] = m;
                 const isKetua = norm(m.JABATAN || m.jabatan) === 'ketua';
+                const nipAnggota = String(m.NIP || m.nip || '').trim();
                 const pml = m.PML || m['NAMA PML'] || '-';
                 const ppl = m.PPL || m['NAMA PPL'] || '-';
                 const taskforce = m.TASKFORCE || m.Taskforce || '-';
@@ -1896,6 +1906,7 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <div class="fw-bold">${String(taskforce).toUpperCase()} ${isKetua ? '<span class="badge-ketua">KETUA</span>' : ''}</div>
+                            <div class="small text-muted">NIP: ${nipAnggota || '<span class="text-danger fw-bold">BELUM DIISI</span>'}</div>
                             <div class="small text-muted">PML: ${pml} | PPL: ${ppl}</div>
                             <div class="small text-muted">${idSub} — ${namaSls}</div>
                         </div>
@@ -1913,8 +1924,12 @@
         }
     }
 
-    // Isi dropdown "KELOLA KETUA TIM" (khusus admin) dengan daftar TASKFORCE
-    // unik yang ada di TIM yang sedang aktif.
+    // Isi dropdown "KELOLA KETUA TIM" (khusus admin) dengan daftar anggota
+    // unik di TIM yang sedang aktif. VALUE dropdown adalah NIP (kontrol
+    // utama identitas), bukan nama -- supaya tidak salah orang gara-gara
+    // typo nama. Anggota yang NIP-nya masih kosong tetap ditampilkan
+    // (supaya admin sadar), tapi diberi tanda peringatan karena tidak bisa
+    // dijadikan ketua sampai NIP-nya diisi dulu lewat tombol edit (✏️).
     function renderKelolaJabatanOptions(data) {
         if (state.role !== 'admin') return;
         const select = document.getElementById('kelolaJabatanTaskforce');
@@ -1922,11 +1937,17 @@
         let html = '';
         data.forEach(m => {
             const taskforce = String(m.TASKFORCE || m.Taskforce || '').trim();
-            if (!taskforce || seen[norm(taskforce)]) return;
-            seen[norm(taskforce)] = true;
-            html += `<option value="${taskforce}">${taskforce.toUpperCase()}</option>`;
+            const nip = String(m.NIP || m.nip || '').trim();
+            const dedupeKey = nip || norm(taskforce);
+            if (!taskforce || seen[dedupeKey]) return;
+            seen[dedupeKey] = true;
+            if (nip) {
+                html += `<option value="${nip}">${taskforce.toUpperCase()}</option>`;
+            } else {
+                html += `<option value="" disabled>${taskforce.toUpperCase()} — NIP BELUM DIISI, EDIT DULU (✏️)</option>`;
+            }
         });
-        select.innerHTML = html || '<option value="">-- BELUM ADA TASKFORCE --</option>';
+        select.innerHTML = html || '<option value="">-- BELUM ADA ANGGOTA --</option>';
     }
 
     async function loadKelolaKuota(tim) {
@@ -1981,6 +2002,7 @@
         const m = memberKey ? kelolaMemberCache[memberKey] : null;
 
         document.getElementById('anggotaFormTitle').textContent = m ? 'EDIT ANGGOTA' : 'TAMBAH ANGGOTA';
+        document.getElementById('anggotaNip').value = m ? String(m.NIP || m.nip || '') : '';
         document.getElementById('anggotaTaskforce').value = m ? (m.TASKFORCE || m.Taskforce || '') : '';
         document.getElementById('anggotaPml').value = m ? (m.PML || m['NAMA PML'] || '') : '';
         document.getElementById('anggotaPpl').value = m ? (m.PPL || m['NAMA PPL'] || '') : '';
@@ -1989,6 +2011,8 @@
 
         // Simpan kriteria pencarian baris ASLI (sebelum diedit), supaya server
         // tahu baris mana yang harus diupdate -- bukan ditambah sebagai baru.
+        // match_nip jadi prioritas utama kalau baris itu sudah punya NIP.
+        document.getElementById('anggotaMatchNip').value = m ? String(m.NIP || m.nip || '') : '';
         document.getElementById('anggotaMatchPml').value = m ? (m.PML || m['NAMA PML'] || '') : '';
         document.getElementById('anggotaMatchPpl').value = m ? (m.PPL || m['NAMA PPL'] || '') : '';
         document.getElementById('anggotaMatchIdsubsls').value = m ? String(m.ID_SubSLS || '').replace(/^'/, '') : '';
@@ -2001,16 +2025,22 @@
     }
 
     async function submitFormAnggota() {
+        if (!document.getElementById('anggotaNip').value.trim()) {
+            alert('❌ NIP WAJIB DIISI, SUPAYA ANGGOTA INI BISA LOGIN DAN DIKENALI SISTEM DENGAN BENAR.');
+            return;
+        }
         const payload = {
             action: 'addOrUpdateMember',
             nip: state.nip,
             requester_taskforce: state.taskforce,
             tim: kelolaTimAktif,
+            member_nip: document.getElementById('anggotaNip').value.trim(),
             taskforce: document.getElementById('anggotaTaskforce').value.trim(),
             pml: document.getElementById('anggotaPml').value.trim(),
             ppl: document.getElementById('anggotaPpl').value.trim(),
             id_subsls: document.getElementById('anggotaIdSubsls').value.trim(),
             nama_sls: document.getElementById('anggotaNamaSls').value.trim(),
+            match_nip: document.getElementById('anggotaMatchNip').value.trim(),
             match_pml: document.getElementById('anggotaMatchPml').value.trim(),
             match_ppl: document.getElementById('anggotaMatchPpl').value.trim(),
             match_idsubsls: document.getElementById('anggotaMatchIdsubsls').value.trim()
@@ -2070,14 +2100,16 @@
     // KELOLA KETUA TIM (KHUSUS ADMIN)
     // ---------------------------------------------------------------------
     async function submitSetJabatan(btnEl) {
-        const taskforce = document.getElementById('kelolaJabatanTaskforce').value;
+        const select = document.getElementById('kelolaJabatanTaskforce');
+        const targetNip = select.value;
+        const namaTerpilih = select.options[select.selectedIndex] ? select.options[select.selectedIndex].text.replace(/\s*—.*$/, '') : '';
         const jabatan = document.getElementById('kelolaJabatanBaru').value;
-        if (!taskforce) {
-            showInlineFeedback(btnEl, 'PILIH TASKFORCE TERLEBIH DAHULU.', false);
+        if (!targetNip) {
+            showInlineFeedback(btnEl, 'PILIH ANGGOTA DENGAN NIP TERISI TERLEBIH DAHULU.', false);
             return;
         }
         try {
-            let res = await callApi({ action: 'setJabatan', nip: state.nip, tim: kelolaTimAktif, taskforce: taskforce, jabatan: jabatan });
+            let res = await callApi({ action: 'setJabatan', nip: state.nip, tim: kelolaTimAktif, target_nip: targetNip, taskforce: namaTerpilih, jabatan: jabatan });
             if (res.success) {
                 showInlineFeedback(btnEl, jabatan === 'ketua' ? 'TERSIMPAN, DIJADIKAN KETUA' : 'TERSIMPAN, DIJADIKAN ANGGOTA', true);
                 // Tunda reload sebentar supaya badge notifikasi di atas
@@ -2097,6 +2129,7 @@
     function bukaFormTimBaru() {
         document.getElementById('timBaruNama').value = '';
         document.getElementById('timBaruTaskforce').value = '';
+        document.getElementById('timBaruNip').value = '';
         document.getElementById('timBaruPml').value = '';
         document.getElementById('timBaruPpl').value = '';
         document.getElementById('timBaruIdsubsls').value = '';
@@ -2112,6 +2145,7 @@
     async function submitFormTimBaru() {
         const namaTim = document.getElementById('timBaruNama').value.trim();
         const taskforce = document.getElementById('timBaruTaskforce').value.trim();
+        const memberNip = document.getElementById('timBaruNip').value.trim();
         const alertBox = document.getElementById('timBaruAlert');
         alertBox.innerHTML = '';
 
@@ -2123,6 +2157,10 @@
             alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ TASKFORCE (ANGGOTA PERTAMA) WAJIB DIISI.</div>';
             return;
         }
+        if (!memberNip) {
+            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ NIP WAJIB DIISI, SUPAYA ANGGOTA INI BISA LOGIN DAN DIKENALI SISTEM.</div>';
+            return;
+        }
 
         const payload = {
             action: 'addOrUpdateMember',
@@ -2130,6 +2168,7 @@
             requester_taskforce: state.taskforce,
             tim: namaTim,
             taskforce: taskforce,
+            member_nip: memberNip,
             pml: document.getElementById('timBaruPml').value.trim(),
             ppl: document.getElementById('timBaruPpl').value.trim(),
             id_subsls: document.getElementById('timBaruIdsubsls').value.trim(),
