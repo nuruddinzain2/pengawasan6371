@@ -968,18 +968,33 @@
     }
 
     async function callApi(params) {
-        const url = new URL(CONFIG.WEBAPP_URL);
-        for (const [key, value] of Object.entries(params)) {
-            url.searchParams.set(key, String(value).trim());
-        }
-        try {
-            const response = await fetch(url.toString(), { method: 'GET', mode: 'cors' });
-            if (!response.ok) throw new Error();
-            return await response.json();
-        } catch (err) {
-            return await callApiJsonp(params);
-        }
+  const url = new URL(CONFIG.WEBAPP_URL);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, String(value).trim());
+  }
+  console.log('[API] Memanggil:', url.toString());
+  try {
+    const response = await withTimeout(
+      fetch(url.toString(), { method: 'GET', mode: 'cors' }),
+      20000
+    );
+    if (!response.ok) {
+      console.warn('[API] HTTP error:', response.status);
+      throw new Error('HTTP ' + response.status);
     }
+    const text = await response.text();
+    console.log('[API] Response mentah:', text.substring(0, 200));
+    try {
+      return JSON.parse(text);
+    } catch (parseErr) {
+      console.error('[API] Response bukan JSON valid. Coba JSONP fallback.');
+      return await callApiJsonp(params);
+    }
+  } catch (err) {
+    console.warn('[API] Fetch gagal, coba JSONP:', err.message);
+    return await callApiJsonp(params);
+  }
+}
 
     function callApiJsonp(params) {
         return new Promise((resolve, reject) => {
@@ -1054,77 +1069,104 @@
     }
 
     async function handleLogin(event) {
-        event.preventDefault();
-        const nip = document.getElementById('loginNip').value.trim();
-        const taskforce = document.getElementById('loginTaskforce').value;
-        const email = document.getElementById('loginEmail').value.trim();
-        const btn = document.getElementById('loginBtn');
+  event.preventDefault();
+  const nip = document.getElementById('loginNip').value.trim();
+  const taskforce = document.getElementById('loginTaskforce').value;
+  const email = document.getElementById('loginEmail').value.trim();
+  const btn = document.getElementById('loginBtn');
 
-        btn.disabled = true;
-        btn.textContent = 'MEMPROSES...';
-        clearAlert('loginAlert');
-        showAlert('loginAlert', '⏳ SILAKAN MENUNGGU, SEDANG MEMERIKSA DATA ANDA...', 'info');
+  // Validasi dasar
+  if (!nip) {
+    showAlert('loginAlert', '❌ NIP WAJIB DIISI.', 'danger');
+    return;
+  }
 
-        try {
-            let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
-            if (!result.success) {
-                showAlert('loginAlert', '❌ ' + result.message.toUpperCase(), 'danger');
-                btn.disabled = false; btn.textContent = 'MASUK';
-                return;
-            }
+  btn.disabled = true;
+  btn.textContent = 'MEMPROSES...';
+  clearAlert('loginAlert');
+  showAlert('loginAlert', '⏳ SILAKAN MENUNGGU, SEDANG MEMERIKSA DATA ANDA...', 'info');
 
-            if (result.stage === 'choose_name') {
-                const select = document.getElementById('loginTaskforce');
-                select.innerHTML = '<option value="">-- PILIH TASKFORCE --</option>';
-                result.options.forEach(opt => {
-                    select.innerHTML += `<option value="${opt.taskforce.trim()}">${opt.taskforce.trim().toUpperCase()}</option>`;
-                });
-                document.getElementById('taskforceGroup').style.display = 'block';
-                showAlert('loginAlert', 'ℹ️ SILAKAN PILIH NAMA TASKFORCE ANDA.', 'info');
-            } 
-            else if (result.stage === 'logged_in') {
-                if (result.needEmail && !email) {
-                    showAlert('loginAlert', '📧 MASUKKAN EMAIL UNTUK REGISTRASI AWAL.', 'warning');
-                    document.getElementById('emailGroup').style.display = 'block';
-                } else {
-                    if (result.needEmail && email) {
-                        await callApi({ action: 'saveEmail', nip: nip, taskforce: taskforce, email: email });
-                    }
-                    state.nip = result.nip;
-                    state.taskforce = result.taskforce;
-                    state.nipBaru = result.nipBaru || '';
-                    state.role = result.role || 'anggota';
-                    state.managedTeams = result.managedTeams || [];
-                    state.viewableTeams = result.viewableTeams || [];
-                    
-                    // Simpan NIP di HP/browser ini supaya tidak perlu diketik ulang saat buka halaman lagi
-                    try { localStorage.setItem('lastNip', result.nip); } catch (e) {}
-                    
-                    document.getElementById('userNipDisplay').textContent = result.nip;
-                    document.getElementById('userTaskforceDisplay').textContent = result.taskforce.toUpperCase();
-                    document.getElementById('reportTaskforce').value = result.taskforce;
+  try {
+    console.log('[LOGIN] Mulai login NIP:', nip);
+    let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
+    console.log('[LOGIN] Hasil dari server:', result);
 
-                    // Isi sel NAMA/NIP/NIP BARU di tabel "sheet excel" surat
-                    // tugas -- sel ini read-only, selalu mengikuti data login.
-                    document.getElementById('reportNamaTabel').value = result.taskforce.toUpperCase();
-                    document.getElementById('reportNipTabel').value = result.nip;
-                    document.getElementById('reportNipBaruTabel').value = state.nipBaru || '-';
-                    
-                    document.getElementById('loginPanel').style.display = 'none';
-                    document.getElementById('reportPanel').style.display = 'block';
-                    
-                    applyRoleVisibility();
-                    await loadTugasOptions();
-                    await loadTimDropdown();
-                    loadReports();
-                }
-            }
-        } catch (err) {
-            showAlert('loginAlert', '❌ TERJADI GALAT: ' + err.message.toUpperCase(), 'danger');
-        }
-        btn.disabled = false; btn.textContent = 'MASUK';
+    // Cek struktur response
+    if (!result || typeof result !== 'object') {
+      throw new Error('Respon server tidak valid (bukan objek). Cek URL WEBAPP_URL di CONFIG.');
     }
 
+    if (!result.success) {
+      showAlert('loginAlert', '❌ ' + (result.message || 'LOGIN GAGAL').toUpperCase(), 'danger');
+      btn.disabled = false;
+      btn.textContent = 'MASUK';
+      return;
+    }
+
+    // Normalisasi stage (kadang server kirim huruf besar/kecil tidak konsisten)
+    const stage = String(result.stage || '').toLowerCase().trim();
+    console.log('[LOGIN] Stage:', stage);
+
+    if (stage === 'choose_name') {
+      const select = document.getElementById('loginTaskforce');
+      select.innerHTML = '<option value="">-- PILIH TASKFORCE --</option>';
+      (result.options || []).forEach(opt => {
+        select.innerHTML += `<option value="${opt.taskforce.trim()}">${opt.taskforce.trim().toUpperCase()}</option>`;
+      });
+      document.getElementById('taskforceGroup').style.display = 'block';
+      showAlert('loginAlert', 'ℹ️ SILAKAN PILIH NAMA TASKFORCE ANDA.', 'info');
+      btn.disabled = false;
+      btn.textContent = 'MASUK';
+    }
+    else if (stage === 'logged_in') {
+      if (result.needEmail && !email) {
+        showAlert('loginAlert', '📧 MASUKKAN EMAIL UNTUK REGISTRASI AWAL.', 'warning');
+        document.getElementById('emailGroup').style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'MASUK';
+      } else {
+        if (result.needEmail && email) {
+          await callApi({ action: 'saveEmail', nip: nip, taskforce: taskforce, email: email });
+        }
+        state.nip = result.nip;
+        state.taskforce = result.taskforce;
+        state.nipBaru = result.nipBaru || '';
+        state.role = result.role || 'anggota';
+        state.managedTeams = result.managedTeams || [];
+        state.viewableTeams = result.viewableTeams || [];
+        try { localStorage.setItem('lastNip', result.nip); } catch (e) {}
+        document.getElementById('userNipDisplay').textContent = result.nip;
+        document.getElementById('userTaskforceDisplay').textContent = result.taskforce.toUpperCase();
+        document.getElementById('reportTaskforce').value = result.taskforce;
+        document.getElementById('reportNamaTabel').value = result.taskforce.toUpperCase();
+        document.getElementById('reportNipTabel').value = result.nip;
+        document.getElementById('reportNipBaruTabel').value = state.nipBaru || '-';
+        document.getElementById('loginPanel').style.display = 'none';
+        document.getElementById('reportPanel').style.display = 'block';
+        applyRoleVisibility();
+        await loadTugasOptions();
+        await loadTimDropdown();
+        loadReports();
+      }
+    }
+    else {
+      // ⚠️ INI YANG SERING TERLEWAT: stage tidak dikenal
+      console.error('[LOGIN] Stage tidak dikenal:', result.stage, 'Full response:', result);
+      showAlert('loginAlert',
+        '❌ RESPONSE SERVER TIDAK DIKENAL (stage="' + (result.stage || 'KOSONG') + '"). ' +
+        'Kemungkinan backend (Code.gs) belum menangani action "login" dengan benar, ' +
+        'atau NIP tidak terdaftar. Buka Console (F12) untuk detail.',
+        'danger');
+      btn.disabled = false;
+      btn.textContent = 'MASUK';
+    }
+  } catch (err) {
+    console.error('[LOGIN] Error:', err);
+    showAlert('loginAlert', '❌ TERJADI GALAT: ' + err.message.toUpperCase(), 'danger');
+    btn.disabled = false;
+    btn.textContent = 'MASUK';
+  }
+}
     function handleLogout() {
         document.getElementById('loginPanel').style.display = 'block';
         document.getElementById('reportPanel').style.display = 'none';
