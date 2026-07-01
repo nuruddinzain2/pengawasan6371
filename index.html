@@ -844,11 +844,13 @@
                         <div class="kelola-sheet-toolbar-actions">
                             <div id="suratTugasMeta" class="kelola-sheet-meta">MENAMPILKAN DATA DARI SHEET HASIL</div>
                             <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="copyKelolaSuratTugasTable()">SALIN TAMPILAN</button>
-                            <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="downloadKelolaSuratTugasExcel()">UNDUH EXCEL</button>
+                            <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="downloadKelolaSuratTugasExcel()">UNDUH TEMPLATE</button>
+                            <button type="button" id="btnUploadTemplateSurat" class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('suratTemplateUpload').click()">UPLOAD TEMPLATE</button>
                             <button type="button" id="btnSaveAllSurat" class="btn btn-primary btn-sm fw-bold" onclick="saveAllSuratInline()" disabled>SIMPAN PERUBAHAN</button>
                         </div>
                         <input type="text" id="suratSearchInput" class="form-control form-control-sm w-auto" placeholder="Cari di semua kolom sheet HASIL" oninput="renderKelolaSuratTugasTable()">
                     </div>
+                    <input type="file" id="suratTemplateUpload" accept=".xlsx,.xls" style="display:none;" onchange="handleSuratTemplateUpload(event)">
                     <div id="suratTugasList"></div>
                 </div>
 
@@ -978,6 +980,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 
     const CONFIG = {
@@ -1118,6 +1121,36 @@
                 throw new Error('UPLOAD FOTO TERLALU LAMA (TIMEOUT). Periksa koneksi internet Anda atau coba dengan foto yang lebih kecil.');
             }
             throw new Error('Gagal terhubung ke server saat upload foto: ' + err.message);
+        }
+    }
+
+    async function postFormApi(formData, timeoutMs, invalidResponseMessage) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs || UPLOAD_TIMEOUT_MS);
+
+        try {
+            const response = await fetch(CONFIG.WEBAPP_URL, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error('Server menolak permintaan (status ' + response.status + ').');
+            }
+
+            try {
+                return await response.json();
+            } catch (parseErr) {
+                throw new Error(invalidResponseMessage || 'Respon server tidak valid.');
+            }
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                throw new Error('Permintaan ke server terlalu lama (timeout).');
+            }
+            throw err;
         }
     }
 
@@ -2400,6 +2433,18 @@
     let kelolaSuratTugasData = [];
     let suratInlineEdits = {};
     let kelolaSuratTugasFilteredIds = [];
+    let kelolaSuratCanEdit = true;
+    const kelolaSuratTemplateColumns = [
+        'ID',
+        'TIM',
+        'TASKFORCE',
+        'ID_SubSLS',
+        'NAMA SLS',
+        'TUGAS',
+        'STATUS',
+        'NOMOR SURAT TUGAS',
+        'TANGGAL SURAT TUGAS'
+    ];
     const kelolaSheetColumns = [
         'ID',
         'TANGGAL BERANGKAT',
@@ -2509,8 +2554,15 @@
         const btn = document.getElementById('btnSaveAllSurat');
         if (!btn) return;
         const count = Object.keys(suratInlineEdits).length;
-        btn.disabled = count === 0;
+        btn.disabled = count === 0 || !kelolaSuratCanEdit;
         btn.textContent = count > 0 ? `SIMPAN PERUBAHAN (${count})` : 'SIMPAN PERUBAHAN';
+    }
+
+    function updateSuratToolbarAccess() {
+        const btnSave = document.getElementById('btnSaveAllSurat');
+        const uploadBtn = document.getElementById('btnUploadTemplateSurat');
+        if (btnSave) btnSave.style.display = kelolaSuratCanEdit ? '' : 'none';
+        if (uploadBtn) uploadBtn.style.display = kelolaSuratCanEdit ? '' : 'none';
     }
 
     function refreshSuratRowActionState(id) {
@@ -2569,6 +2621,16 @@
                 copy['TANGGAL SURAT TUGAS'] = getSuratInlineFieldValue(row.ID, 'TANGGAL SURAT TUGAS');
                 return copy;
             });
+    }
+
+    function buildKelolaSuratTemplateRows() {
+        return getKelolaVisibleRows().map(row => {
+            const item = {};
+            kelolaSuratTemplateColumns.forEach(col => {
+                item[col] = col.indexOf('TANGGAL') !== -1 ? formatSheetDate(row[col]) : (row[col] == null ? '' : row[col]);
+            });
+            return item;
+        });
     }
 
     function renderKelolaSheetCell(row, key) {
@@ -2736,46 +2798,99 @@
     }
 
     function downloadKelolaSuratTugasExcel() {
-        const rows = getKelolaVisibleRows();
-        const headers = ['NO'].concat(kelolaSheetColumns);
-        const trs = rows.map((row, index) => {
-            const tds = kelolaSheetColumns.map(col => {
-                let value = row[col];
-                if (col.indexOf('TANGGAL') !== -1 || col === 'CREATED_AT' || col === 'UPDATED_AT') {
-                    value = formatSheetDate(value);
+        const rows = buildKelolaSuratTemplateRows();
+        const sheetRows = rows.map((row, index) => {
+            const item = { NO: index + 1 };
+            kelolaSuratTemplateColumns.forEach(col => item[col] = row[col]);
+            return item;
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(sheetRows, {
+            header: ['NO'].concat(kelolaSuratTemplateColumns)
+        });
+        ws['!cols'] = [
+            { wch: 6 },
+            { wch: 20 },
+            { wch: 18 },
+            { wch: 26 },
+            { wch: 18 },
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 12 },
+            { wch: 28 },
+            { wch: 18 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'TEMPLATE SURAT');
+        XLSX.writeFile(wb, 'template_kelola_surat_tugas.xlsx');
+    }
+
+    function normalizeImportedTemplateDate(value) {
+        if (value == null || value === '') return '';
+        if (value instanceof Date && !isNaN(value)) {
+            return value.toISOString().split('T')[0];
+        }
+        return normalizeSuratDateInput(String(value));
+    }
+
+    async function handleSuratTemplateUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        try {
+            showAlert('kelolaAlert', '⏳ TEMPLATE EXCEL SEDANG DIBACA...', 'info');
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+
+            if (!rows.length) {
+                showAlert('kelolaAlert', '❌ TEMPLATE EXCEL KOSONG ATAU TIDAK BISA DIBACA.', 'danger');
+                return;
+            }
+
+            const items = rows
+                .map(row => ({
+                    ID: String(row.ID || '').trim(),
+                    'NOMOR SURAT TUGAS': String(row['NOMOR SURAT TUGAS'] || '').trim(),
+                    'TANGGAL SURAT TUGAS': normalizeImportedTemplateDate(row['TANGGAL SURAT TUGAS'])
+                }))
+                .filter(row => row.ID);
+
+            if (!items.length) {
+                showAlert('kelolaAlert', '❌ TEMPLATE TIDAK MEMILIKI KOLOM ID YANG VALID.', 'danger');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'bulkUpdateKelolaSuratFields');
+            formData.append('nip', state.nip || '');
+            formData.append('requester_taskforce', state.taskforce || '');
+            formData.append('items_json', JSON.stringify(items));
+
+            showAlert('kelolaAlert', '⏳ TEMPLATE SEDANG DIIMPOR KE SHEET HASIL...', 'info');
+            const res = await postFormApi(formData, 60000, 'Respon server tidak valid saat import template Excel.');
+
+            if (res.success) {
+                let msg = `✅ ${String(res.message || 'IMPORT SELESAI.').toUpperCase()}`;
+                if (res.error_count) {
+                    msg += ' SEBAGIAN BARIS GAGAL: ' + res.error_count + '.';
                 }
-                return `<td>${escapeHtml(value == null ? '' : String(value))}</td>`;
-            }).join('');
-            return `<tr><td>${index + 1}</td>${tds}</tr>`;
-        }).join('');
-
-        const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px}
-th,td{border:1px solid #d9dee7;padding:6px 8px;vertical-align:top}
-th{background:#fff3e0;font-weight:bold}
-</style>
-</head>
-<body>
-<table>
-<thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-<tbody>${trs}</tbody>
-</table>
-</body>
-</html>`;
-
-        const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'kelola_surat_tugas_hasil.xls';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+                showAlert('kelolaAlert', msg, res.error_count ? 'warning' : 'success');
+                await loadKelolaSuratTugas();
+            } else {
+                let errorText = String(res.message || 'GAGAL IMPORT TEMPLATE.').toUpperCase();
+                if (res.errors && res.errors.length) {
+                    errorText += ' ' + res.errors.slice(0, 3).join(' | ').toUpperCase();
+                }
+                showAlert('kelolaAlert', '❌ ' + errorText, 'danger');
+            }
+        } catch (err) {
+            showAlert('kelolaAlert', '❌ GAGAL MEMPROSES TEMPLATE EXCEL: ' + err.message.toUpperCase(), 'danger');
+        } finally {
+            event.target.value = '';
+        }
     }
 
     function renderKelolaSuratTugasTable() {
@@ -2864,6 +2979,8 @@ th{background:#fff3e0;font-weight:bold}
 
             suratTugasCache = {};
             suratInlineEdits = {};
+            kelolaSuratCanEdit = res.role !== 'asesor';
+            updateSuratToolbarAccess();
             kelolaSuratTugasData = res.data || [];
             renderKelolaSuratTugasTable();
         } catch (err) {
