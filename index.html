@@ -421,55 +421,6 @@
                 font-weight: bold;
             }
         }
-
-        /* =================================================================
-           TABEL "SHEET EXCEL" UNTUK PENGISIAN SURAT TUGAS (BARU)
-           Tampilan grid mirip spreadsheet: header abu-abu, border tipis di
-           tiap sel, sel yang bisa diisi punya background putih, sel
-           otomatis/readonly punya background abu-abu muda.
-           ================================================================= */
-        .excel-table-wrap {
-            overflow-x: auto;
-            border: 1px solid #adb5bd;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-        }
-        table.excel-table {
-            width: 100%;
-            min-width: 720px;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        table.excel-table th {
-            background: #343a40;
-            color: #fff;
-            font-weight: 700;
-            text-transform: uppercase;
-            text-align: center;
-            padding: 8px 6px;
-            border: 1px solid #495057;
-            white-space: nowrap;
-        }
-        table.excel-table td {
-            border: 1px solid #ced4da;
-            padding: 4px;
-            vertical-align: middle;
-        }
-        table.excel-table td .form-control {
-            border: none;
-            border-radius: 0;
-            text-align: center;
-            font-size: 0.85rem;
-            background: #fff;
-        }
-        table.excel-table td .form-control:focus {
-            box-shadow: inset 0 0 0 2px #0d6efd;
-        }
-        table.excel-table td .form-control[readonly] {
-            background: #f1f3f5;
-            color: #495057;
-            font-weight: 600;
-        }
     </style>
 </head>
 <body>
@@ -537,46 +488,20 @@
                     <input type="hidden" id="reportTaskforce">
 
                     <div class="row g-3">
-                        <div class="col-12">
+                        <div class="col-md-6">
                             <label class="form-label">PILIH TUGAS</label>
                             <select id="reportTugas" class="form-select" onchange="handleTugasChange()" required>
                                 <option value="">-- PILIH TUGAS --</option>
                             </select>
                             <div class="form-text" id="tugasHint"></div>
                         </div>
-
-                        <!-- =============================================================
-                             TAMPILAN "SHEET EXCEL" SURAT TUGAS (BARU)
-                             Kolom: NAMA | TANGGAL BERANGKAT | TANGGAL PULANG | JUMLAH HARI
-                             | NIP | NIP BARU. NAMA, NIP, NIP BARU otomatis terisi dari data
-                             login (read-only). JUMLAH HARI dihitung otomatis dari rentang
-                             tanggal. NIP BARU diambil dari sheet EMAIL kolom D.
-                        ============================================================== -->
-                        <div class="col-12">
-                            <div class="excel-table-wrap">
-                                <table class="excel-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Nama</th>
-                                            <th>Tanggal Berangkat</th>
-                                            <th>Tanggal Pulang</th>
-                                            <th>Jumlah Hari</th>
-                                            <th>NIP</th>
-                                            <th>NIP Baru</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><input type="text" id="reportNamaTabel" class="form-control" readonly></td>
-                                            <td><input type="date" id="reportTanggalBerangkat" class="form-control" onchange="handleTanggalBerangkatChange()" required></td>
-                                            <td><input type="date" id="reportTanggalPulang" class="form-control" onchange="updateSisaKuota()" required></td>
-                                            <td><input type="text" id="reportJumlahHariTabel" class="form-control" readonly></td>
-                                            <td><input type="text" id="reportNipTabel" class="form-control" readonly></td>
-                                            <td><input type="text" id="reportNipBaruTabel" class="form-control" readonly></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="col-md-3">
+                            <label class="form-label">TANGGAL BERANGKAT</label>
+                            <input type="date" id="reportTanggalBerangkat" class="form-control" onchange="handleTanggalBerangkatChange()" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">TANGGAL PULANG</label>
+                            <input type="date" id="reportTanggalPulang" class="form-control" onchange="updateSisaKuota()" required>
                         </div>
 
                         <div class="col-12">
@@ -793,12 +718,11 @@
                         <div class="row g-2">
                             <div class="col-12">
                                 <label class="form-label small fw-bold">NIP <span class="text-muted fw-normal">(WAJIB, supaya orangnya dikenali sistem saat login)</span></label>
-                                <input type="text" id="anggotaNip" class="form-control form-control-sm" list="datalistNip" autocomplete="off" inputmode="numeric" oninput="syncNamaDariNip('anggotaNip','anggotaTaskforce', kelolaTimAktif)">
+                                <input type="text" id="anggotaNip" class="form-control form-control-sm" list="datalistNip" autocomplete="off" inputmode="numeric" oninput="autoIsiNamaDariNip('anggotaNip','anggotaTaskforce')">
                             </div>
                             <div class="col-12">
-                                <label class="form-label small" id="anggotaTaskforceLabel">TASKFORCE</label>
+                                <label class="form-label small">TASKFORCE</label>
                                 <input type="text" id="anggotaTaskforce" class="form-control form-control-sm" list="datalistTaskforce" autocomplete="off">
-                                <div class="form-text small" id="anggotaTaskforceHint"></div>
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PML</label>
@@ -848,13 +772,12 @@
                                 <input type="text" id="timBaruNama" class="form-control form-control-sm" placeholder="Contoh: SENSUS PERTANIAN">
                             </div>
                             <div class="col-12">
-                                <label class="form-label small" id="timBaruTaskforceLabel">TASKFORCE (ANGGOTA PERTAMA)</label>
+                                <label class="form-label small">TASKFORCE (ANGGOTA PERTAMA)</label>
                                 <input type="text" id="timBaruTaskforce" class="form-control form-control-sm" list="datalistTaskforce" autocomplete="off">
-                                <div class="form-text small" id="timBaruTaskforceHint"></div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-bold">NIP <span class="text-muted fw-normal">(WAJIB)</span></label>
-                                <input type="text" id="timBaruNip" class="form-control form-control-sm" list="datalistNip" autocomplete="off" inputmode="numeric" oninput="syncNamaDariNip('timBaruNip','timBaruTaskforce', '')">
+                                <input type="text" id="timBaruNip" class="form-control form-control-sm" list="datalistNip" autocomplete="off" inputmode="numeric" oninput="autoIsiNamaDariNip('timBaruNip','timBaruTaskforce')">
                             </div>
                             <div class="col-6">
                                 <label class="form-label small">PML</label>
@@ -918,7 +841,7 @@
         MAX_PHOTO_SIZE: 500 * 1024
     };
 
-    let state = { nip: '', taskforce: '', nipBaru: '', isLoggedIn: false, role: 'anggota', managedTeams: [], viewableTeams: [] };
+    let state = { nip: '', taskforce: '', isLoggedIn: false, role: 'anggota', managedTeams: [], viewableTeams: [] };
 
     function showAlert(containerId, message, type) {
         const container = document.getElementById(containerId);
@@ -968,33 +891,18 @@
     }
 
     async function callApi(params) {
-  const url = new URL(CONFIG.WEBAPP_URL);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, String(value).trim());
-  }
-  console.log('[API] Memanggil:', url.toString());
-  try {
-    const response = await withTimeout(
-      fetch(url.toString(), { method: 'GET', mode: 'cors' }),
-      20000
-    );
-    if (!response.ok) {
-      console.warn('[API] HTTP error:', response.status);
-      throw new Error('HTTP ' + response.status);
+        const url = new URL(CONFIG.WEBAPP_URL);
+        for (const [key, value] of Object.entries(params)) {
+            url.searchParams.set(key, String(value).trim());
+        }
+        try {
+            const response = await fetch(url.toString(), { method: 'GET', mode: 'cors' });
+            if (!response.ok) throw new Error();
+            return await response.json();
+        } catch (err) {
+            return await callApiJsonp(params);
+        }
     }
-    const text = await response.text();
-    console.log('[API] Response mentah:', text.substring(0, 200));
-    try {
-      return JSON.parse(text);
-    } catch (parseErr) {
-      console.error('[API] Response bukan JSON valid. Coba JSONP fallback.');
-      return await callApiJsonp(params);
-    }
-  } catch (err) {
-    console.warn('[API] Fetch gagal, coba JSONP:', err.message);
-    return await callApiJsonp(params);
-  }
-}
 
     function callApiJsonp(params) {
         return new Promise((resolve, reject) => {
@@ -1069,104 +977,70 @@
     }
 
     async function handleLogin(event) {
-  event.preventDefault();
-  const nip = document.getElementById('loginNip').value.trim();
-  const taskforce = document.getElementById('loginTaskforce').value;
-  const email = document.getElementById('loginEmail').value.trim();
-  const btn = document.getElementById('loginBtn');
+        event.preventDefault();
+        const nip = document.getElementById('loginNip').value.trim();
+        const taskforce = document.getElementById('loginTaskforce').value;
+        const email = document.getElementById('loginEmail').value.trim();
+        const btn = document.getElementById('loginBtn');
 
-  // Validasi dasar
-  if (!nip) {
-    showAlert('loginAlert', '❌ NIP WAJIB DIISI.', 'danger');
-    return;
-  }
+        btn.disabled = true;
+        btn.textContent = 'MEMPROSES...';
+        clearAlert('loginAlert');
+        showAlert('loginAlert', '⏳ SILAKAN MENUNGGU, SEDANG MEMERIKSA DATA ANDA...', 'info');
 
-  btn.disabled = true;
-  btn.textContent = 'MEMPROSES...';
-  clearAlert('loginAlert');
-  showAlert('loginAlert', '⏳ SILAKAN MENUNGGU, SEDANG MEMERIKSA DATA ANDA...', 'info');
+        try {
+            let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
+            if (!result.success) {
+                showAlert('loginAlert', '❌ ' + result.message.toUpperCase(), 'danger');
+                btn.disabled = false; btn.textContent = 'MASUK';
+                return;
+            }
 
-  try {
-    console.log('[LOGIN] Mulai login NIP:', nip);
-    let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
-    console.log('[LOGIN] Hasil dari server:', result);
-
-    // Cek struktur response
-    if (!result || typeof result !== 'object') {
-      throw new Error('Respon server tidak valid (bukan objek). Cek URL WEBAPP_URL di CONFIG.');
-    }
-
-    if (!result.success) {
-      showAlert('loginAlert', '❌ ' + (result.message || 'LOGIN GAGAL').toUpperCase(), 'danger');
-      btn.disabled = false;
-      btn.textContent = 'MASUK';
-      return;
-    }
-
-    // Normalisasi stage (kadang server kirim huruf besar/kecil tidak konsisten)
-    const stage = String(result.stage || '').toLowerCase().trim();
-    console.log('[LOGIN] Stage:', stage);
-
-    if (stage === 'choose_name') {
-      const select = document.getElementById('loginTaskforce');
-      select.innerHTML = '<option value="">-- PILIH TASKFORCE --</option>';
-      (result.options || []).forEach(opt => {
-        select.innerHTML += `<option value="${opt.taskforce.trim()}">${opt.taskforce.trim().toUpperCase()}</option>`;
-      });
-      document.getElementById('taskforceGroup').style.display = 'block';
-      showAlert('loginAlert', 'ℹ️ SILAKAN PILIH NAMA TASKFORCE ANDA.', 'info');
-      btn.disabled = false;
-      btn.textContent = 'MASUK';
-    }
-    else if (stage === 'logged_in') {
-      if (result.needEmail && !email) {
-        showAlert('loginAlert', '📧 MASUKKAN EMAIL UNTUK REGISTRASI AWAL.', 'warning');
-        document.getElementById('emailGroup').style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = 'MASUK';
-      } else {
-        if (result.needEmail && email) {
-          await callApi({ action: 'saveEmail', nip: nip, taskforce: taskforce, email: email });
+            if (result.stage === 'choose_name') {
+                const select = document.getElementById('loginTaskforce');
+                select.innerHTML = '<option value="">-- PILIH TASKFORCE --</option>';
+                result.options.forEach(opt => {
+                    select.innerHTML += `<option value="${opt.taskforce.trim()}">${opt.taskforce.trim().toUpperCase()}</option>`;
+                });
+                document.getElementById('taskforceGroup').style.display = 'block';
+                showAlert('loginAlert', 'ℹ️ SILAKAN PILIH NAMA TASKFORCE ANDA.', 'info');
+            } 
+            else if (result.stage === 'logged_in') {
+                if (result.needEmail && !email) {
+                    showAlert('loginAlert', '📧 MASUKKAN EMAIL UNTUK REGISTRASI AWAL.', 'warning');
+                    document.getElementById('emailGroup').style.display = 'block';
+                } else {
+                    if (result.needEmail && email) {
+                        await callApi({ action: 'saveEmail', nip: nip, taskforce: taskforce, email: email });
+                    }
+                    state.nip = result.nip;
+                    state.taskforce = result.taskforce;
+                    state.role = result.role || 'anggota';
+                    state.managedTeams = result.managedTeams || [];
+                    state.viewableTeams = result.viewableTeams || [];
+                    
+                    // Simpan NIP di HP/browser ini supaya tidak perlu diketik ulang saat buka halaman lagi
+                    try { localStorage.setItem('lastNip', result.nip); } catch (e) {}
+                    
+                    document.getElementById('userNipDisplay').textContent = result.nip;
+                    document.getElementById('userTaskforceDisplay').textContent = result.taskforce.toUpperCase();
+                    document.getElementById('reportTaskforce').value = result.taskforce;
+                    
+                    document.getElementById('loginPanel').style.display = 'none';
+                    document.getElementById('reportPanel').style.display = 'block';
+                    
+                    applyRoleVisibility();
+                    await loadTugasOptions();
+                    await loadTimDropdown();
+                    loadReports();
+                }
+            }
+        } catch (err) {
+            showAlert('loginAlert', '❌ TERJADI GALAT: ' + err.message.toUpperCase(), 'danger');
         }
-        state.nip = result.nip;
-        state.taskforce = result.taskforce;
-        state.nipBaru = result.nipBaru || '';
-        state.role = result.role || 'anggota';
-        state.managedTeams = result.managedTeams || [];
-        state.viewableTeams = result.viewableTeams || [];
-        try { localStorage.setItem('lastNip', result.nip); } catch (e) {}
-        document.getElementById('userNipDisplay').textContent = result.nip;
-        document.getElementById('userTaskforceDisplay').textContent = result.taskforce.toUpperCase();
-        document.getElementById('reportTaskforce').value = result.taskforce;
-        document.getElementById('reportNamaTabel').value = result.taskforce.toUpperCase();
-        document.getElementById('reportNipTabel').value = result.nip;
-        document.getElementById('reportNipBaruTabel').value = state.nipBaru || '-';
-        document.getElementById('loginPanel').style.display = 'none';
-        document.getElementById('reportPanel').style.display = 'block';
-        applyRoleVisibility();
-        await loadTugasOptions();
-        await loadTimDropdown();
-        loadReports();
-      }
+        btn.disabled = false; btn.textContent = 'MASUK';
     }
-    else {
-      // ⚠️ INI YANG SERING TERLEWAT: stage tidak dikenal
-      console.error('[LOGIN] Stage tidak dikenal:', result.stage, 'Full response:', result);
-      showAlert('loginAlert',
-        '❌ RESPONSE SERVER TIDAK DIKENAL (stage="' + (result.stage || 'KOSONG') + '"). ' +
-        'Kemungkinan backend (Code.gs) belum menangani action "login" dengan benar, ' +
-        'atau NIP tidak terdaftar. Buka Console (F12) untuk detail.',
-        'danger');
-      btn.disabled = false;
-      btn.textContent = 'MASUK';
-    }
-  } catch (err) {
-    console.error('[LOGIN] Error:', err);
-    showAlert('loginAlert', '❌ TERJADI GALAT: ' + err.message.toUpperCase(), 'danger');
-    btn.disabled = false;
-    btn.textContent = 'MASUK';
-  }
-}
+
     function handleLogout() {
         document.getElementById('loginPanel').style.display = 'block';
         document.getElementById('reportPanel').style.display = 'none';
@@ -1398,7 +1272,6 @@
         if (!berangkatStr || !pulangStr) {
             document.getElementById('reportKunjungan').value = '';
             document.getElementById('reportSisaKuota').value = '';
-            document.getElementById('reportJumlahHariTabel').value = '';
             return;
         }
 
@@ -1410,13 +1283,11 @@
         if (jumlahHari < 1) {
             document.getElementById('reportKunjungan').value = 'TANGGAL TIDAK VALID';
             document.getElementById('reportSisaKuota').value = '';
-            document.getElementById('reportJumlahHariTabel').value = 'TIDAK VALID';
             return;
         }
 
         document.getElementById('reportKunjungan').value = jumlahHari;
         document.getElementById('reportSisaKuota').value = CONFIG.KUOTA_DEFAULT - jumlahHari;
-        document.getElementById('reportJumlahHariTabel').value = jumlahHari;
     }
 
     // Foto dari kamera biasanya sudah otomatis kecil, tapi foto dari GALERI sering
@@ -1722,12 +1593,6 @@
         document.getElementById('reportTanggalPulang').value = getToday();
         document.getElementById('reportTanggalPulang').readOnly = false;
         document.getElementById('tugasHint').textContent = '';
-        // form.reset() di atas ikut mengosongkan sel NAMA/NIP/NIP BARU di
-        // tabel "sheet excel" (readonly tapi tetap bagian dari <form>) --
-        // isi ulang dari data login supaya tidak kosong.
-        document.getElementById('reportNamaTabel').value = (state.taskforce || '').toUpperCase();
-        document.getElementById('reportNipTabel').value = state.nip || '';
-        document.getElementById('reportNipBaruTabel').value = state.nipBaru || '-';
         editingReportId = null;
         document.getElementById('tabFormBtn').textContent = 'BUAT LAPORAN';
         document.getElementById('btnBatalEdit').style.display = 'none';
@@ -1766,14 +1631,6 @@
         document.getElementById('reportId').value = id;
         document.getElementById('tabFormBtn').textContent = '✏️ EDIT LAPORAN';
         document.getElementById('btnBatalEdit').style.display = 'block';
-
-        // Sel NAMA/NIP/NIP BARU di tabel "sheet excel" mengikuti data PEMILIK
-        // laporan yang sedang diedit (bisa berbeda dari yang sedang login,
-        // misalnya saat KETUA/ADMIN mengedit laporan anggota lewat menu
-        // KELOLA SURAT TUGAS), bukan selalu data orang yang sedang login.
-        document.getElementById('reportNamaTabel').value = String(r.TASKFORCE || state.taskforce || '').toUpperCase();
-        document.getElementById('reportNipTabel').value = r.NIP || state.nip || '';
-        document.getElementById('reportNipBaruTabel').value = r['NIP BARU'] || '-';
 
         // --- Field sederhana (tanpa dropdown berjenjang) ---
         const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
@@ -1876,7 +1733,6 @@
                     <tr><td class="label">JENIS TUGAS</td><td>${String(r.TUGAS).toUpperCase()}</td></tr>
                     <tr><td class="label">TASKFORCE</td><td>${r.TASKFORCE || '-'}</td></tr>
                     <tr><td class="label">NIP</td><td>${r.NIP || '-'}</td></tr>
-                    <tr><td class="label">NIP BARU</td><td>${r['NIP BARU'] || '-'}</td></tr>
                     <tr><td class="label">TIM</td><td>${r.TIM || '-'}</td></tr>
                     <tr><td class="label">NAMA PML</td><td>${r['NAMA PML'] || '-'}</td></tr>
                     <tr><td class="label">NAMA PPL</td><td>${r['NAMA PPL'] || '-'}</td></tr>
@@ -1966,63 +1822,16 @@
         }
     }
 
-    // =========================================================================
-    // SUMBER NAMA: SHEET EMAIL SAJA (KECUALI TIM SENSUS EKONOMI) -- BARU
-    // =========================================================================
-    // Untuk SEMUA TIM KECUALI TIM_SENSUS_EKONOMI, nama KETUA/ANGGOTA WAJIB
-    // memakai satu bentuk penulisan yang sama persis seperti di sheet EMAIL,
-    // supaya tidak ada lagi variasi pengetikan manual (gelar berbeda, typo,
-    // huruf besar/kecil tidak konsisten, dst). Untuk TIM_SENSUS_EKONOMI,
-    // perilaku LAMA dipertahankan (field tetap bisa diketik bebas, hanya
-    // diisi otomatis kalau masih kosong), karena struktur datanya mengikuti
-    // wilayah kerja SLS yang sudah ada di sheet DATABASE, bukan daftar
-    // pegawai di sheet EMAIL. Server (apiAddOrUpdateMember) juga menegakkan
-    // aturan yang sama, jadi ini aman walau field di HTML coba diakali.
-    // =========================================================================
-    const TIM_SENSUS_EKONOMI = 'SENSUS EKONOMI';
-    function isSensusEkonomiTim(tim) {
-        return norm(tim) === norm(TIM_SENSUS_EKONOMI);
-    }
-
-    // Menyesuaikan field NAMA (TASKFORCE) berdasarkan NIP yang
-    // diketik/dipilih, mengikuti aturan di atas. `tim` adalah TIM yang
-    // sedang dikelola (kelolaTimAktif), atau '' untuk form TAMBAH TIM BARU
-    // (selalu dianggap BUKAN sensus ekonomi, karena tim baru tidak mungkin
-    // tim sensus ekonomi yang memang sudah ada).
-    function syncNamaDariNip(nipFieldId, namaFieldId, tim) {
+    // Begitu admin memilih/mengetik NIP yang sudah dikenal (ada di sheet
+    // EMAIL), field NAMA/TASKFORCE di sebelahnya langsung ikut terisi
+    // otomatis -- supaya "tinggal klik" dan tidak perlu ketik nama lagi.
+    // Kalau field nama sudah diisi manual sebelumnya, TIDAK ditimpa.
+    function autoIsiNamaDariNip(nipFieldId, namaFieldId) {
         const nipVal = document.getElementById(nipFieldId).value.trim();
         const namaField = document.getElementById(namaFieldId);
         const namaDikenal = kelolaEmailDirectory[nipVal];
-
-        if (isSensusEkonomiTim(tim)) {
-            // TIM SENSUS EKONOMI: perilaku lama -- isi otomatis HANYA kalau
-            // field nama masih kosong; field tetap bebas diketik manual.
-            if (namaDikenal && !namaField.value.trim()) {
-                namaField.value = namaDikenal;
-            }
-            return;
-        }
-
-        // TIM SELAIN SENSUS EKONOMI: nama WAJIB dari sheet EMAIL -- field
-        // dikunci (readonly, lihat applyTaskforceLockState) dan SELALU
-        // mengikuti NIP yang sedang diketik/dipilih.
-        namaField.value = namaDikenal || '';
-    }
-
-    // Mengunci/membuka field TASKFORCE (readonly + placeholder + label)
-    // sesuai apakah TIM yang sedang dikelola adalah TIM SENSUS EKONOMI.
-    function applyTaskforceLockState(fieldId, labelId, hintId, tim) {
-        const sensus = isSensusEkonomiTim(tim);
-        const field = document.getElementById(fieldId);
-        const label = document.getElementById(labelId);
-        const hint = document.getElementById(hintId);
-
-        field.readOnly = !sensus;
-        if (label) {
-            label.textContent = sensus ? 'TASKFORCE' : 'TASKFORCE (OTOMATIS DARI SHEET EMAIL)';
-        }
-        if (hint) {
-            hint.textContent = sensus ? '' : 'ℹ️ KETIK/PILIH NIP DI ATAS DULU -- NAMA AKAN TERISI OTOMATIS DARI SHEET EMAIL.';
+        if (namaDikenal && !namaField.value.trim()) {
+            namaField.value = namaDikenal;
         }
     }
 
@@ -2230,11 +2039,6 @@
         document.getElementById('anggotaIdSubsls').value = m ? String(m.ID_SubSLS || '').replace(/^'/, '') : '';
         document.getElementById('anggotaNamaSls').value = m ? (m['Nama SLS'] || m['NAMA SLS'] || '') : '';
 
-        // Kunci/buka field TASKFORCE sesuai TIM yang sedang dikelola --
-        // lihat applyTaskforceLockState (selain TIM SENSUS EKONOMI, nama
-        // wajib otomatis dari sheet EMAIL, field jadi readonly).
-        applyTaskforceLockState('anggotaTaskforce', 'anggotaTaskforceLabel', 'anggotaTaskforceHint', kelolaTimAktif);
-
         // Simpan kriteria pencarian baris ASLI (sebelum diedit), supaya server
         // tahu baris mana yang harus diupdate -- bukan ditambah sebagai baru.
         // match_nip jadi prioritas utama kalau baris itu sudah punya NIP.
@@ -2253,10 +2057,6 @@
     async function submitFormAnggota() {
         if (!document.getElementById('anggotaNip').value.trim()) {
             alert('❌ NIP WAJIB DIISI, SUPAYA ANGGOTA INI BISA LOGIN DAN DIKENALI SISTEM DENGAN BENAR.');
-            return;
-        }
-        if (!isSensusEkonomiTim(kelolaTimAktif) && !document.getElementById('anggotaTaskforce').value.trim()) {
-            alert('❌ NIP "' + document.getElementById('anggotaNip').value.trim() + '" BELUM TERDAFTAR DI SHEET EMAIL. UNTUK TIM SELAIN "' + TIM_SENSUS_EKONOMI + '", DAFTARKAN DULU NIP & NAMA ORANG TERSEBUT DI SHEET EMAIL.');
             return;
         }
         const payload = {
@@ -2365,9 +2165,6 @@
         document.getElementById('timBaruIdsubsls').value = '';
         document.getElementById('timBaruNamaSls').value = '';
         document.getElementById('timBaruAlert').innerHTML = '';
-        // TIM baru tidak mungkin TIM SENSUS EKONOMI (yang memang sudah ada),
-        // jadi field TASKFORCE selalu dikunci & otomatis dari sheet EMAIL.
-        applyTaskforceLockState('timBaruTaskforce', 'timBaruTaskforceLabel', 'timBaruTaskforceHint', '');
         document.getElementById('timFormOverlay').classList.add('show');
     }
 
@@ -2386,12 +2183,12 @@
             alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ NAMA TIM WAJIB DIISI.</div>';
             return;
         }
-        if (!memberNip) {
-            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ NIP WAJIB DIISI, SUPAYA ANGGOTA INI BISA LOGIN DAN DIKENALI SISTEM.</div>';
+        if (!taskforce) {
+            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ TASKFORCE (ANGGOTA PERTAMA) WAJIB DIISI.</div>';
             return;
         }
-        if (!taskforce) {
-            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ NIP "' + memberNip + '" BELUM TERDAFTAR DI SHEET EMAIL. DAFTARKAN DULU NIP & NAMA ORANG TERSEBUT DI SHEET EMAIL.</div>';
+        if (!memberNip) {
+            alertBox.innerHTML = '<div class="alert alert-danger py-2 small fw-bold">❌ NIP WAJIB DIISI, SUPAYA ANGGOTA INI BISA LOGIN DAN DIKENALI SISTEM.</div>';
             return;
         }
 
@@ -2494,70 +2291,33 @@
 
             suratTugasCache = {};
             let html = '';
-            // Daftar kolom yang ditampilkan (urutan tampil + label rapi).
-// Kolom yang isinya kosong akan otomatis dilewati per-laporan.
-const KOLOM_TAMPIL_SURAT = [
-    { key: 'TASKFORCE', label: 'Taskforce' },
-    { key: 'NIP', label: 'NIP' },
-    { key: 'NIP BARU', label: 'NIP Baru' },
-    { key: 'NAMA PML', label: 'Nama PML' },
-    { key: 'NAMA PPL', label: 'Nama PPL' },
-    { key: 'ID_SubSLS', label: 'ID SubSLS' },
-    { key: 'NAMA SLS', label: 'Nama SLS' },
-    { key: 'Total Assigment', label: 'Total Assignment' },
-    { key: 'Muatan Kk Wilkerstat', label: 'Muatan KK' },
-    { key: 'Muatan Usaha Wilkerstat', label: 'Muatan Usaha' },
-    { key: 'Total Muatan Wilkerstat', label: 'Total Muatan' },
-    { key: 'URAIAN KEGIATAN', label: 'Uraian Kegiatan' },
-    { key: 'KUOTA', label: 'Kuota' },
-    { key: 'KUNJUNGAN', label: 'Kunjungan' },
-    { key: 'SISA KUOTA KUNJUNGAN', label: 'Sisa Kuota' },
-    { key: 'KOORDINAT', label: 'Koordinat' },
-    { key: 'NOMOR SURAT TUGAS', label: 'Nomor Surat Tugas' },
-    { key: 'TANGGAL SURAT TUGAS', label: 'Tanggal Surat Tugas' }
-];
+            data.forEach(r => {
+                suratTugasCache[r.ID] = r;
+                const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+                const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+                const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+                const noSurat = r['NOMOR SURAT TUGAS'] || '-';
+                const canEdit = r._canEdit;
 
-suratTugasCache = {};
-let html = '';
-data.forEach(r => {
-    suratTugasCache[r.ID] = r;
-    const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
-    const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
-    const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
-    const canEdit = r._canEdit;
+                const actionBtns = canEdit
+                    ? `<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${r.ID}')">✏️ EDIT</button>
+                       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${r.ID}')">🗑️ HAPUS</button>`
+                    : `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
 
-    let detailRows = `
-        <tr><td style="font-weight:bold;width:42%;">Tanggal Pelaksanaan</td><td>${rentangTgl || '-'}</td></tr>
-        <tr><td style="font-weight:bold;">Tugas</td><td>${String(r.TUGAS || '-').toUpperCase()}</td></tr>
-        <tr><td style="font-weight:bold;">Tim</td><td>${String(r.TIM || '-').toUpperCase()}</td></tr>
-    `;
-
-    KOLOM_TAMPIL_SURAT.forEach(k => {
-        const val = r[k.key];
-        if (val === undefined || val === null || String(val).trim() === '') return; // lewati kolom kosong
-        detailRows += `<tr><td style="font-weight:bold;">${k.label}</td><td>${String(val)}</td></tr>`;
-    });
-
-    if (r.FOTO) {
-        detailRows += `<tr><td style="font-weight:bold;">Foto</td><td><a href="${r.FOTO}" target="_blank">Lihat Foto</a></td></tr>`;
-    }
-
-    const actionBtns = canEdit
-        ? `<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${r.ID}')">✏️ EDIT</button>
-           <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${r.ID}')">🗑️ HAPUS</button>`
-        : `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
-
-    html += `<div class="kelola-member-item">
-        <div class="d-flex justify-content-between align-items-start mb-1">
-            <span class="badge bg-secondary text-uppercase">${r.STATUS || '-'}</span>
-        </div>
-        <table class="table table-sm table-borderless mb-2" style="font-size:0.82rem;">
-            <tbody>${detailRows}</tbody>
-        </table>
-        <div class="d-flex gap-2">${actionBtns}</div>
-    </div>`;
-});
-container.innerHTML = html;
+                html += `<div class="kelola-member-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-bold">${String(r.TUGAS || '').toUpperCase()} — ${String(r.TIM || '-').toUpperCase()}</div>
+                            <div class="small text-muted">${rentangTgl} | NIP: ${r.NIP || '-'}</div>
+                            <div class="small text-muted">${r.ID_SubSLS || '-'} — ${r['NAMA SLS'] || '-'}</div>
+                            <div class="small text-muted">NO. SURAT: ${noSurat}</div>
+                        </div>
+                        <span class="badge bg-secondary text-uppercase">${r.STATUS || '-'}</span>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">${actionBtns}</div>
+                </div>`;
+            });
+            container.innerHTML = html;
         } catch (err) {
             container.innerHTML = `<div class="small text-danger fw-bold">❌ GAGAL MEMUAT SURAT TUGAS: ${err.message.toUpperCase()}</div>`;
         }
