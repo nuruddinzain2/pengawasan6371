@@ -2452,33 +2452,70 @@
 
             suratTugasCache = {};
             let html = '';
-            data.forEach(r => {
-                suratTugasCache[r.ID] = r;
-                const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
-                const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
-                const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
-                const noSurat = r['NOMOR SURAT TUGAS'] || '-';
-                const canEdit = r._canEdit;
+            // Daftar kolom yang ditampilkan (urutan tampil + label rapi).
+// Kolom yang isinya kosong akan otomatis dilewati per-laporan.
+const KOLOM_TAMPIL_SURAT = [
+    { key: 'TASKFORCE', label: 'Taskforce' },
+    { key: 'NIP', label: 'NIP' },
+    { key: 'NIP BARU', label: 'NIP Baru' },
+    { key: 'NAMA PML', label: 'Nama PML' },
+    { key: 'NAMA PPL', label: 'Nama PPL' },
+    { key: 'ID_SubSLS', label: 'ID SubSLS' },
+    { key: 'NAMA SLS', label: 'Nama SLS' },
+    { key: 'Total Assigment', label: 'Total Assignment' },
+    { key: 'Muatan Kk Wilkerstat', label: 'Muatan KK' },
+    { key: 'Muatan Usaha Wilkerstat', label: 'Muatan Usaha' },
+    { key: 'Total Muatan Wilkerstat', label: 'Total Muatan' },
+    { key: 'URAIAN KEGIATAN', label: 'Uraian Kegiatan' },
+    { key: 'KUOTA', label: 'Kuota' },
+    { key: 'KUNJUNGAN', label: 'Kunjungan' },
+    { key: 'SISA KUOTA KUNJUNGAN', label: 'Sisa Kuota' },
+    { key: 'KOORDINAT', label: 'Koordinat' },
+    { key: 'NOMOR SURAT TUGAS', label: 'Nomor Surat Tugas' },
+    { key: 'TANGGAL SURAT TUGAS', label: 'Tanggal Surat Tugas' }
+];
 
-                const actionBtns = canEdit
-                    ? `<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${r.ID}')">✏️ EDIT</button>
-                       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${r.ID}')">🗑️ HAPUS</button>`
-                    : `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
+suratTugasCache = {};
+let html = '';
+data.forEach(r => {
+    suratTugasCache[r.ID] = r;
+    const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+    const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+    const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+    const canEdit = r._canEdit;
 
-                html += `<div class="kelola-member-item">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="fw-bold">${String(r.TUGAS || '').toUpperCase()} — ${String(r.TIM || '-').toUpperCase()}</div>
-                            <div class="small text-muted">${rentangTgl} | NIP: ${r.NIP || '-'}</div>
-                            <div class="small text-muted">${r.ID_SubSLS || '-'} — ${r['NAMA SLS'] || '-'}</div>
-                            <div class="small text-muted">NO. SURAT: ${noSurat}</div>
-                        </div>
-                        <span class="badge bg-secondary text-uppercase">${r.STATUS || '-'}</span>
-                    </div>
-                    <div class="d-flex gap-2 mt-2">${actionBtns}</div>
-                </div>`;
-            });
-            container.innerHTML = html;
+    let detailRows = `
+        <tr><td style="font-weight:bold;width:42%;">Tanggal Pelaksanaan</td><td>${rentangTgl || '-'}</td></tr>
+        <tr><td style="font-weight:bold;">Tugas</td><td>${String(r.TUGAS || '-').toUpperCase()}</td></tr>
+        <tr><td style="font-weight:bold;">Tim</td><td>${String(r.TIM || '-').toUpperCase()}</td></tr>
+    `;
+
+    KOLOM_TAMPIL_SURAT.forEach(k => {
+        const val = r[k.key];
+        if (val === undefined || val === null || String(val).trim() === '') return; // lewati kolom kosong
+        detailRows += `<tr><td style="font-weight:bold;">${k.label}</td><td>${String(val)}</td></tr>`;
+    });
+
+    if (r.FOTO) {
+        detailRows += `<tr><td style="font-weight:bold;">Foto</td><td><a href="${r.FOTO}" target="_blank">Lihat Foto</a></td></tr>`;
+    }
+
+    const actionBtns = canEdit
+        ? `<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${r.ID}')">✏️ EDIT</button>
+           <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${r.ID}')">🗑️ HAPUS</button>`
+        : `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
+
+    html += `<div class="kelola-member-item">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <span class="badge bg-secondary text-uppercase">${r.STATUS || '-'}</span>
+        </div>
+        <table class="table table-sm table-borderless mb-2" style="font-size:0.82rem;">
+            <tbody>${detailRows}</tbody>
+        </table>
+        <div class="d-flex gap-2">${actionBtns}</div>
+    </div>`;
+});
+container.innerHTML = html;
         } catch (err) {
             container.innerHTML = `<div class="small text-danger fw-bold">❌ GAGAL MEMUAT SURAT TUGAS: ${err.message.toUpperCase()}</div>`;
         }
