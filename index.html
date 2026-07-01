@@ -183,6 +183,142 @@
             background: #e65100;
             color: #fff;
         }
+        .kelola-sheet-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .kelola-sheet-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .kelola-sheet-meta {
+            font-size: 0.78rem;
+            font-weight: bold;
+            color: #8d6e63;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .kelola-sheet-wrap {
+            border: 1px solid #ffe0b2;
+            border-radius: 12px;
+            overflow: auto;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px #fff7f0;
+        }
+        .kelola-sheet-table {
+            width: 100%;
+            min-width: 1280px;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.83rem;
+        }
+        .kelola-sheet-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #fff3e0;
+            color: #bf5b04;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid #ffd8a8;
+        }
+        .kelola-sheet-table th,
+        .kelola-sheet-table td {
+            padding: 10px 12px;
+            border-right: 1px solid #ffecda;
+            border-bottom: 1px solid #ffecda;
+            vertical-align: top;
+            white-space: nowrap;
+        }
+        .kelola-sheet-table th:last-child,
+        .kelola-sheet-table td:last-child {
+            border-right: none;
+        }
+        .kelola-sheet-table tbody tr:nth-child(even) {
+            background: #fffaf5;
+        }
+        .kelola-sheet-table tbody tr:hover {
+            background: #fff3e0;
+        }
+        .kelola-sheet-col-nomor {
+            width: 56px;
+            min-width: 56px;
+            text-align: center;
+            font-weight: bold;
+            color: #8d6e63;
+            background: #fffaf5;
+        }
+        .kelola-sheet-col-aksi {
+            min-width: 165px;
+        }
+        .kelola-sheet-cell-strong {
+            font-weight: bold;
+            color: #4e342e;
+        }
+        .kelola-sheet-cell-muted {
+            color: #8d6e63;
+        }
+        .kelola-sheet-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 72px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .kelola-sheet-badge.status-final {
+            background: #d1f7e0;
+            color: #0a7a3d;
+        }
+        .kelola-sheet-badge.status-draft {
+            background: #fff0d5;
+            color: #b54708;
+        }
+        .kelola-sheet-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .kelola-sheet-input {
+            min-width: 170px;
+            border: 1px solid #ffd8a8;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 0.82rem;
+            background: #fffdf9;
+        }
+        .kelola-sheet-input[type="date"] {
+            min-width: 150px;
+        }
+        .kelola-sheet-input.is-dirty {
+            border-color: #e65100;
+            background: #fff3e0;
+            box-shadow: 0 0 0 2px rgba(230, 81, 0, 0.08);
+        }
+        .kelola-sheet-row-dirty td {
+            background: #fffaf0 !important;
+        }
+        .kelola-sheet-empty {
+            padding: 16px;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: bold;
+            color: #8d6e63;
+            border: 1px dashed #ffd8a8;
+            border-radius: 10px;
+            background: #fffaf5;
+        }
         /* Notifikasi kecil yang muncul tepat di sebelah tombol yang diklik
            (SET kuota, SET jabatan, dll) supaya pengguna langsung tahu data
            sudah tersimpan/gagal TANPA harus melihat ke atas halaman. */
@@ -703,6 +839,15 @@
                     </div>
                     <div id="suratReadOnlyNotice" class="alert alert-info py-2 small fw-bold" style="display:none;">
                         ℹ️ MODE LIHAT SAJA (READ-ONLY) -- ASESOR HANYA DAPAT MELIHAT, TIDAK DAPAT MENGEDIT/MENGHAPUS SURAT TUGAS MILIK ORANG LAIN.
+                    </div>
+                    <div class="kelola-sheet-toolbar">
+                        <div class="kelola-sheet-toolbar-actions">
+                            <div id="suratTugasMeta" class="kelola-sheet-meta">MENAMPILKAN DATA DARI SHEET HASIL</div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="copyKelolaSuratTugasTable()">SALIN TAMPILAN</button>
+                            <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="downloadKelolaSuratTugasExcel()">UNDUH EXCEL</button>
+                            <button type="button" id="btnSaveAllSurat" class="btn btn-primary btn-sm fw-bold" onclick="saveAllSuratInline()" disabled>SIMPAN PERUBAHAN</button>
+                        </div>
+                        <input type="text" id="suratSearchInput" class="form-control form-control-sm w-auto" placeholder="Cari di semua kolom sheet HASIL" oninput="renderKelolaSuratTugasTable()">
                     </div>
                     <div id="suratTugasList"></div>
                 </div>
@@ -2252,11 +2397,444 @@
     // ulang oleh editSuratTugas()/confirmHapusSuratTugas() agar tidak perlu
     // fetch ulang ke server saat tombol EDIT/HAPUS diklik.
     let suratTugasCache = {};
+    let kelolaSuratTugasData = [];
+    let suratInlineEdits = {};
+    let kelolaSuratTugasFilteredIds = [];
+    const kelolaSheetColumns = [
+        'ID',
+        'TANGGAL BERANGKAT',
+        'TANGGAL PULANG',
+        'NIP',
+        'TASKFORCE',
+        'TIM',
+        'NAMA PML',
+        'NAMA PPL',
+        'ID_SubSLS',
+        'NAMA SLS',
+        'Total Assigment',
+        'Muatan Kk Wilkerstat',
+        'Muatan Usaha Wilkerstat',
+        'Total Muatan Wilkerstat',
+        'TUGAS',
+        'URAIAN KEGIATAN',
+        'KUOTA',
+        'KUNJUNGAN',
+        'SISA KUOTA KUNJUNGAN',
+        'FOTO',
+        'KOORDINAT',
+        'NOMOR SURAT TUGAS',
+        'TANGGAL SURAT TUGAS',
+        'STATUS',
+        'CREATED_AT',
+        'UPDATED_AT'
+    ];
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatSheetDate(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '-';
+        return raw.split('T')[0] || raw;
+    }
+
+    function formatSheetText(value, fallback) {
+        const text = String(value == null ? '' : value).trim();
+        return text ? escapeHtml(text) : (fallback || '-');
+    }
+
+    function normalizeSuratDateInput(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+        let m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (m) {
+            const d = m[1].padStart(2, '0');
+            const mo = m[2].padStart(2, '0');
+            return `${m[3]}-${mo}-${d}`;
+        }
+
+        m = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+        if (m) {
+            return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+        }
+
+        return raw;
+    }
+
+    function getOriginalSuratFieldValue(id, key) {
+        const row = suratTugasCache[id] || {};
+        if (key === 'TANGGAL SURAT TUGAS') return formatSheetDate(row[key]);
+        return String(row[key] || '').trim();
+    }
+
+    function getSuratInlineFieldValue(id, key) {
+        const edit = suratInlineEdits[id];
+        if (edit && Object.prototype.hasOwnProperty.call(edit, key)) return edit[key];
+        return getOriginalSuratFieldValue(id, key);
+    }
+
+    function hasSuratInlineFieldChange(id, key) {
+        return getSuratInlineFieldValue(id, key) !== getOriginalSuratFieldValue(id, key);
+    }
+
+    function hasSuratInlineChanges(id) {
+        return !!(suratInlineEdits[id] && Object.keys(suratInlineEdits[id]).length);
+    }
+
+    function updateSuratInlineValue(id, key, value) {
+        const normalized = key === 'TANGGAL SURAT TUGAS'
+            ? normalizeSuratDateInput(value)
+            : String(value || '').trim();
+        const original = getOriginalSuratFieldValue(id, key);
+
+        if (!suratInlineEdits[id]) suratInlineEdits[id] = {};
+
+        if (normalized === original) {
+            delete suratInlineEdits[id][key];
+            if (Object.keys(suratInlineEdits[id]).length === 0) delete suratInlineEdits[id];
+        } else {
+            suratInlineEdits[id][key] = normalized;
+        }
+    }
+
+    function refreshSuratToolbarState() {
+        const btn = document.getElementById('btnSaveAllSurat');
+        if (!btn) return;
+        const count = Object.keys(suratInlineEdits).length;
+        btn.disabled = count === 0;
+        btn.textContent = count > 0 ? `SIMPAN PERUBAHAN (${count})` : 'SIMPAN PERUBAHAN';
+    }
+
+    function refreshSuratRowActionState(id) {
+        const btn = document.getElementById('btnSaveSurat_' + id);
+        if (btn) btn.disabled = !hasSuratInlineChanges(id);
+        refreshSuratToolbarState();
+    }
+
+    function handleSuratInlineInput(id, key, el) {
+        const value = key === 'TANGGAL SURAT TUGAS' ? normalizeSuratDateInput(el.value) : el.value;
+        if (key === 'TANGGAL SURAT TUGAS' && el.value !== value) el.value = value;
+        updateSuratInlineValue(id, key, value);
+        el.classList.toggle('is-dirty', hasSuratInlineFieldChange(id, key));
+        const rowEl = el.closest('tr');
+        if (rowEl) rowEl.classList.toggle('kelola-sheet-row-dirty', hasSuratInlineChanges(id));
+        refreshSuratRowActionState(id);
+    }
+
+    function handleSuratInlinePaste(event, id, key) {
+        const text = (event.clipboardData || window.clipboardData).getData('text');
+        if (!text) return;
+
+        const rawRows = text.replace(/\r/g, '').split('\n').filter((row, idx, arr) => !(idx === arr.length - 1 && row === ''));
+        const isBulkPaste = rawRows.length > 1 || text.indexOf('\t') !== -1;
+        if (!isBulkPaste) return;
+
+        event.preventDefault();
+        const startIndex = kelolaSuratTugasFilteredIds.indexOf(id);
+        if (startIndex === -1) return;
+
+        rawRows.forEach((line, rowOffset) => {
+            const targetId = kelolaSuratTugasFilteredIds[startIndex + rowOffset];
+            if (!targetId) return;
+            const cols = line.split('\t');
+
+            if (key === 'NOMOR SURAT TUGAS') {
+                updateSuratInlineValue(targetId, 'NOMOR SURAT TUGAS', cols[0] || '');
+                if (cols.length > 1) updateSuratInlineValue(targetId, 'TANGGAL SURAT TUGAS', cols[1] || '');
+            } else {
+                updateSuratInlineValue(targetId, 'TANGGAL SURAT TUGAS', cols[0] || '');
+                if (cols.length > 1) updateSuratInlineValue(targetId, 'NOMOR SURAT TUGAS', cols[1] || '');
+            }
+        });
+
+        renderKelolaSuratTugasTable();
+        showAlert('kelolaAlert', '✅ DATA HASIL PASTE SUDAH MASUK KE TABEL. TEKAN SIMPAN PERUBAHAN UNTUK MENULISKAN KE SHEET HASIL.', 'success');
+    }
+
+    function getKelolaVisibleRows() {
+        return kelolaSuratTugasFilteredIds
+            .map(id => suratTugasCache[id])
+            .filter(Boolean)
+            .map(row => {
+                const copy = Object.assign({}, row);
+                copy['NOMOR SURAT TUGAS'] = getSuratInlineFieldValue(row.ID, 'NOMOR SURAT TUGAS');
+                copy['TANGGAL SURAT TUGAS'] = getSuratInlineFieldValue(row.ID, 'TANGGAL SURAT TUGAS');
+                return copy;
+            });
+    }
+
+    function renderKelolaSheetCell(row, key) {
+        const value = row[key];
+
+        if (key === 'NOMOR SURAT TUGAS' && row._canEdit) {
+            const current = escapeHtml(getSuratInlineFieldValue(row.ID, key));
+            const dirtyClass = hasSuratInlineFieldChange(row.ID, key) ? 'is-dirty' : '';
+            return `<input type="text" class="kelola-sheet-input ${dirtyClass}" value="${current}" oninput="handleSuratInlineInput('${row.ID}', '${key}', this)" onpaste="handleSuratInlinePaste(event, '${row.ID}', '${key}')" placeholder="Nomor surat tugas">`;
+        }
+
+        if (key === 'TANGGAL SURAT TUGAS' && row._canEdit) {
+            const current = escapeHtml(getSuratInlineFieldValue(row.ID, key));
+            const dirtyClass = hasSuratInlineFieldChange(row.ID, key) ? 'is-dirty' : '';
+            return `<input type="date" class="kelola-sheet-input ${dirtyClass}" value="${current}" oninput="handleSuratInlineInput('${row.ID}', '${key}', this)" onpaste="handleSuratInlinePaste(event, '${row.ID}', '${key}')">`;
+        }
+
+        if (key === 'FOTO') {
+            const link = String(value || '').trim();
+            if (!link) return '<span class="kelola-sheet-cell-muted">-</span>';
+            return `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm fw-bold py-0 px-2">LIHAT FOTO</a>`;
+        }
+
+        if (key === 'STATUS') {
+            const status = String(value || '').trim().toLowerCase();
+            const statusClass = status === 'final' ? 'status-final' : 'status-draft';
+            return `<span class="kelola-sheet-badge ${statusClass}">${formatSheetText(value)}</span>`;
+        }
+
+        if (key.indexOf('TANGGAL') !== -1 || key === 'CREATED_AT' || key === 'UPDATED_AT') {
+            return `<span class="kelola-sheet-cell-muted">${formatSheetDate(value)}</span>`;
+        }
+
+        if (key === 'TIM') {
+            return `<span class="kelola-sheet-cell-strong">${formatSheetText(value)}</span>`;
+        }
+
+        if (key === 'URAIAN KEGIATAN' || key === 'KOORDINAT') {
+            return `<div style="white-space:normal; min-width:220px;">${formatSheetText(value)}</div>`;
+        }
+
+        return formatSheetText(value);
+    }
+
+    function getKelolaSuratActionHtml(row) {
+        if (row._canEdit) {
+            const disableSave = hasSuratInlineChanges(row.ID) ? '' : 'disabled';
+            return `<div class="kelola-sheet-actions">
+                <button type="button" id="btnSaveSurat_${row.ID}" class="btn btn-success btn-sm fw-bold" onclick="saveSuratInlineRow('${row.ID}', this)" ${disableSave}>💾 SIMPAN</button>
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${row.ID}')">✏️ EDIT FORM</button>
+                <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${row.ID}')">🗑️ HAPUS</button>
+            </div>`;
+        }
+        return `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
+    }
+
+    async function persistSuratInlineRow(id) {
+        const row = suratTugasCache[id];
+        if (!row) return { success: false, message: 'DATA BARIS TIDAK DITEMUKAN.' };
+
+        const payload = {
+            action: 'updateKelolaSuratFields',
+            id: id,
+            nip: state.nip,
+            requester_taskforce: state.taskforce,
+            nomor_surat_tugas: getSuratInlineFieldValue(id, 'NOMOR SURAT TUGAS'),
+            tanggal_surat_tugas: getSuratInlineFieldValue(id, 'TANGGAL SURAT TUGAS')
+        };
+
+        const res = await callApi(payload);
+        if (res.success) {
+            const nomorBaru = payload.nomor_surat_tugas;
+            const tanggalBaru = payload.tanggal_surat_tugas;
+            suratTugasCache[id]['NOMOR SURAT TUGAS'] = nomorBaru;
+            suratTugasCache[id]['TANGGAL SURAT TUGAS'] = tanggalBaru;
+            kelolaSuratTugasData = kelolaSuratTugasData.map(item => {
+                if (item.ID !== id) return item;
+                const updated = Object.assign({}, item);
+                updated['NOMOR SURAT TUGAS'] = nomorBaru;
+                updated['TANGGAL SURAT TUGAS'] = tanggalBaru;
+                updated['UPDATED_AT'] = new Date().toISOString().split('T')[0];
+                return updated;
+            });
+            delete suratInlineEdits[id];
+        }
+        return res;
+    }
+
+    async function saveSuratInlineRow(id, btnEl) {
+        if (!hasSuratInlineChanges(id)) return;
+        const oldLabel = btnEl ? btnEl.innerHTML : '';
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '⏳ MENYIMPAN';
+        }
+
+        try {
+            const res = await persistSuratInlineRow(id);
+            if (res.success) {
+                renderKelolaSuratTugasTable();
+                showAlert('kelolaAlert', '✅ NOMOR SURAT DAN TANGGAL SURAT TUGAS BERHASIL DISIMPAN.', 'success');
+            } else {
+                showAlert('kelolaAlert', '❌ ' + String(res.message || 'GAGAL MENYIMPAN PERUBAHAN.').toUpperCase(), 'danger');
+            }
+        } catch (err) {
+            showAlert('kelolaAlert', '❌ GAGAL MENYIMPAN: ' + err.message.toUpperCase(), 'danger');
+        } finally {
+            if (btnEl) {
+                btnEl.innerHTML = oldLabel;
+                refreshSuratRowActionState(id);
+            }
+        }
+    }
+
+    async function saveAllSuratInline() {
+        const ids = Object.keys(suratInlineEdits);
+        if (ids.length === 0) return;
+
+        const btn = document.getElementById('btnSaveAllSurat');
+        const oldLabel = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'SEDANG MENYIMPAN...';
+        }
+
+        let gagal = 0;
+        for (const id of ids) {
+            try {
+                const res = await persistSuratInlineRow(id);
+                if (!res.success) gagal++;
+            } catch (err) {
+                gagal++;
+            }
+        }
+
+        renderKelolaSuratTugasTable();
+        if (gagal === 0) {
+            showAlert('kelolaAlert', '✅ SEMUA PERUBAHAN NOMOR SURAT DAN TANGGAL SURAT TUGAS BERHASIL DISIMPAN.', 'success');
+        } else {
+            showAlert('kelolaAlert', `⚠️ SEBAGIAN PERUBAHAN GAGAL DISIMPAN (${gagal} BARIS).`, 'warning');
+        }
+
+        if (btn) btn.textContent = oldLabel;
+    }
+
+    async function copyKelolaSuratTugasTable() {
+        const rows = getKelolaVisibleRows();
+        const header = ['NO'].concat(kelolaSheetColumns).join('\t');
+        const body = rows.map((row, index) => {
+            const cols = kelolaSheetColumns.map(col => {
+                if (col.indexOf('TANGGAL') !== -1 || col === 'CREATED_AT' || col === 'UPDATED_AT') {
+                    return formatSheetDate(row[col]);
+                }
+                return String(row[col] == null ? '' : row[col]).replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+            });
+            return [index + 1].concat(cols).join('\t');
+        }).join('\n');
+
+        try {
+            await navigator.clipboard.writeText(header + '\n' + body);
+            showAlert('kelolaAlert', '✅ TAMPILAN TABEL BERHASIL DISALIN. BISA LANGSUNG DITEMPEL KE EXCEL.', 'success');
+        } catch (err) {
+            showAlert('kelolaAlert', '❌ GAGAL MENYALIN TABEL: ' + err.message.toUpperCase(), 'danger');
+        }
+    }
+
+    function downloadKelolaSuratTugasExcel() {
+        const rows = getKelolaVisibleRows();
+        const headers = ['NO'].concat(kelolaSheetColumns);
+        const trs = rows.map((row, index) => {
+            const tds = kelolaSheetColumns.map(col => {
+                let value = row[col];
+                if (col.indexOf('TANGGAL') !== -1 || col === 'CREATED_AT' || col === 'UPDATED_AT') {
+                    value = formatSheetDate(value);
+                }
+                return `<td>${escapeHtml(value == null ? '' : String(value))}</td>`;
+            }).join('');
+            return `<tr><td>${index + 1}</td>${tds}</tr>`;
+        }).join('');
+
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px}
+th,td{border:1px solid #d9dee7;padding:6px 8px;vertical-align:top}
+th{background:#fff3e0;font-weight:bold}
+</style>
+</head>
+<body>
+<table>
+<thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+<tbody>${trs}</tbody>
+</table>
+</body>
+</html>`;
+
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kelola_surat_tugas_hasil.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function renderKelolaSuratTugasTable() {
+        const container = document.getElementById('suratTugasList');
+        const meta = document.getElementById('suratTugasMeta');
+        const searchInput = document.getElementById('suratSearchInput');
+        const keyword = String(searchInput ? searchInput.value : '').trim().toLowerCase();
+        const data = kelolaSuratTugasData.filter(r => {
+            if (!keyword) return true;
+            const haystack = kelolaSheetColumns
+                .map(col => String(r[col] || '').toLowerCase())
+                .join(' ');
+            return haystack.includes(keyword);
+        });
+        kelolaSuratTugasFilteredIds = data.map(r => r.ID);
+
+        meta.textContent = `MENAMPILKAN ${data.length} BARIS DATA DARI SHEET HASIL`;
+
+        if (data.length === 0) {
+            container.innerHTML = '<div class="kelola-sheet-empty">BELUM ADA SURAT TUGAS YANG SESUAI FILTER ATAU KATA KUNCI.</div>';
+            refreshSuratToolbarState();
+            return;
+        }
+
+        let rowsHtml = '';
+        data.forEach((r, index) => {
+            suratTugasCache[r.ID] = r;
+            const dataCells = kelolaSheetColumns.map(col => `<td>${renderKelolaSheetCell(r, col)}</td>`).join('');
+            const dirtyClass = hasSuratInlineChanges(r.ID) ? 'kelola-sheet-row-dirty' : '';
+            rowsHtml += `<tr class="${dirtyClass}">
+                <td class="kelola-sheet-col-nomor">${index + 1}</td>
+                ${dataCells}
+                <td class="kelola-sheet-col-aksi">${getKelolaSuratActionHtml(r)}</td>
+            </tr>`;
+        });
+
+        const headersHtml = kelolaSheetColumns.map(col => `<th>${escapeHtml(col)}</th>`).join('');
+
+        container.innerHTML = `<div class="kelola-sheet-wrap">
+            <table class="kelola-sheet-table">
+                <thead>
+                    <tr>
+                        <th class="kelola-sheet-col-nomor">NO</th>
+                        ${headersHtml}
+                        <th class="kelola-sheet-col-aksi">AKSI</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        </div>`;
+        refreshSuratToolbarState();
+    }
 
     async function loadKelolaSuratTugas() {
         const container = document.getElementById('suratTugasList');
         const notice = document.getElementById('suratReadOnlyNotice');
+        const meta = document.getElementById('suratTugasMeta');
         container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT SURAT TUGAS...</div>';
+        meta.textContent = 'SEDANG MEMUAT DATA DARI SHEET HASIL';
         notice.style.display = 'none';
 
         try {
@@ -2272,6 +2850,7 @@
 
             if (!res.success) {
                 container.innerHTML = `<div class="small text-danger fw-bold">❌ ${(res.message || 'GAGAL MEMUAT SURAT TUGAS.').toUpperCase()}</div>`;
+                meta.textContent = 'GAGAL MEMUAT DATA DARI SHEET HASIL';
                 return;
             }
 
@@ -2283,43 +2862,13 @@
                 notice.style.display = 'block';
             }
 
-            const data = res.data || [];
-            if (data.length === 0) {
-                container.innerHTML = '<div class="small text-muted text-center fw-bold py-2">BELUM ADA SURAT TUGAS YANG SESUAI FILTER.</div>';
-                return;
-            }
-
             suratTugasCache = {};
-            let html = '';
-            data.forEach(r => {
-                suratTugasCache[r.ID] = r;
-                const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
-                const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
-                const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
-                const noSurat = r['NOMOR SURAT TUGAS'] || '-';
-                const canEdit = r._canEdit;
-
-                const actionBtns = canEdit
-                    ? `<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${r.ID}')">✏️ EDIT</button>
-                       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${r.ID}')">🗑️ HAPUS</button>`
-                    : `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
-
-                html += `<div class="kelola-member-item">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="fw-bold">${String(r.TUGAS || '').toUpperCase()} — ${String(r.TIM || '-').toUpperCase()}</div>
-                            <div class="small text-muted">${rentangTgl} | NIP: ${r.NIP || '-'}</div>
-                            <div class="small text-muted">${r.ID_SubSLS || '-'} — ${r['NAMA SLS'] || '-'}</div>
-                            <div class="small text-muted">NO. SURAT: ${noSurat}</div>
-                        </div>
-                        <span class="badge bg-secondary text-uppercase">${r.STATUS || '-'}</span>
-                    </div>
-                    <div class="d-flex gap-2 mt-2">${actionBtns}</div>
-                </div>`;
-            });
-            container.innerHTML = html;
+            suratInlineEdits = {};
+            kelolaSuratTugasData = res.data || [];
+            renderKelolaSuratTugasTable();
         } catch (err) {
             container.innerHTML = `<div class="small text-danger fw-bold">❌ GAGAL MEMUAT SURAT TUGAS: ${err.message.toUpperCase()}</div>`;
+            meta.textContent = 'GAGAL MEMUAT DATA DARI SHEET HASIL';
         }
     }
 
