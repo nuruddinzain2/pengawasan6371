@@ -549,10 +549,18 @@
             }
         }
 
-        /* Area cetak: tersembunyi total di layar normal, hanya ditampilkan
-           browser saat proses print (window.print()). */
+        /* Area cetak:
+           Jangan pakai display:none di mode normal, karena sebagian browser
+           menunda load <img> di elemen display:none sehingga foto sering kosong
+           saat dialog print muncul. Solusi: simpan di luar layar (offscreen)
+           supaya tetap bisa load, tapi tidak terlihat pengguna. */
         .print-only {
-            display: none;
+            position: absolute;
+            left: -10000px;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
         }
         @media print {
             @page {
@@ -566,11 +574,12 @@
                 visibility: visible;
             }
             .print-only {
-                display: block;
                 position: absolute;
                 top: 0;
-                left: 0;
-                width: 100%;
+                left: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
             }
             .print-page {
                 padding: 0;
@@ -2052,6 +2061,33 @@
         }));
     }
 
+    function extractDriveFileId(url) {
+        const u = String(url || '').trim();
+        if (!u) return '';
+        let m = u.match(/[?&]id=([^&]+)/i);
+        if (m) return m[1];
+        m = u.match(/\/file\/d\/([^\/?#]+)/i);
+        if (m) return m[1];
+        m = u.match(/\/d\/([^\/?#]+)/i); // sometimes used by googleusercontent
+        if (m) return m[1];
+        return '';
+    }
+
+    function buildPhotoCandidates(rawUrl) {
+        const u = String(rawUrl || '').trim();
+        if (!u) return [];
+        const id = extractDriveFileId(u);
+        if (!id) return [u];
+        // Urutan kandidat: thumbnail sering lebih stabil untuk hotlink
+        return [
+            `https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
+            `https://lh3.googleusercontent.com/d/${id}`,
+            `https://drive.google.com/uc?export=view&id=${id}`,
+            `https://drive.google.com/uc?export=download&id=${id}`,
+            u
+        ];
+    }
+
     function printReport(id) {
         const r = reportListCache[id];
         if (!r) {
@@ -2085,7 +2121,7 @@
         const fotoUrl = String(r.FOTO || '').trim();
         const fotoUrlAttr = fotoUrl.replace(/"/g, '&quot;');
         const fotoHtml = fotoUrl
-            ? `<img id="printFotoImg" src="${fotoUrlAttr}" alt="Dokumentasi kegiatan" crossorigin="anonymous">`
+            ? `<img id="printFotoImg" src="${fotoUrlAttr}" alt="Dokumentasi kegiatan" crossorigin="anonymous" referrerpolicy="no-referrer">`
             : `<div class="print-photo-empty">Belum ada foto kegiatan</div>`;
 
         document.getElementById('printArea').innerHTML = `
@@ -2136,6 +2172,7 @@
                     <div class="print-photo-box">
                         ${fotoHtml}
                     </div>
+                    ${fotoUrl ? `<div class="print-detail-row"><b>Link foto:</b> ${escapeHtml(fotoUrl)}</div>` : ''}
                     <div class="print-signature">
                         <div class="sign-block">
                             <div>Mengetahui,</div>
@@ -2153,7 +2190,7 @@
 
         // Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
         // kalau tidak sering kejadian gambar kosong saat dialog print muncul.
-        const doPrint = () => setTimeout(() => window.print(), 30);
+        const doPrint = () => setTimeout(() => window.print(), 60);
         if (fotoUrl) {
             const img = document.getElementById('printFotoImg');
             if (!img) {
@@ -2166,10 +2203,29 @@
                 done = true;
                 doPrint();
             };
+            const candidates = buildPhotoCandidates(fotoUrl);
+            let idx = 0;
+            const tryNext = () => {
+                idx += 1;
+                if (idx >= candidates.length) {
+                    finish();
+                    return;
+                }
+                img.src = candidates[idx];
+            };
+
+            // Mulai dari kandidat pertama yang "paling aman"
+            if (candidates.length > 0) img.src = candidates[0];
             img.addEventListener('load', finish);
-            img.addEventListener('error', finish);
+            img.addEventListener('error', tryNext);
+            // decode() membantu beberapa browser memastikan gambar benar-benar siap dirender
+            try {
+                if (img.decode) {
+                    img.decode().then(finish).catch(() => {});
+                }
+            } catch (e) {}
             // Fallback: jangan menggantung kalau link lambat/ditolak
-            setTimeout(finish, 2000);
+            setTimeout(finish, 8000);
         } else {
             doPrint();
         }
