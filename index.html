@@ -2082,8 +2082,10 @@
             r['NAMA PPL'] ? `PPL ${escapeHtml(r['NAMA PPL'])}` : ''
         ].filter(Boolean).join(' | ');
         const uraian = escapeHtml(r['URAIAN KEGIATAN'] || '-').replace(/\n/g, '<br>');
-        const fotoHtml = r.FOTO
-            ? `<img src="${r.FOTO}" alt="Dokumentasi kegiatan">`
+        const fotoUrl = String(r.FOTO || '').trim();
+        const fotoUrlAttr = fotoUrl.replace(/"/g, '&quot;');
+        const fotoHtml = fotoUrl
+            ? `<img id="printFotoImg" src="${fotoUrlAttr}" alt="Dokumentasi kegiatan" crossorigin="anonymous">`
             : `<div class="print-photo-empty">Belum ada foto kegiatan</div>`;
 
         document.getElementById('printArea').innerHTML = `
@@ -2149,7 +2151,28 @@
             </div>
         `;
 
-        window.print();
+        // Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
+        // kalau tidak sering kejadian gambar kosong saat dialog print muncul.
+        const doPrint = () => setTimeout(() => window.print(), 30);
+        if (fotoUrl) {
+            const img = document.getElementById('printFotoImg');
+            if (!img) {
+                doPrint();
+                return;
+            }
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                doPrint();
+            };
+            img.addEventListener('load', finish);
+            img.addEventListener('error', finish);
+            // Fallback: jangan menggantung kalau link lambat/ditolak
+            setTimeout(finish, 2000);
+        } else {
+            doPrint();
+        }
     }
 
     // =====================================================================
