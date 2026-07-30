@@ -1519,62 +1519,62 @@
         }
     }
 
-    async function loadTaskforceDropdown() {
-        const tim = document.getElementById('reportTim').value;
-        const pmlSelect = document.getElementById('reportPml');
-        const pplSelect = document.getElementById('reportPpl');
-        const subslsSelect = document.getElementById('reportSubsls');
-        
-        pmlSelect.innerHTML = '<option value="">-- PILIH PML --</option>';
-        pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
-        subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
-        clearDetailFields();
-        
-        if (!tim) return;
-        
-        let res = await callApi({ action: 'getDropdownData', level: 'pml', tim: tim, taskforce: state.taskforce });
-        if (res.success) {
-            res.data.forEach(opt => pmlSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
-        }
-    }
 
-    async function loadPplDropdown() {
-        const tim = document.getElementById('reportTim').value;
-        const pml = document.getElementById('reportPml').value;
-        const pplSelect = document.getElementById('reportPpl');
-        const subslsSelect = document.getElementById('reportSubsls');
-        
-        pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
-        subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
-        clearDetailFields();
-        
-        if (!tim || !pml) return;
 
-        let res = await callApi({ action: 'getDropdownData', level: 'ppl', tim: tim, pml: pml, taskforce: state.taskforce });
-        if (res.success) {
-            res.data.forEach(opt => pplSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
-        }
-    }
+async function loadTaskforceDropdown(overrideTaskforce) {
+  const tim = document.getElementById('reportTim').value;
+  const pmlSelect = document.getElementById('reportPml');
+  const pplSelect = document.getElementById('reportPpl');
+  const subslsSelect = document.getElementById('reportSubsls');
+  pmlSelect.innerHTML = '<option value="">-- PILIH PML --</option>';
+  pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
+  subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
+  clearDetailFields();
+  if (!tim) return;
+  
+  // ✅ FIX: Gunakan taskforce dari laporan (saat edit) atau state.taskforce (saat buat baru)
+  const tf = overrideTaskforce || state.taskforce;
+  
+  let res = await callApi({ action: 'getDropdownData', level: 'pml', tim: tim, taskforce: tf });
+  if (res.success) {
+    res.data.forEach(opt => pmlSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+  }
+}
 
-    async function loadSubslsDropdown() {
-        const tim = document.getElementById('reportTim').value;
-        const pml = document.getElementById('reportPml').value;
-        const ppl = document.getElementById('reportPpl').value;
-        const subslsSelect = document.getElementById('reportSubsls');
-        
-        subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
-        clearDetailFields();
-        
-        if (!tim || !pml || !ppl) return;
-
-        let res = await callApi({ action: 'getDropdownData', level: 'subsls', tim: tim, pml: pml, ppl: ppl, taskforce: state.taskforce });
-        if (res.success) {
-            subslsSelect.dataValues = res.data; 
-            res.data.forEach(opt => {
-                subslsSelect.innerHTML += `<option value="${String(opt.id_subsls).trim()}">${String(opt.id_subsls).trim()}</option>`;
-            });
-        }
-    }
+ async function loadPplDropdown(overrideTaskforce) {
+  const tim = document.getElementById('reportTim').value;
+  const pml = document.getElementById('reportPml').value;
+  const pplSelect = document.getElementById('reportPpl');
+  const subslsSelect = document.getElementById('reportSubsls');
+  pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
+  subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
+  clearDetailFields();
+  if (!tim || !pml) return;
+  
+  const tf = overrideTaskforce || state.taskforce;
+  let res = await callApi({ action: 'getDropdownData', level: 'ppl', tim: tim, pml: pml, taskforce: tf });
+  if (res.success) {
+    res.data.forEach(opt => pplSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+  }
+}
+    async function loadSubslsDropdown(overrideTaskforce) {
+  const tim = document.getElementById('reportTim').value;
+  const pml = document.getElementById('reportPml').value;
+  const ppl = document.getElementById('reportPpl').value;
+  const subslsSelect = document.getElementById('reportSubsls');
+  subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
+  clearDetailFields();
+  if (!tim || !pml || !ppl) return;
+  
+  const tf = overrideTaskforce || state.taskforce;
+  let res = await callApi({ action: 'getDropdownData', level: 'subsls', tim: tim, pml: pml, ppl: ppl, taskforce: tf });
+  if (res.success) {
+    subslsSelect.dataValues = res.data;
+    res.data.forEach(opt => {
+      subslsSelect.innerHTML += `<option value="${String(opt.id_subsls).trim()}">${String(opt.id_subsls).trim()}</option>`;
+    });
+  }
+}
 
     function loadSubslsDetail() {
         const select = document.getElementById('reportSubsls');
@@ -2002,36 +2002,44 @@
         // --- Dropdown berjenjang: TIM -> PML -> PPL -> SubSLS ---
         // Setiap tahap menunggu (await) daftar opsi termuat lebih dulu,
         // baru nilai lama di-set, sebelum lanjut memuat tahap berikutnya.
-        try {
-            await loadTimDropdown();
-            document.getElementById('reportTim').value = r.TIM || '';
-
-            await loadTaskforceDropdown(); // sebenarnya memuat dropdown PML berdasar TIM (lihat definisi fungsi)
-            document.getElementById('reportPml').value = r['NAMA PML'] || '';
-
-            await loadPplDropdown();
-            document.getElementById('reportPpl').value = r['NAMA PPL'] || '';
-
-            await loadSubslsDropdown();
-            document.getElementById('reportSubsls').value = String(r.ID_SubSLS || '').trim();
-            loadSubslsDetail();
-
-            // Jika data muatan dari dropdown SubSLS tidak ketemu (misalnya data
-            // master di sheet DATABASE berubah), tetap tampilkan nilai yang
-            // tersimpan di laporan supaya tidak hilang.
-            if (!document.getElementById('reportTotalAssigment').value) {
-                document.getElementById('reportNamaSls').value = r['NAMA SLS'] || '';
-                document.getElementById('reportTotalAssigment').value = r['Total Assigment'] || '0';
-                document.getElementById('reportMuatanKk').value = r['Muatan Kk Wilkerstat'] || '0';
-                document.getElementById('reportMuatanUsaha').value = r['Muatan Usaha Wilkerstat'] || '0';
-                document.getElementById('reportTotalMuatan').value = r['Total Muatan Wilkerstat'] || '0';
-            }
-
-            clearAlert('reportAlert');
-            showAlert('reportAlert', 'ℹ️ MODE EDIT: UBAH DATA YANG DIPERLUKAN, LALU SIMPAN DRAFT ATAU KIRIM FINAL.', 'info');
-        } catch (err) {
-            showAlert('reportAlert', '❌ SEBAGIAN DATA GAGAL DIMUAT (DROPDOWN WILAYAH): ' + err.message.toUpperCase(), 'danger');
-        }
+        
+        // --- Dropdown berjenjang: TIM -> PML -> PPL -> SubSLS ---
+// Setiap tahap menunggu (await) daftar opsi termuat lebih dulu,
+// baru nilai lama di-set, sebelum lanjut memuat tahap berikutnya.
+try {
+  await loadTimDropdown();
+  // ✅ FIX: Tambahkan .trim() untuk mencegah kegagalan pencocokan nilai option akibat spasi tersembunyi
+  document.getElementById('reportTim').value = String(r.TIM || '').trim();
+  
+  // ✅ FIX: Kirim r.TASKFORCE agar API memfilter berdasarkan taskforce pemilik laporan, 
+  // bukan taskforce Admin/Asesor yang sedang mengedit.
+  await loadTaskforceDropdown(r.TASKFORCE); 
+  document.getElementById('reportPml').value = String(r['NAMA PML'] || '').trim();
+  
+  await loadPplDropdown(r.TASKFORCE);
+  document.getElementById('reportPpl').value = String(r['NAMA PPL'] || '').trim();
+  
+  await loadSubslsDropdown(r.TASKFORCE);
+  document.getElementById('reportSubsls').value = String(r.ID_SubSLS || '').trim();
+  
+  loadSubslsDetail();
+  
+  // Jika data muatan dari dropdown SubSLS tidak ketemu (misalnya data
+  // master di sheet DATABASE berubah), tetap tampilkan nilai yang
+  // tersimpan di laporan supaya tidak hilang.
+  if (!document.getElementById('reportTotalAssigment').value) {
+    document.getElementById('reportNamaSls').value = r['NAMA SLS'] || '';
+    document.getElementById('reportTotalAssigment').value = r['Total Assigment'] || '0';
+    document.getElementById('reportMuatanKk').value = r['Muatan Kk Wilkerstat'] || '0';
+    document.getElementById('reportMuatanUsaha').value = r['Muatan Usaha Wilkerstat'] || '0';
+    document.getElementById('reportTotalMuatan').value = r['Total Muatan Wilkerstat'] || '0';
+  }
+  
+  clearAlert('reportAlert');
+  showAlert('reportAlert', 'ℹ️ MODE EDIT: UBAH DATA YANG DIPERLUKAN, LALU SIMPAN DRAFT ATAU KIRIM FINAL.', 'info');
+} catch (err) {
+  showAlert('reportAlert', '❌ SEBAGIAN DATA GAGAL DIMUAT (DROPDOWN WILAYAH): ' + err.message.toUpperCase(), 'danger');
+}
     }
 
     // =====================================================================
