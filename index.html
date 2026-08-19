@@ -3464,6 +3464,7 @@ if (res.role === 'asesor') {
     // cukup ambil dari sini berdasarkan ID.
     let reportListCache = {};
 
+
     function renderFinalPrintCards(containerId, data) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -3478,9 +3479,14 @@ if (res.role === 'asesor') {
             const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
             const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
             const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+          
+          
             container.innerHTML += `<li class="list-group-item">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div><b>${rentangTgl}</b> - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+         
+         <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+         
+         
                     <div class="d-flex align-items-center gap-2">
                         <span class="report-status-badge status-final">FINAL</span>
                     </div>
@@ -3493,6 +3499,8 @@ if (res.role === 'asesor') {
         });
         container.innerHTML += '</ul>';
     }
+
+
 
     async function loadReports() {
         let container = document.getElementById('reportListContainer');
@@ -3516,7 +3524,9 @@ if (res.role === 'asesor') {
                         : '';
                     container.innerHTML += `<li class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div><b>${rentangTgl}</b> - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+                        <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+
+
                             <div class="d-flex align-items-center gap-2">
                                 <span class="report-status-badge ${statusClass}">${String(r.STATUS).toUpperCase()}</span>
                                 <div class="report-menu-wrap position-relative">
