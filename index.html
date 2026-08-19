@@ -3292,7 +3292,7 @@ try {
 
             suratTugasCache = {};
             suratInlineEdits = {};
-            kelolaSuratCanEdit = res.role !== 'asesor';
+            kelolaSuratCanEdit = (res.role === 'admin' || res.role === 'asesor' || res.role === 'ketua');
             updateSuratToolbarAccess();
             kelolaSuratTugasData = res.data || [];
             renderKelolaSuratTugasTable();
