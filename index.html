@@ -985,10 +985,10 @@
                                 <option value="">SEMUA TIM</option>
                             </select>
                             <select id="suratFilterStatus" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="loadKelolaSuratTugas()">
-                                <option value="">SEMUA STATUS</option>
-                                <option value="draft">DRAFT</option>
-                                <option value="final">FINAL</option>
-                            </select>
+<option value="">SEMUA STATUS</option>
+<option value="draft">DRAFT</option>
+<option value="final" selected>FINAL</option>
+</select>
                         </div>
                     </div>
                     <div id="suratReadOnlyNotice" class="alert alert-info py-2 small fw-bold" style="display:none;">
@@ -2375,6 +2375,8 @@ return;
 
     async function loadKelolaMembers(tim) {
         const container = document.getElementById('kelolaMemberList');
+        
+        
         container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT ANGGOTA...</div>';
         try {
             let res = await callApi({ action: 'getTeamMembers', nip: state.nip, tim: tim, requester_taskforce: state.taskforce });
@@ -2756,35 +2758,21 @@ sub = 'surat';
         'NOMOR SURAT TUGAS',
         'TANGGAL SURAT TUGAS'
     ];
-    const kelolaSheetColumns = [
-        'ID',
-        'TANGGAL BERANGKAT',
-        'TANGGAL PULANG',
-        'NIP',
-        'TASKFORCE',
-        'TIM',
-        'NAMA PML',
-        'NAMA PPL',
-        'ID_SubSLS',
-        'NAMA SLS',
-        'Total Assigment',
-        'Muatan Kk Wilkerstat',
-        'Muatan Usaha Wilkerstat',
-        'Total Muatan Wilkerstat',
-        'TUGAS',
-        'URAIAN KEGIATAN',
-        'KUOTA',
-        'KUNJUNGAN',
-        'SISA KUOTA KUNJUNGAN',
-        'FOTO',
-        'KOORDINAT',
-        'NOMOR SURAT TUGAS',
-        'TANGGAL SURAT TUGAS',
-        'STATUS',
-        'CREATED_AT',
-        'UPDATED_AT'
-    ];
-
+    // Kolom yang ditampilkan untuk Asesor (lebih ringkas, fokus ke info penting)
+const kelolaSheetColumns = [
+'TANGGAL BERANGKAT',
+'TANGGAL PULANG',
+'NIP',
+'TASKFORCE',
+'TIM',
+'NAMA PML',
+'NAMA PPL',
+'ID_SubSLS',
+'TUGAS',
+'NOMOR SURAT TUGAS',
+'TANGGAL SURAT TUGAS',
+'STATUS'
+];
     function escapeHtml(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;')
@@ -3260,21 +3248,31 @@ ${hapusBtn}
         const container = document.getElementById('suratTugasList');
         const notice = document.getElementById('suratReadOnlyNotice');
         const meta = document.getElementById('suratTugasMeta');
-        container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT SURAT TUGAS...</div>';
-        meta.textContent = 'SEDANG MEMUAT DATA DARI SHEET HASIL';
-        notice.style.display = 'none';
+        container.innerHTML = '<div class="small text-muted fw-bold"> SILAKAN MENUNGGU, SEDANG MEMUAT SURAT TUGAS... (DATA BESAR, MOHON BERSABAR)</div>';
+meta.textContent = 'SEDANG MEMUAT DATA DARI SHEET HASIL';
+notice.style.display = 'none';
+
+// Tambah warning jika terlalu lama
+const loadingTimeout = setTimeout(() => {
+  container.innerHTML = '<div class="small text-warning fw-bold">⚠️ DATA MASIH DIMUAT... JIKA TERLALU LAMA, COBA FILTER PER TIM ATAU STATUS.</div>';
+}, 15000); // 15 detik
 
         try {
-            const timFilter = document.getElementById('suratFilterTim').value;
-            const statusFilter = document.getElementById('suratFilterStatus').value;
-            let res = await callApi({
-                action: 'getKelolaSuratTugas',
-                nip: state.nip,
-                requester_taskforce: state.taskforce,
-                tim: timFilter,
-                status: statusFilter
-            });
 
+            const timFilter = document.getElementById('suratFilterTim').value;
+// Default filter ke 'final' untuk Asesor agar data lebih sedikit & cepat
+const statusFilter = document.getElementById('suratFilterStatus').value || (state.role === 'asesor' ? 'final' : '');
+            
+         let res = await callApi({
+  action: 'getKelolaSuratTugas',
+  nip: state.nip,
+  requester_taskforce: state.taskforce,
+  tim: timFilter,
+  status: statusFilter
+});
+
+
+clearTimeout(loadingTimeout);
             if (!res.success) {
                 container.innerHTML = `<div class="small text-danger fw-bold">❌ ${(res.message || 'GAGAL MEMUAT SURAT TUGAS.').toUpperCase()}</div>`;
                 meta.textContent = 'GAGAL MEMUAT DATA DARI SHEET HASIL';
