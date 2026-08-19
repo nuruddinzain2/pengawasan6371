@@ -3287,10 +3287,10 @@ ${hapusBtn}
             // supaya ADMIN/ASESOR bisa menyaring per TIM walau lintas semua TIM.
             isiFilterTimSuratTugas(res.data || []);
 
-            if (res.role === 'asesor') {
-                notice.style.display = 'block';
-            }
-
+if (res.role === 'asesor') {
+  notice.textContent = 'ℹ️ MODE EDIT TERBATAS: ASESOR HANYA DAPAT MENGUBAH NOMOR & TANGGAL SURAT TUGAS, TIDAK DAPAT MENGHAPUS LAPORAN.';
+  notice.style.display = 'block';
+}
             suratTugasCache = {};
             suratInlineEdits = {};
             kelolaSuratCanEdit = (res.role === 'admin' || res.role === 'asesor' || res.role === 'ketua');
