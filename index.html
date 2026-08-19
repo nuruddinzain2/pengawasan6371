@@ -2748,16 +2748,19 @@ sub = 'surat';
     let kelolaSuratTugasFilteredIds = [];
     let kelolaSuratCanEdit = true;
     const kelolaSuratTemplateColumns = [
-        'ID',
-        'TIM',
-        'TASKFORCE',
-        'ID_SubSLS',
-        'NAMA SLS',
-        'TUGAS',
-        'STATUS',
-        'NOMOR SURAT TUGAS',
-        'TANGGAL SURAT TUGAS'
-    ];
+'ID',
+'TANGGAL BERANGKAT',
+'TANGGAL PULANG',
+'NIP',
+'TIM',
+'TASKFORCE',
+'ID_SubSLS',
+'NAMA SLS',
+'TUGAS',
+'STATUS',
+'NOMOR SURAT TUGAS',
+'TANGGAL SURAT TUGAS'
+];
     // Kolom yang ditampilkan untuk Asesor (lebih ringkas, fokus ke info penting)
 const kelolaSheetColumns = [
 'TANGGAL BERANGKAT',
@@ -3110,17 +3113,20 @@ ${hapusBtn}
             header: ['NO'].concat(kelolaSuratTemplateColumns)
         });
         ws['!cols'] = [
-            { wch: 6 },
-            { wch: 20 },
-            { wch: 18 },
-            { wch: 26 },
-            { wch: 18 },
-            { wch: 20 },
-            { wch: 20 },
-            { wch: 12 },
-            { wch: 28 },
-            { wch: 18 }
-        ];
+{ wch: 6 },    // NO
+{ wch: 22 },   // ID
+{ wch: 14 },   // TANGGAL BERANGKAT
+{ wch: 14 },   // TANGGAL PULANG
+{ wch: 18 },   // NIP
+{ wch: 20 },   // TIM
+{ wch: 22 },   // TASKFORCE
+{ wch: 20 },   // ID_SubSLS
+{ wch: 18 },   // NAMA SLS
+{ wch: 16 },   // TUGAS
+{ wch: 10 },   // STATUS
+{ wch: 28 },   // NOMOR SURAT TUGAS
+{ wch: 18 }    // TANGGAL SURAT TUGAS
+];
         XLSX.utils.book_append_sheet(wb, ws, 'TEMPLATE SURAT');
         XLSX.writeFile(wb, 'template_kelola_surat_tugas.xlsx');
     }
