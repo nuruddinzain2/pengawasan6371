@@ -919,11 +919,10 @@
                      KETUA & ADMIN. ASESOR tidak pernah melihat tab KELOLA
                      sama sekali (lihat applyRoleVisibility), jadi sub-nav
                      ini otomatis tidak relevan untuknya. -->
-                <div class="d-flex gap-2 mb-3" id="kelolaSubNav">
-                    <button type="button" id="kelolaSubBtnAnggota" class="btn btn-sm fw-bold flex-grow-1 btn-primary" onclick="switchKelolaSub('anggota')">👥 ANGGOTA &amp; KUOTA</button>
-                    <button type="button" id="kelolaSubBtnSurat" class="btn btn-sm fw-bold flex-grow-1 btn-outline-primary" onclick="switchKelolaSub('surat')">📄 SURAT TUGAS</button>
-                </div>
-
+              <div class="d-flex gap-2 mb-3" id="kelolaSubNav">
+<button type="button" id="kelolaSubBtnAnggota" class="btn btn-sm fw-bold flex-grow-1 btn-primary" onclick="switchKelolaSub('anggota')">👥 ANGGOTA &amp; KUOTA</button>
+<button type="button" id="kelolaSubBtnSurat" class="btn btn-sm fw-bold flex-grow-1 btn-outline-primary" onclick="switchKelolaSub('surat')"> SURAT TUGAS</button>
+</div>
                 <div id="kelolaSubAnggota">
                     <!-- Pilih TIM yang ingin dikelola (muncul kalau lebih dari 1 TIM
                          boleh dikelola -- misal ADMIN yang lihat semua TIM, atau
@@ -1437,21 +1436,16 @@
     // tapi disembunyikan total -- konsisten dengan aturan bahwa Asesor
     // tidak mengelola anggota/kuota tim, hanya membuat laporan).
     function applyRoleVisibility() {
-        const grid = document.getElementById('mainNavGrid');
-        const kelolaBtn = document.getElementById('tabKelolaBtn');
-        const printBtn = document.getElementById('tabPrintBtn');
-        const bolehKelola = state.role === 'ketua' || state.role === 'admin';
-
-        kelolaBtn.style.display = bolehKelola ? 'flex' : 'none';
-        printBtn.style.display = 'flex';
-        grid.classList.toggle('has-kelola', bolehKelola);
-
-        // Animasi "goyang" ringan di ketiga tombol nav saat menu utama baru
-        // muncul setelah login, supaya pengguna langsung sadar ada 3 (atau 2)
-        // menu besar yang bisa ditekan -- lihat playWiggle().
-        playWiggle();
-    }
-
+const grid = document.getElementById('mainNavGrid');
+const kelolaBtn = document.getElementById('tabKelolaBtn');
+const printBtn = document.getElementById('tabPrintBtn');
+// Asesor juga boleh masuk KELOLA (khususnya untuk isi Surat Tugas)
+const bolehKelola = state.role === 'ketua' || state.role === 'admin' || state.role === 'asesor';
+kelolaBtn.style.display = bolehKelola ? 'flex' : 'none';
+printBtn.style.display = 'flex';
+grid.classList.toggle('has-kelola', bolehKelola);
+playWiggle();
+}
     // Menambahkan class animasi goyang ke semua tombol nav utama yang
     // sedang terlihat, lalu melepas class itu lagi setelah animasi selesai
     // (600ms) supaya tombol tidak goyang TERUS-MENERUS dan malah mengganggu.
@@ -2314,11 +2308,13 @@ try {
         document.getElementById('kelolaTimPicker').style.display = 'none';
         document.getElementById('btnTambahTim').style.display = state.role === 'admin' ? 'inline-block' : 'none';
 
-        // Pastikan sub-tab "ANGGOTA & KUOTA" yang aktif sebagai default
-        // setiap kali tab KELOLA dibuka (mis. setelah login ulang dengan
-        // NIP/role berbeda) -- biar tidak nyangkut di sub-tab SURAT TUGAS
-        // dari sesi sebelumnya.
-        switchKelolaSub('anggota');
+        // Asesor hanya butuh sub-tab SURAT TUGAS (tidak mengelola anggota/kuota).
+// KETUA & ADMIN default ke ANGGOTA & KUOTA seperti biasa.
+if (state.role === 'asesor') {
+switchKelolaSub('surat');
+} else {
+switchKelolaSub('anggota');
+}
         loadKelolaNamaOptions();
 
         try {
@@ -2328,11 +2324,11 @@ try {
                 return;
             }
             const timList = res.data || [];
-            if (timList.length === 0 && state.role !== 'admin') {
-                showAlert('kelolaAlert', 'ℹ️ ANDA TIDAK MEMILIKI TIM YANG DAPAT DIKELOLA.', 'info');
-                return;
-            }
-
+           // Asesor tidak perlu memilih TIM (dia lihat semua TIM di sub-tab Surat Tugas)
+if (timList.length === 0 && state.role !== 'admin' && state.role !== 'asesor') {
+showAlert('kelolaAlert', 'ℹ️ ANDA TIDAK MEMILIKI TIM YANG DAPAT DIKELOLA.', 'info');
+return;
+}
             // Picker TIM ditampilkan kalau ada lebih dari 1 TIM (perlu
             // dipilih), ATAU kalau role-nya admin (admin perlu melihat
             // tombol "TAMBAH TIM BARU" walau baru ada 0/1 TIM).
@@ -2369,7 +2365,7 @@ try {
     async function loadKelolaTeamData(tim) {
         document.getElementById('kelolaTimAktifLabel').textContent = tim.toUpperCase();
         document.getElementById('kelolaContent').style.display = 'block';
-        document.getElementById('kelolaJabatanBox').style.display = state.role === 'admin' ? 'block' : 'none';
+        document.getElementById('kelolaJabatanBox').style.display = state.role === 'admin' ? 'block' : 'none'; // Sembunyikan sub-tab ANGGOTA & KUOTA untuk Asesor document.getElementById('kelolaSubNav').style.display = state.role === 'asesor' ? 'none' : 'flex';
 
         await Promise.all([
             loadKelolaMembers(tim),
@@ -2715,13 +2711,15 @@ try {
     // SUB-NAVIGASI TAB KELOLA: ANGGOTA & KUOTA  <->  SURAT TUGAS
     // =====================================================================
     function switchKelolaSub(sub) {
-        const btnAnggota = document.getElementById('kelolaSubBtnAnggota');
-        const btnSurat = document.getElementById('kelolaSubBtnSurat');
-        const boxAnggota = document.getElementById('kelolaSubAnggota');
-        const boxSurat = document.getElementById('kelolaSubSurat');
-
-        clearAlert('kelolaAlert');
-
+const btnAnggota = document.getElementById('kelolaSubBtnAnggota');
+const btnSurat = document.getElementById('kelolaSubBtnSurat');
+const boxAnggota = document.getElementById('kelolaSubAnggota');
+const boxSurat = document.getElementById('kelolaSubSurat');
+clearAlert('kelolaAlert');
+// Asesor tidak boleh masuk ke sub-tab ANGGOTA & KUOTA
+if (state.role === 'asesor' && sub === 'anggota') {
+sub = 'surat';
+}
         if (sub === 'surat') {
             boxAnggota.style.display = 'none';
             boxSurat.style.display = 'block';
