@@ -2988,18 +2988,19 @@ try {
         return formatSheetText(value);
     }
 
-    function getKelolaSuratActionHtml(row) {
-        if (row._canEdit) {
-            const disableSave = hasSuratInlineChanges(row.ID) ? '' : 'disabled';
-            return `<div class="kelola-sheet-actions">
-                <button type="button" id="btnSaveSurat_${row.ID}" class="btn btn-success btn-sm fw-bold" onclick="saveSuratInlineRow('${row.ID}', this)" ${disableSave}>💾 SIMPAN</button>
-                <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${row.ID}')">✏️ EDIT FORM</button>
-                <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${row.ID}')">🗑️ HAPUS</button>
-            </div>`;
-        }
-        return `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
-    }
-
+   function getKelolaSuratActionHtml(row) {
+  if (row._canEdit) {
+    const disableSave = hasSuratInlineChanges(row.ID) ? '' : 'disabled';
+    const isAsesor = state.role === 'asesor';
+    const hapusBtn = isAsesor ? '' : `<button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${row.ID}')">🗑️ HAPUS</button>`;
+    return `<div class="kelola-sheet-actions">
+<button type="button" id="btnSaveSurat_${row.ID}" class="btn btn-success btn-sm fw-bold" onclick="saveSuratInlineRow('${row.ID}', this)" ${disableSave}>💾 SIMPAN</button>
+<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${row.ID}')">✏️ EDIT FORM</button>
+${hapusBtn}
+</div>`;
+  }
+  return `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
+}
     async function persistSuratInlineRow(id) {
         const row = suratTugasCache[id];
         if (!row) return { success: false, message: 'DATA BARIS TIDAK DITEMUKAN.' };
