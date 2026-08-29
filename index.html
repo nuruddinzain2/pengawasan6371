@@ -1906,12 +1906,15 @@ if (fotoValue && fotoValue.startsWith('data:')) {
     showAlert('reportAlert', '❌ GAGAL UNGGAH FOTO: ' + (uploadRes.message || '').toUpperCase(), 'danger');
     return;
     }
-    
     fotoValue = uploadRes.imageLink || uploadRes.directLink;
-    if (!fotoValue) {
-    showAlert('reportAlert', '❌ SERVER TIDAK MENGEMBALIKAN LINK FOTO.', 'danger');
-    return;
-    }
+if (!fotoValue) {
+showAlert('reportAlert', '❌ SERVER TIDAK MENGEMBALIKAN LINK FOTO. Upload mungkin gagal. Coba foto lebih kecil.', 'danger');
+return;
+}
+// ✅ FIX: Validasi URL yang dikembalikan server
+console.log('[UPLOAD] Link foto yang tersimpan:', fotoValue);
+if (!fotoValue.includes('http')) {
+showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning');
 }
             const tanggalBerangkat = document.getElementById('reportTanggalBerangkat').value;
             const tanggalPulang = document.getElementById('reportTanggalPulang').value;
@@ -2139,22 +2142,23 @@ try {
         if (m) return m[1];
         return '';
     }
-
-    function buildPhotoCandidates(rawUrl) {
-        const u = String(rawUrl || '').trim();
-        if (!u) return [];
-        const id = extractDriveFileId(u);
-        if (!id) return [u];
-        // Urutan kandidat: thumbnail sering lebih stabil untuk hotlink
-        return [
-            `https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
-            `https://lh3.googleusercontent.com/d/${id}`,
-            `https://drive.google.com/uc?export=view&id=${id}`,
-            `https://drive.google.com/uc?export=download&id=${id}`,
-            u
-        ];
-    }
-
+function buildPhotoCandidates(rawUrl) {
+const u = String(rawUrl || '').trim();
+if (!u) return [];
+const id = extractDriveFileId(u);
+if (!id) return [u];
+// ✅ FIX: Urutan prioritas diubah - lh3.googleusercontent.com PALING STABIL
+// untuk embed di <img> dan print. URL /uc?export=view sering diblokir
+// browser karena CORS/referrer policy Google Drive.
+return [
+`https://lh3.googleusercontent.com/d/${id}=w1200`,
+`https://lh3.googleusercontent.com/d/${id}`,
+`https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
+`https://drive.google.com/uc?export=view&id=${id}`,
+`https://drive.google.com/uc?export=download&id=${id}`,
+u
+];
+}
     function printReport(id) {
         const r = reportListCache[id];
         if (!r) {
@@ -2254,50 +2258,78 @@ try {
                 </div>
             </div>
         `;
+// Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
+// kalau tidak sering kejadian gambar kosong saat dialog print muncul.
+const doPrint = () => setTimeout(() => window.print(), 60);
+if (fotoUrl) {
+const fotoBox = document.getElementById('printFotoBox');
+const img = document.getElementById('printFotoImg');
+if (!img) {
+doPrint();
+return;
+}
+let done = false;
+const finish = () => {
+if (done) return;
+done = true;
+doPrint();
+};
+const candidates = buildPhotoCandidates(fotoUrl);
+let idx = 0;
+// ✅ FIX: Tambah log untuk debug URL mana yang berhasil/gagal
+console.log('[PRINT] Mencoba load foto dari URL:', candidates[0]);
 
-        // Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
-        // kalau tidak sering kejadian gambar kosong saat dialog print muncul.
-        const doPrint = () => setTimeout(() => window.print(), 60);
-        if (fotoUrl) {
-            const img = document.getElementById('printFotoImg');
-            if (!img) {
-                doPrint();
-                return;
-            }
-            let done = false;
-            const finish = () => {
-                if (done) return;
-                done = true;
-                doPrint();
-            };
-            const candidates = buildPhotoCandidates(fotoUrl);
-            let idx = 0;
-            const tryNext = () => {
-                idx += 1;
-                if (idx >= candidates.length) {
-                    finish();
-                    return;
-                }
-                img.src = candidates[idx];
-            };
+const tryNext = () => {
+idx += 1;
+if (idx >= candidates.length) {
+console.warn('[PRINT] Semua URL gagal, print tanpa foto');
+if (fotoBox) {
+fotoBox.innerHTML = '<div class="print-photo-empty">⚠️ Foto tidak dapat dimuat. Pastikan file di Google Drive di-set "Anyone with the link can view".</div>';
+}
+finish();
+return;
+}
+console.log('[PRINT] Coba URL ke-' + idx + ':', candidates[idx]);
+img.src = candidates[idx];
+};
 
-            // Mulai dari kandidat pertama yang "paling aman"
-            if (candidates.length > 0) img.src = candidates[0];
-            img.addEventListener('load', finish);
-            img.addEventListener('error', tryNext);
-            // decode() membantu beberapa browser memastikan gambar benar-benar siap dirender
-            try {
-                if (img.decode) {
-                    img.decode().then(finish).catch(() => {});
-                }
-            } catch (e) {}
-            // Fallback: jangan menggantung kalau link lambat/ditolak
-            setTimeout(finish, 8000);
-        } else {
-            doPrint();
-        }
-    }
+// ✅ FIX: Reset handler sebelumnya (kalau ada)
+img.onload = null;
+img.onerror = null;
 
+img.onload = () => {
+// ✅ FIX: Cek apakah gambar benar-benar valid (bukan 0x0 atau hitam)
+if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+console.log('[PRINT] Foto berhasil dimuat:', img.naturalWidth + 'x' + img.naturalHeight);
+finish();
+} else {
+console.warn('[PRINT] Gambar 0x0, coba URL lain');
+tryNext();
+}
+};
+
+img.onerror = (e) => {
+console.warn('[PRINT] Gagal load URL ke-' + idx + ':', candidates[idx]);
+tryNext();
+};
+
+// Mulai dari kandidat pertama
+if (candidates.length > 0) img.src = candidates[0];
+
+// ✅ FIX: decode() untuk memastikan gambar siap dirender
+try {
+if (img.decode) {
+img.decode().then(() => {
+if (img.naturalWidth > 0) finish();
+}).catch(() => {});
+}
+} catch (e) {}
+
+// Fallback: print tetap jalan setelah 10 detik
+setTimeout(finish, 10000);
+} else {
+doPrint();
+}
     // =====================================================================
     // TAB KELOLA: anggota, kuota, dan (khusus ADMIN) kelola KETUA TIM.
     // Hanya bisa diakses kalau state.role adalah 'ketua' atau 'admin'
