@@ -1688,11 +1688,11 @@ function handleFileSelect(event) {
     // Membaca file gambar, menggambarnya ke <canvas> dengan ukuran yang diperkecil
     // (kalau perlu), lalu mengembalikan hasilnya sebagai base64 JPEG yang sudah dikompres.
 
+
+
+
 function compressImageFile(file, maxDimension, quality) {
 return new Promise(function(resolve, reject) {
-// ✅ FIX: Pakai URL.createObjectURL() alih-alih FileReader.readAsDataURL()
-// FileReader sering gagal baca file dari galeri HP (terutama dari cloud
-// seperti Google Photos/iCloud) karena file belum sepenuhnya tersedia lokal.
 var blobUrl = null;
 try {
 blobUrl = URL.createObjectURL(file);
@@ -1707,7 +1707,6 @@ if (blobUrl) URL.revokeObjectURL(blobUrl);
 reject(new Error('Berkas bukan gambar yang valid atau format tidak didukung.'));
 };
 img.onload = function() {
-// ✅ Auto-downscale bertahap: kalau canvas gagal, coba ukuran lebih kecil
 var attempts = [maxDimension, 800, 600, 400];
 var attemptIndex = 0;
 
@@ -1733,7 +1732,6 @@ ctx.drawImage(img, 0, 0, width, height);
 
 try {
 var dataUrl = canvas.toDataURL('image/jpeg', quality);
-// ✅ Bersihkan blob URL supaya tidak bocor memori
 if (blobUrl) URL.revokeObjectURL(blobUrl);
 console.log('[COMPRESS] OK dimensi:', currentMaxDim, '->', width + 'x' + height);
 resolve(dataUrl);
@@ -1748,55 +1746,11 @@ reject(new Error('Gagal mengompresi foto setelah beberapa percobaan. Coba foto y
 }
 }
 }
-
 tryCompress(maxDimension);
 };
 img.src = blobUrl;
 });
 }
-function tryCompress(currentMaxDim) {
-let { width, height } = img;
-if (width > currentMaxDim || height > currentMaxDim) {
-if (width >= height) {
-height = Math.round(height * (currentMaxDim / width));
-width = currentMaxDim;
-} else {
-width = Math.round(width * (currentMaxDim / height));
-height = currentMaxDim;
-}
-}
-
-const canvas = document.createElement('canvas');
-canvas.width = width;
-canvas.height = height;
-const ctx = canvas.getContext('2d');
-ctx.drawImage(img, 0, 0, width, height);
-
-try {
-const dataUrl = canvas.toDataURL('image/jpeg', quality);
-console.log('[COMPRESS] Berhasil dengan dimensi:', currentMaxDim, '→', width, 'x', height);
-resolve(dataUrl);
-} catch (e) {
-// ✅ FIX: Kalau gagal (canvas terlalu besar), coba dengan ukuran lebih kecil
-attemptIndex++;
-if (attemptIndex < attempts.length) {
-console.warn('[COMPRESS] Gagal dengan dimensi', currentMaxDim, ', mencoba', attempts[attemptIndex]);
-tryCompress(attempts[attemptIndex]);
-} else {
-reject(new Error('Gagal mengompresi foto setelah beberapa percobaan. Coba gunakan foto yang lebih kecil.'));
-}
-}
-}
-
-tryCompress(maxDimension);
-};
-img.src = evt.target.result;
-};
-reader.readAsDataURL(file);
-});
-}
-
-
     function getLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(p => {
