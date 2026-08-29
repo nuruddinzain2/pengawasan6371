@@ -1236,48 +1236,54 @@
     // resolve maupun reject — sehingga tombol SIMPAN terlihat diam/loading
     // terus tanpa pesan error apapun ke pengguna.
     const UPLOAD_TIMEOUT_MS = 45000;
-
-    async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
-        const formData = new FormData();
-        formData.append('action', 'uploadPhoto');
-        formData.append('base64Data', base64Data);
-        formData.append('filename', filename);
-        formData.append('tim', tim || '');
-        formData.append('taskforce', taskforce || '');
-        formData.append('id', id || '');
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-
-        try {
-            const response = await fetch(CONFIG.WEBAPP_URL, {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error('Server menolak permintaan upload (status ' + response.status + ').');
-            }
-
-            let result;
-            try {
-                result = await response.json();
-            } catch (parseErr) {
-                throw new Error('Respon server tidak valid saat upload foto. Coba lagi atau gunakan foto yang lebih kecil.');
-            }
-            return result;
-
-        } catch (err) {
-            clearTimeout(timeoutId);
-            if (err.name === 'AbortError') {
-                throw new Error('UPLOAD FOTO TERLALU LAMA (TIMEOUT). Periksa koneksi internet Anda atau coba dengan foto yang lebih kecil.');
-            }
-            throw new Error('Gagal terhubung ke server saat upload foto: ' + err.message);
-        }
+async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
+    const formData = new FormData();
+    formData.append('action', 'uploadPhoto');
+    formData.append('base64Data', base64Data);
+    formData.append('filename', filename);
+    formData.append('tim', tim || '');
+    formData.append('taskforce', taskforce || '');
+    formData.append('id', id || '');
+    
+    // ✅ LOG: Ukuran base64 untuk debugging
+    const sizeKb = Math.round((base64Data.length * 0.75) / 1024);
+    console.log('[UPLOAD] Ukuran base64:', sizeKb, 'KB, ID:', id);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+    try {
+    const response = await fetch(CONFIG.WEBAPP_URL, {
+    method: 'POST',
+    body: formData,
+    signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error('Server menolak upload (status ' + response.status + '). ' + 
+        (sizeKb > 500 ? 'Coba foto lebih kecil.' : ''));
     }
-
+    let result;
+    try {
+    result = await response.json();
+    } catch (parseErr) {
+    throw new Error('Respon server tidak valid. Kemungkinan foto terlalu besar atau koneksi terputus.');
+    }
+    
+    // ✅ VALIDASI: Response harus punya link
+    if (result.success && !result.imageLink && !result.directLink) {
+    throw new Error('Upload berhasil di server tapi TIDAK ADA LINK yang dikembalikan. Cek backend Code.gs.');
+    }
+    
+    return result;
+    } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+    throw new Error('UPLOAD FOTO TIMEOUT (>45 detik). Koneksi lambat atau foto terlalu besar. Coba foto lebih kecil.');
+    }
+    throw new Error('Gagal upload foto: ' + err.message);
+    }
+}
     async function postFormApi(formData, timeoutMs, invalidResponseMessage) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs || UPLOAD_TIMEOUT_MS);
@@ -1625,76 +1631,145 @@ async function loadTaskforceDropdown(overrideTaskforce) {
     // beresolusi tinggi (bisa 3-10 MB) walau preview-nya terlihat kecil di HP.
     // Supaya selalu ringan dan konsisten dikirim ke server (apapun sumbernya),
     // foto di-resize & dikompres ulang lewat <canvas> sebelum diubah jadi base64.
-    const PHOTO_MAX_DIMENSION = 1280; // sisi terpanjang foto, dalam pixel
-    const PHOTO_JPEG_QUALITY = 0.7;   // 0.0 - 1.0, makin kecil makin ringan tapi makin buram
-
-    function handleFileSelect(event) {
-        const file = event.target.files[0]; if (!file) return;
-
-        if (!file.type || !file.type.startsWith('image/')) {
-            alert('BERKAS HARUS BERUPA FOTO/GAMBAR!'); event.target.value = ''; return;
-        }
-
-        document.getElementById('reportFotoFilename').value = 'photo.jpg'; // selalu jpg karena hasil kompresi
-        document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MEMPROSES FOTO...</div>';
-
-        compressImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY)
-            .then(function(dataUrl) {
-                document.getElementById('reportFoto').value = dataUrl;
-                document.getElementById('fotoPreview').innerHTML = `<img src="${dataUrl}" class="photo-preview">`;
-
-                // info ukuran setelah kompresi, supaya kelihatan kalau sudah ringan
-                const approxKb = Math.round((dataUrl.length * 0.75) / 1024);
-                document.getElementById('fotoPreview').innerHTML += `<div class="small text-muted mt-1">UKURAN SETELAH KOMPRESI: ~${approxKb} KB</div>`;
-            })
-            .catch(function(err) {
-                alert('GAGAL MEMPROSES FOTO: ' + err.message);
-                document.getElementById('fotoPreview').innerHTML = '';
-                event.target.value = '';
-            });
+   const PHOTO_MAX_DIMENSION = 1024; // sisi terpanjang foto, dalam pixel (turunkan dari 1280)
+const PHOTO_JPEG_QUALITY = 0.55;  // 0.0 - 1.0, turunkan dari 0.7 agar lebih ringan
+const PHOTO_MAX_BASE64_BYTES = 400 * 1024; // batas aman 400KB untuk base64
+    
+    
+function handleFileSelect(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+    alert('BERKAS HARUS BERUPA FOTO/GAMBAR!'); event.target.value = ''; return;
     }
-
-    // Membaca file gambar, menggambarnya ke <canvas> dengan ukuran yang diperkecil
-    // (kalau perlu), lalu mengembalikan hasilnya sebagai base64 JPEG yang sudah dikompres.
-    function compressImageFile(file, maxDimension, quality) {
-        return new Promise(function(resolve, reject) {
-            const reader = new FileReader();
-            reader.onerror = function() { reject(new Error('Gagal membaca berkas foto.')); };
-            reader.onload = function(evt) {
-                const img = new Image();
-                img.onerror = function() { reject(new Error('Berkas bukan gambar yang valid.')); };
-                img.onload = function() {
-                    let { width, height } = img;
-
-                    if (width > maxDimension || height > maxDimension) {
-                        if (width >= height) {
-                            height = Math.round(height * (maxDimension / width));
-                            width = maxDimension;
-                        } else {
-                            width = Math.round(width * (maxDimension / height));
-                            height = maxDimension;
-                        }
-                    }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    try {
-                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                        resolve(dataUrl);
-                    } catch (e) {
-                        reject(new Error('Gagal mengompresi foto: ' + e.message));
-                    }
-                };
-                img.src = evt.target.result;
-            };
-            reader.readAsDataURL(file);
+    
+    // ✅ VALIDASI: Cek ukuran file mentah dulu (sebelum kompresi)
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+    alert('❌ UKURAN FOTO TERLALU BESAR (MAKS 10MB). PILIH FOTO LAIN ATAU POTONG DULU.');
+    event.target.value = '';
+    return;
+    }
+    
+    document.getElementById('reportFotoFilename').value = 'photo.jpg';
+    document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MEMPROSES & MENGOMPRESI FOTO...</div>';
+    
+    compressImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY)
+    .then(function(dataUrl) {
+    // ✅ VALIDASI: Cek ukuran base64 hasil kompresi
+    const base64Size = Math.round((dataUrl.length * 0.75) / 1024);
+    
+    if (base64Size > PHOTO_MAX_BASE64_BYTES / 1024) {
+        // Kalau masih kebesaran, kompres ulang lebih agresif
+        return compressImageFile(file, 800, 0.4).then(function(dataUrl2) {
+        return { dataUrl: dataUrl2, recompressed: true };
         });
     }
+    return { dataUrl: dataUrl, recompressed: false };
+    })
+    .then(function(result) {
+    const dataUrl = result.dataUrl;
+    document.getElementById('reportFoto').value = dataUrl;
+    
+    const approxKb = Math.round((dataUrl.length * 0.75) / 1024);
+    let infoText = `✅ UKURAN SETELAH KOMPRESI: ~${approxKb} KB`;
+    if (result.recompressed) {
+        infoText += ' (DIKOMPRES LANJUTAN)';
+    }
+    
+    document.getElementById('fotoPreview').innerHTML = 
+        `<img src="${dataUrl}" class="photo-preview">` +
+        `<div class="small text-success mt-1 fw-bold">${infoText}</div>`;
+    })
+    .catch(function(err) {
+    alert('GAGAL MEMPROSES FOTO: ' + err.message);
+    document.getElementById('fotoPreview').innerHTML = '';
+    event.target.value = '';
+    });
+}
+    // Membaca file gambar, menggambarnya ke <canvas> dengan ukuran yang diperkecil
+    // (kalau perlu), lalu mengembalikan hasilnya sebagai base64 JPEG yang sudah dikompres.
 
+
+
+
+function compressImageFile(file, maxDimension, quality) {
+return new Promise(function(resolve, reject) {
+var blobUrl = null;
+try {
+blobUrl = URL.createObjectURL(file);
+} catch (e) {
+reject(new Error('Browser tidak mendukung pemrosesan foto: ' + e.message));
+return;
+}
+
+var img = new Image();
+img.onerror = function() {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Berkas bukan gambar yang valid atau format tidak didukung.'));
+};
+img.onload = function() {
+// ✅ FIX: Kalau gambar gagal benar-benar ter-decode (misal format HEIC dari
+// iPhone yang tidak didukung browser, atau file rusak), onload tetap
+// terpanggil tapi naturalWidth/naturalHeight bernilai 0. Tanpa pengecekan
+// ini, canvas akan digambar dari gambar "kosong" lalu diekspor sebagai JPEG
+// hitam solid berukuran sangat kecil (di bawah beberapa KB) tanpa pesan
+// error yang jelas ke pengguna.
+if (!img.naturalWidth || !img.naturalHeight) {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Foto tidak dapat dibaca oleh browser (kemungkinan format HEIC dari iPhone atau file rusak). Ubah pengaturan kamera HP ke format "Most Compatible/JPEG" (bukan HEIC), atau screenshot foto tersebut lalu upload ulang.'));
+return;
+}
+
+var attempts = [maxDimension, 800, 600, 400];
+var attemptIndex = 0;
+
+function tryCompress(currentMaxDim) {
+var width = img.naturalWidth || img.width;
+var height = img.naturalHeight || img.height;
+
+if (width > currentMaxDim || height > currentMaxDim) {
+if (width >= height) {
+height = Math.round(height * (currentMaxDim / width));
+width = currentMaxDim;
+} else {
+width = Math.round(width * (currentMaxDim / height));
+height = currentMaxDim;
+}
+}
+
+var canvas = document.createElement('canvas');
+canvas.width = width;
+canvas.height = height;
+var ctx = canvas.getContext('2d');
+// ✅ FIX: JPEG tidak mendukung transparansi. Kalau tidak diisi background
+// dulu, area transparan (misal dari PNG, atau canvas yang gagal digambar
+// penuh) akan default HITAM saat diekspor ke JPEG lewat toDataURL().
+// Mengisi putih dulu memastikan hasil akhirnya tidak pernah hitam gara-gara
+// transparansi.
+ctx.fillStyle = '#FFFFFF';
+ctx.fillRect(0, 0, width, height);
+ctx.drawImage(img, 0, 0, width, height);
+
+try {
+var dataUrl = canvas.toDataURL('image/jpeg', quality);
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+console.log('[COMPRESS] OK dimensi:', currentMaxDim, '->', width + 'x' + height);
+resolve(dataUrl);
+} catch (e) {
+attemptIndex++;
+if (attemptIndex < attempts.length) {
+console.warn('[COMPRESS] Gagal di', currentMaxDim + 'px, coba', attempts[attemptIndex] + 'px');
+tryCompress(attempts[attemptIndex]);
+} else {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Gagal mengompresi foto setelah beberapa percobaan. Coba foto yang lebih kecil.'));
+}
+}
+}
+tryCompress(maxDimension);
+};
+img.src = blobUrl;
+});
+}
     function getLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(p => {
@@ -1829,26 +1904,38 @@ async function loadTaskforceDropdown(overrideTaskforce) {
         try {
             // Kalau fotoValue berupa base64 baru (diawali "data:"), upload dulu ke Google Drive
             // supaya yang tersimpan di Spreadsheet hanya LINK-nya, bukan teks base64 raksasa.
-            if (fotoValue && fotoValue.startsWith('data:')) {
-                showAlert('reportAlert', '⏳ SILAKAN MENUNGGU, SEDANG MENGUNGGAH FOTO... (JANGAN TUTUP HALAMAN INI)', 'info');
-                const filename = document.getElementById('reportFotoFilename').value || 'photo.jpg';
-                const reportId = document.getElementById('reportId').value || ('REP_' + Date.now());
-                document.getElementById('reportId').value = reportId; // pastikan ID konsisten dipakai juga saat submitReport
-                const uploadRes = await uploadPhotoToServer(
-                    fotoValue,
-                    filename,
-                    document.getElementById('reportTim').value,
-                    state.taskforce,
-                    reportId
-                );
-
-                if (!uploadRes.success) {
-                    showAlert('reportAlert', '❌ GAGAL UNGGAH FOTO: ' + (uploadRes.message || '').toUpperCase(), 'danger');
-                    return;
-                }
-                fotoValue = uploadRes.imageLink || uploadRes.directLink;
-            }
-
+if (fotoValue && fotoValue.startsWith('data:')) {
+    const sizeKb = Math.round((fotoValue.length * 0.75) / 1024);
+    showAlert('reportAlert', 
+    `⏳ MENGUNGGAH FOTO (~${sizeKb} KB)... JANGAN TUTUP HALAMAN INI. ` +
+    (sizeKb > 400 ? '(FOTO AGAK BESAR, MOHON SABAR)' : ''), 
+    'info');
+    
+    const filename = document.getElementById('reportFotoFilename').value || 'photo.jpg';
+    const reportId = document.getElementById('reportId').value || ('REP_' + Date.now());
+    document.getElementById('reportId').value = reportId;
+    
+    const uploadRes = await uploadPhotoToServer(
+    fotoValue, filename,
+    document.getElementById('reportTim').value,
+    state.taskforce, reportId
+    );
+    
+    if (!uploadRes.success) {
+    showAlert('reportAlert', '❌ GAGAL UNGGAH FOTO: ' + (uploadRes.message || '').toUpperCase(), 'danger');
+    return;
+    }
+    fotoValue = uploadRes.imageLink || uploadRes.directLink;
+if (!fotoValue) {
+showAlert('reportAlert', '❌ SERVER TIDAK MENGEMBALIKAN LINK FOTO. Upload mungkin gagal. Coba foto lebih kecil.', 'danger');
+return;
+}
+// ✅ FIX: Validasi URL yang dikembalikan server
+console.log('[UPLOAD] Link foto yang tersimpan:', fotoValue);
+if (!fotoValue.includes('http')) {
+showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning');
+}
+} // ✅ FIX: penutup blok "if (fotoValue && fotoValue.startsWith('data:'))" yang sebelumnya hilang, menyebabkan seluruh script gagal di-parse browser
             const tanggalBerangkat = document.getElementById('reportTanggalBerangkat').value;
             const tanggalPulang = document.getElementById('reportTanggalPulang').value;
 
@@ -2075,22 +2162,23 @@ try {
         if (m) return m[1];
         return '';
     }
-
-    function buildPhotoCandidates(rawUrl) {
-        const u = String(rawUrl || '').trim();
-        if (!u) return [];
-        const id = extractDriveFileId(u);
-        if (!id) return [u];
-        // Urutan kandidat: thumbnail sering lebih stabil untuk hotlink
-        return [
-            `https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
-            `https://lh3.googleusercontent.com/d/${id}`,
-            `https://drive.google.com/uc?export=view&id=${id}`,
-            `https://drive.google.com/uc?export=download&id=${id}`,
-            u
-        ];
-    }
-
+function buildPhotoCandidates(rawUrl) {
+const u = String(rawUrl || '').trim();
+if (!u) return [];
+const id = extractDriveFileId(u);
+if (!id) return [u];
+// ✅ FIX: Urutan prioritas diubah - lh3.googleusercontent.com PALING STABIL
+// untuk embed di <img> dan print. URL /uc?export=view sering diblokir
+// browser karena CORS/referrer policy Google Drive.
+return [
+`https://lh3.googleusercontent.com/d/${id}=w1200`,
+`https://lh3.googleusercontent.com/d/${id}`,
+`https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
+`https://drive.google.com/uc?export=view&id=${id}`,
+`https://drive.google.com/uc?export=download&id=${id}`,
+u
+];
+}
     function printReport(id) {
         const r = reportListCache[id];
         if (!r) {
@@ -2176,63 +2264,92 @@ try {
                         ${fotoHtml}
                     </div>
                     ${fotoUrl ? `<div class="print-detail-row"><b>Link foto:</b> ${escapeHtml(fotoUrl)}</div>` : ''}
-                    <div class="print-signature">
-                        <div class="sign-block">
-                            <div>Mengetahui,</div>
-                            <div class="sign-line">(.....................................)</div>
-                        </div>
-                        <div class="sign-block">
-                            <div>${rentangTglRaw ? rentangTglCetak : '..........................'}</div>
-                            <div>Yang Melaksanakan,</div>
-                            <div class="sign-line">${escapeHtml(r.TASKFORCE || r.NIP || '')}</div>
-                        </div>
-                    </div>
+
+<div class="print-signature" style="justify-content: flex-end;">
+<div class="sign-block">
+<div>${rentangTglRaw ? rentangTglCetak : '..........................'}</div>
+<div>Yang Melaksanakan,</div>
+<div class="sign-line">${escapeHtml(r.TASKFORCE || r.NIP || '')}</div>
+</div>
+</div>
+
+      
                 </div>
             </div>
         `;
+// Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
+// kalau tidak sering kejadian gambar kosong saat dialog print muncul.
+const doPrint = () => setTimeout(() => window.print(), 60);
+if (fotoUrl) {
+const fotoBox = document.getElementById('printFotoBox');
+const img = document.getElementById('printFotoImg');
+if (!img) {
+doPrint();
+return;
+}
+let done = false;
+const finish = () => {
+if (done) return;
+done = true;
+doPrint();
+};
+const candidates = buildPhotoCandidates(fotoUrl);
+let idx = 0;
+// ✅ FIX: Tambah log untuk debug URL mana yang berhasil/gagal
+console.log('[PRINT] Mencoba load foto dari URL:', candidates[0]);
 
-        // Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
-        // kalau tidak sering kejadian gambar kosong saat dialog print muncul.
-        const doPrint = () => setTimeout(() => window.print(), 60);
-        if (fotoUrl) {
-            const img = document.getElementById('printFotoImg');
-            if (!img) {
-                doPrint();
-                return;
-            }
-            let done = false;
-            const finish = () => {
-                if (done) return;
-                done = true;
-                doPrint();
-            };
-            const candidates = buildPhotoCandidates(fotoUrl);
-            let idx = 0;
-            const tryNext = () => {
-                idx += 1;
-                if (idx >= candidates.length) {
-                    finish();
-                    return;
-                }
-                img.src = candidates[idx];
-            };
+const tryNext = () => {
+idx += 1;
+if (idx >= candidates.length) {
+console.warn('[PRINT] Semua URL gagal, print tanpa foto');
+if (fotoBox) {
+fotoBox.innerHTML = '<div class="print-photo-empty">⚠️ Foto tidak dapat dimuat. Pastikan file di Google Drive di-set "Anyone with the link can view".</div>';
+}
+finish();
+return;
+}
+console.log('[PRINT] Coba URL ke-' + idx + ':', candidates[idx]);
+img.src = candidates[idx];
+};
 
-            // Mulai dari kandidat pertama yang "paling aman"
-            if (candidates.length > 0) img.src = candidates[0];
-            img.addEventListener('load', finish);
-            img.addEventListener('error', tryNext);
-            // decode() membantu beberapa browser memastikan gambar benar-benar siap dirender
-            try {
-                if (img.decode) {
-                    img.decode().then(finish).catch(() => {});
-                }
-            } catch (e) {}
-            // Fallback: jangan menggantung kalau link lambat/ditolak
-            setTimeout(finish, 8000);
-        } else {
-            doPrint();
-        }
-    }
+// ✅ FIX: Reset handler sebelumnya (kalau ada)
+img.onload = null;
+img.onerror = null;
+
+img.onload = () => {
+// ✅ FIX: Cek apakah gambar benar-benar valid (bukan 0x0 atau hitam)
+if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+console.log('[PRINT] Foto berhasil dimuat:', img.naturalWidth + 'x' + img.naturalHeight);
+finish();
+} else {
+console.warn('[PRINT] Gambar 0x0, coba URL lain');
+tryNext();
+}
+};
+
+img.onerror = (e) => {
+console.warn('[PRINT] Gagal load URL ke-' + idx + ':', candidates[idx]);
+tryNext();
+};
+
+// Mulai dari kandidat pertama
+if (candidates.length > 0) img.src = candidates[0];
+
+// ✅ FIX: decode() untuk memastikan gambar siap dirender
+try {
+if (img.decode) {
+img.decode().then(() => {
+if (img.naturalWidth > 0) finish();
+}).catch(() => {});
+}
+} catch (e) {}
+
+// Fallback: print tetap jalan setelah 10 detik
+setTimeout(finish, 10000);
+} else {
+doPrint();
+}
+    } // ✅ FIX: penutup fungsi printReport(id) yang sebelumnya hilang, menyebabkan seluruh script gagal di-parse browser
 
     // =====================================================================
     // TAB KELOLA: anggota, kuota, dan (khusus ADMIN) kelola KETUA TIM.
