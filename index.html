@@ -1707,6 +1707,18 @@ if (blobUrl) URL.revokeObjectURL(blobUrl);
 reject(new Error('Berkas bukan gambar yang valid atau format tidak didukung.'));
 };
 img.onload = function() {
+// ✅ FIX: Kalau gambar gagal benar-benar ter-decode (misal format HEIC dari
+// iPhone yang tidak didukung browser, atau file rusak), onload tetap
+// terpanggil tapi naturalWidth/naturalHeight bernilai 0. Tanpa pengecekan
+// ini, canvas akan digambar dari gambar "kosong" lalu diekspor sebagai JPEG
+// hitam solid berukuran sangat kecil (di bawah beberapa KB) tanpa pesan
+// error yang jelas ke pengguna.
+if (!img.naturalWidth || !img.naturalHeight) {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Foto tidak dapat dibaca oleh browser (kemungkinan format HEIC dari iPhone atau file rusak). Ubah pengaturan kamera HP ke format "Most Compatible/JPEG" (bukan HEIC), atau screenshot foto tersebut lalu upload ulang.'));
+return;
+}
+
 var attempts = [maxDimension, 800, 600, 400];
 var attemptIndex = 0;
 
@@ -1728,6 +1740,13 @@ var canvas = document.createElement('canvas');
 canvas.width = width;
 canvas.height = height;
 var ctx = canvas.getContext('2d');
+// ✅ FIX: JPEG tidak mendukung transparansi. Kalau tidak diisi background
+// dulu, area transparan (misal dari PNG, atau canvas yang gagal digambar
+// penuh) akan default HITAM saat diekspor ke JPEG lewat toDataURL().
+// Mengisi putih dulu memastikan hasil akhirnya tidak pernah hitam gara-gara
+// transparansi.
+ctx.fillStyle = '#FFFFFF';
+ctx.fillRect(0, 0, width, height);
 ctx.drawImage(img, 0, 0, width, height);
 
 try {
@@ -1916,6 +1935,7 @@ console.log('[UPLOAD] Link foto yang tersimpan:', fotoValue);
 if (!fotoValue.includes('http')) {
 showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning');
 }
+} // ✅ FIX: penutup blok "if (fotoValue && fotoValue.startsWith('data:'))" yang sebelumnya hilang, menyebabkan seluruh script gagal di-parse browser
             const tanggalBerangkat = document.getElementById('reportTanggalBerangkat').value;
             const tanggalPulang = document.getElementById('reportTanggalPulang').value;
 
@@ -2329,6 +2349,8 @@ setTimeout(finish, 10000);
 } else {
 doPrint();
 }
+    } // ✅ FIX: penutup fungsi printReport(id) yang sebelumnya hilang, menyebabkan seluruh script gagal di-parse browser
+
     // =====================================================================
     // TAB KELOLA: anggota, kuota, dan (khusus ADMIN) kelola KETUA TIM.
     // Hanya bisa diakses kalau state.role adalah 'ketua' atau 'admin'
