@@ -919,11 +919,10 @@
                      KETUA & ADMIN. ASESOR tidak pernah melihat tab KELOLA
                      sama sekali (lihat applyRoleVisibility), jadi sub-nav
                      ini otomatis tidak relevan untuknya. -->
-                <div class="d-flex gap-2 mb-3" id="kelolaSubNav">
-                    <button type="button" id="kelolaSubBtnAnggota" class="btn btn-sm fw-bold flex-grow-1 btn-primary" onclick="switchKelolaSub('anggota')">👥 ANGGOTA &amp; KUOTA</button>
-                    <button type="button" id="kelolaSubBtnSurat" class="btn btn-sm fw-bold flex-grow-1 btn-outline-primary" onclick="switchKelolaSub('surat')">📄 SURAT TUGAS</button>
-                </div>
-
+              <div class="d-flex gap-2 mb-3" id="kelolaSubNav">
+<button type="button" id="kelolaSubBtnAnggota" class="btn btn-sm fw-bold flex-grow-1 btn-primary" onclick="switchKelolaSub('anggota')">👥 ANGGOTA &amp; KUOTA</button>
+<button type="button" id="kelolaSubBtnSurat" class="btn btn-sm fw-bold flex-grow-1 btn-outline-primary" onclick="switchKelolaSub('surat')"> SURAT TUGAS</button>
+</div>
                 <div id="kelolaSubAnggota">
                     <!-- Pilih TIM yang ingin dikelola (muncul kalau lebih dari 1 TIM
                          boleh dikelola -- misal ADMIN yang lihat semua TIM, atau
@@ -986,10 +985,10 @@
                                 <option value="">SEMUA TIM</option>
                             </select>
                             <select id="suratFilterStatus" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="loadKelolaSuratTugas()">
-                                <option value="">SEMUA STATUS</option>
-                                <option value="draft">DRAFT</option>
-                                <option value="final">FINAL</option>
-                            </select>
+<option value="">SEMUA STATUS</option>
+<option value="draft">DRAFT</option>
+<option value="final" selected>FINAL</option>
+</select>
                         </div>
                     </div>
                     <div id="suratReadOnlyNotice" class="alert alert-info py-2 small fw-bold" style="display:none;">
@@ -1437,21 +1436,16 @@
     // tapi disembunyikan total -- konsisten dengan aturan bahwa Asesor
     // tidak mengelola anggota/kuota tim, hanya membuat laporan).
     function applyRoleVisibility() {
-        const grid = document.getElementById('mainNavGrid');
-        const kelolaBtn = document.getElementById('tabKelolaBtn');
-        const printBtn = document.getElementById('tabPrintBtn');
-        const bolehKelola = state.role === 'ketua' || state.role === 'admin';
-
-        kelolaBtn.style.display = bolehKelola ? 'flex' : 'none';
-        printBtn.style.display = 'flex';
-        grid.classList.toggle('has-kelola', bolehKelola);
-
-        // Animasi "goyang" ringan di ketiga tombol nav saat menu utama baru
-        // muncul setelah login, supaya pengguna langsung sadar ada 3 (atau 2)
-        // menu besar yang bisa ditekan -- lihat playWiggle().
-        playWiggle();
-    }
-
+const grid = document.getElementById('mainNavGrid');
+const kelolaBtn = document.getElementById('tabKelolaBtn');
+const printBtn = document.getElementById('tabPrintBtn');
+// Asesor juga boleh masuk KELOLA (khususnya untuk isi Surat Tugas)
+const bolehKelola = state.role === 'ketua' || state.role === 'admin' || state.role === 'asesor';
+kelolaBtn.style.display = bolehKelola ? 'flex' : 'none';
+printBtn.style.display = 'flex';
+grid.classList.toggle('has-kelola', bolehKelola);
+playWiggle();
+}
     // Menambahkan class animasi goyang ke semua tombol nav utama yang
     // sedang terlihat, lalu melepas class itu lagi setelah animasi selesai
     // (600ms) supaya tombol tidak goyang TERUS-MENERUS dan malah mengganggu.
@@ -2314,11 +2308,13 @@ try {
         document.getElementById('kelolaTimPicker').style.display = 'none';
         document.getElementById('btnTambahTim').style.display = state.role === 'admin' ? 'inline-block' : 'none';
 
-        // Pastikan sub-tab "ANGGOTA & KUOTA" yang aktif sebagai default
-        // setiap kali tab KELOLA dibuka (mis. setelah login ulang dengan
-        // NIP/role berbeda) -- biar tidak nyangkut di sub-tab SURAT TUGAS
-        // dari sesi sebelumnya.
-        switchKelolaSub('anggota');
+        // Asesor hanya butuh sub-tab SURAT TUGAS (tidak mengelola anggota/kuota).
+// KETUA & ADMIN default ke ANGGOTA & KUOTA seperti biasa.
+if (state.role === 'asesor') {
+switchKelolaSub('surat');
+} else {
+switchKelolaSub('anggota');
+}
         loadKelolaNamaOptions();
 
         try {
@@ -2328,11 +2324,11 @@ try {
                 return;
             }
             const timList = res.data || [];
-            if (timList.length === 0 && state.role !== 'admin') {
-                showAlert('kelolaAlert', 'ℹ️ ANDA TIDAK MEMILIKI TIM YANG DAPAT DIKELOLA.', 'info');
-                return;
-            }
-
+           // Asesor tidak perlu memilih TIM (dia lihat semua TIM di sub-tab Surat Tugas)
+if (timList.length === 0 && state.role !== 'admin' && state.role !== 'asesor') {
+showAlert('kelolaAlert', 'ℹ️ ANDA TIDAK MEMILIKI TIM YANG DAPAT DIKELOLA.', 'info');
+return;
+}
             // Picker TIM ditampilkan kalau ada lebih dari 1 TIM (perlu
             // dipilih), ATAU kalau role-nya admin (admin perlu melihat
             // tombol "TAMBAH TIM BARU" walau baru ada 0/1 TIM).
@@ -2369,7 +2365,7 @@ try {
     async function loadKelolaTeamData(tim) {
         document.getElementById('kelolaTimAktifLabel').textContent = tim.toUpperCase();
         document.getElementById('kelolaContent').style.display = 'block';
-        document.getElementById('kelolaJabatanBox').style.display = state.role === 'admin' ? 'block' : 'none';
+        document.getElementById('kelolaJabatanBox').style.display = state.role === 'admin' ? 'block' : 'none'; // Sembunyikan sub-tab ANGGOTA & KUOTA untuk Asesor document.getElementById('kelolaSubNav').style.display = state.role === 'asesor' ? 'none' : 'flex';
 
         await Promise.all([
             loadKelolaMembers(tim),
@@ -2379,6 +2375,8 @@ try {
 
     async function loadKelolaMembers(tim) {
         const container = document.getElementById('kelolaMemberList');
+        
+        
         container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT ANGGOTA...</div>';
         try {
             let res = await callApi({ action: 'getTeamMembers', nip: state.nip, tim: tim, requester_taskforce: state.taskforce });
@@ -2715,13 +2713,15 @@ try {
     // SUB-NAVIGASI TAB KELOLA: ANGGOTA & KUOTA  <->  SURAT TUGAS
     // =====================================================================
     function switchKelolaSub(sub) {
-        const btnAnggota = document.getElementById('kelolaSubBtnAnggota');
-        const btnSurat = document.getElementById('kelolaSubBtnSurat');
-        const boxAnggota = document.getElementById('kelolaSubAnggota');
-        const boxSurat = document.getElementById('kelolaSubSurat');
-
-        clearAlert('kelolaAlert');
-
+const btnAnggota = document.getElementById('kelolaSubBtnAnggota');
+const btnSurat = document.getElementById('kelolaSubBtnSurat');
+const boxAnggota = document.getElementById('kelolaSubAnggota');
+const boxSurat = document.getElementById('kelolaSubSurat');
+clearAlert('kelolaAlert');
+// Asesor tidak boleh masuk ke sub-tab ANGGOTA & KUOTA
+if (state.role === 'asesor' && sub === 'anggota') {
+sub = 'surat';
+}
         if (sub === 'surat') {
             boxAnggota.style.display = 'none';
             boxSurat.style.display = 'block';
@@ -2748,45 +2748,34 @@ try {
     let kelolaSuratTugasFilteredIds = [];
     let kelolaSuratCanEdit = true;
     const kelolaSuratTemplateColumns = [
-        'ID',
-        'TIM',
-        'TASKFORCE',
-        'ID_SubSLS',
-        'NAMA SLS',
-        'TUGAS',
-        'STATUS',
-        'NOMOR SURAT TUGAS',
-        'TANGGAL SURAT TUGAS'
-    ];
-    const kelolaSheetColumns = [
-        'ID',
-        'TANGGAL BERANGKAT',
-        'TANGGAL PULANG',
-        'NIP',
-        'TASKFORCE',
-        'TIM',
-        'NAMA PML',
-        'NAMA PPL',
-        'ID_SubSLS',
-        'NAMA SLS',
-        'Total Assigment',
-        'Muatan Kk Wilkerstat',
-        'Muatan Usaha Wilkerstat',
-        'Total Muatan Wilkerstat',
-        'TUGAS',
-        'URAIAN KEGIATAN',
-        'KUOTA',
-        'KUNJUNGAN',
-        'SISA KUOTA KUNJUNGAN',
-        'FOTO',
-        'KOORDINAT',
-        'NOMOR SURAT TUGAS',
-        'TANGGAL SURAT TUGAS',
-        'STATUS',
-        'CREATED_AT',
-        'UPDATED_AT'
-    ];
-
+'ID',
+'TANGGAL BERANGKAT',
+'TANGGAL PULANG',
+'NIP',
+'TIM',
+'TASKFORCE',
+'ID_SubSLS',
+'NAMA SLS',
+'TUGAS',
+'STATUS',
+'NOMOR SURAT TUGAS',
+'TANGGAL SURAT TUGAS'
+];
+    // Kolom yang ditampilkan untuk Asesor (lebih ringkas, fokus ke info penting)
+const kelolaSheetColumns = [
+'TANGGAL BERANGKAT',
+'TANGGAL PULANG',
+'NIP',
+'TASKFORCE',
+'TIM',
+'NAMA PML',
+'NAMA PPL',
+'ID_SubSLS',
+'TUGAS',
+'NOMOR SURAT TUGAS',
+'TANGGAL SURAT TUGAS',
+'STATUS'
+];
     function escapeHtml(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;')
@@ -2988,18 +2977,19 @@ try {
         return formatSheetText(value);
     }
 
-    function getKelolaSuratActionHtml(row) {
-        if (row._canEdit) {
-            const disableSave = hasSuratInlineChanges(row.ID) ? '' : 'disabled';
-            return `<div class="kelola-sheet-actions">
-                <button type="button" id="btnSaveSurat_${row.ID}" class="btn btn-success btn-sm fw-bold" onclick="saveSuratInlineRow('${row.ID}', this)" ${disableSave}>💾 SIMPAN</button>
-                <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${row.ID}')">✏️ EDIT FORM</button>
-                <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${row.ID}')">🗑️ HAPUS</button>
-            </div>`;
-        }
-        return `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
-    }
-
+   function getKelolaSuratActionHtml(row) {
+  if (row._canEdit) {
+    const disableSave = hasSuratInlineChanges(row.ID) ? '' : 'disabled';
+    const isAsesor = state.role === 'asesor';
+    const hapusBtn = isAsesor ? '' : `<button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="confirmHapusSuratTugas('${row.ID}')">🗑️ HAPUS</button>`;
+    return `<div class="kelola-sheet-actions">
+<button type="button" id="btnSaveSurat_${row.ID}" class="btn btn-success btn-sm fw-bold" onclick="saveSuratInlineRow('${row.ID}', this)" ${disableSave}>💾 SIMPAN</button>
+<button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="editSuratTugas('${row.ID}')">✏️ EDIT FORM</button>
+${hapusBtn}
+</div>`;
+  }
+  return `<span class="small text-muted fw-bold">🔒 LIHAT SAJA</span>`;
+}
     async function persistSuratInlineRow(id) {
         const row = suratTugasCache[id];
         if (!row) return { success: false, message: 'DATA BARIS TIDAK DITEMUKAN.' };
@@ -3123,17 +3113,20 @@ try {
             header: ['NO'].concat(kelolaSuratTemplateColumns)
         });
         ws['!cols'] = [
-            { wch: 6 },
-            { wch: 20 },
-            { wch: 18 },
-            { wch: 26 },
-            { wch: 18 },
-            { wch: 20 },
-            { wch: 20 },
-            { wch: 12 },
-            { wch: 28 },
-            { wch: 18 }
-        ];
+{ wch: 6 },    // NO
+{ wch: 22 },   // ID
+{ wch: 14 },   // TANGGAL BERANGKAT
+{ wch: 14 },   // TANGGAL PULANG
+{ wch: 18 },   // NIP
+{ wch: 20 },   // TIM
+{ wch: 22 },   // TASKFORCE
+{ wch: 20 },   // ID_SubSLS
+{ wch: 18 },   // NAMA SLS
+{ wch: 16 },   // TUGAS
+{ wch: 10 },   // STATUS
+{ wch: 28 },   // NOMOR SURAT TUGAS
+{ wch: 18 }    // TANGGAL SURAT TUGAS
+];
         XLSX.utils.book_append_sheet(wb, ws, 'TEMPLATE SURAT');
         XLSX.writeFile(wb, 'template_kelola_surat_tugas.xlsx');
     }
@@ -3261,21 +3254,31 @@ try {
         const container = document.getElementById('suratTugasList');
         const notice = document.getElementById('suratReadOnlyNotice');
         const meta = document.getElementById('suratTugasMeta');
-        container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT SURAT TUGAS...</div>';
-        meta.textContent = 'SEDANG MEMUAT DATA DARI SHEET HASIL';
-        notice.style.display = 'none';
+        container.innerHTML = '<div class="small text-muted fw-bold"> SILAKAN MENUNGGU, SEDANG MEMUAT SURAT TUGAS... (DATA BESAR, MOHON BERSABAR)</div>';
+meta.textContent = 'SEDANG MEMUAT DATA DARI SHEET HASIL';
+notice.style.display = 'none';
+
+// Tambah warning jika terlalu lama
+const loadingTimeout = setTimeout(() => {
+  container.innerHTML = '<div class="small text-warning fw-bold">⚠️ DATA MASIH DIMUAT... JIKA TERLALU LAMA, COBA FILTER PER TIM ATAU STATUS.</div>';
+}, 15000); // 15 detik
 
         try {
-            const timFilter = document.getElementById('suratFilterTim').value;
-            const statusFilter = document.getElementById('suratFilterStatus').value;
-            let res = await callApi({
-                action: 'getKelolaSuratTugas',
-                nip: state.nip,
-                requester_taskforce: state.taskforce,
-                tim: timFilter,
-                status: statusFilter
-            });
 
+            const timFilter = document.getElementById('suratFilterTim').value;
+// Default filter ke 'final' untuk Asesor agar data lebih sedikit & cepat
+const statusFilter = document.getElementById('suratFilterStatus').value || (state.role === 'asesor' ? 'final' : '');
+            
+         let res = await callApi({
+  action: 'getKelolaSuratTugas',
+  nip: state.nip,
+  requester_taskforce: state.taskforce,
+  tim: timFilter,
+  status: statusFilter
+});
+
+
+clearTimeout(loadingTimeout);
             if (!res.success) {
                 container.innerHTML = `<div class="small text-danger fw-bold">❌ ${(res.message || 'GAGAL MEMUAT SURAT TUGAS.').toUpperCase()}</div>`;
                 meta.textContent = 'GAGAL MEMUAT DATA DARI SHEET HASIL';
@@ -3286,13 +3289,13 @@ try {
             // supaya ADMIN/ASESOR bisa menyaring per TIM walau lintas semua TIM.
             isiFilterTimSuratTugas(res.data || []);
 
-            if (res.role === 'asesor') {
-                notice.style.display = 'block';
-            }
-
+if (res.role === 'asesor') {
+  notice.textContent = 'ℹ️ MODE EDIT TERBATAS: ASESOR HANYA DAPAT MENGUBAH NOMOR & TANGGAL SURAT TUGAS, TIDAK DAPAT MENGHAPUS LAPORAN.';
+  notice.style.display = 'block';
+}
             suratTugasCache = {};
             suratInlineEdits = {};
-            kelolaSuratCanEdit = res.role !== 'asesor';
+            kelolaSuratCanEdit = (res.role === 'admin' || res.role === 'asesor' || res.role === 'ketua');
             updateSuratToolbarAccess();
             kelolaSuratTugasData = res.data || [];
             renderKelolaSuratTugasTable();
@@ -3461,6 +3464,7 @@ try {
     // cukup ambil dari sini berdasarkan ID.
     let reportListCache = {};
 
+
     function renderFinalPrintCards(containerId, data) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -3475,9 +3479,14 @@ try {
             const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
             const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
             const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+          
+          
             container.innerHTML += `<li class="list-group-item">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div><b>${rentangTgl}</b> - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+         
+         <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+         
+         
                     <div class="d-flex align-items-center gap-2">
                         <span class="report-status-badge status-final">FINAL</span>
                     </div>
@@ -3490,6 +3499,8 @@ try {
         });
         container.innerHTML += '</ul>';
     }
+
+
 
     async function loadReports() {
         let container = document.getElementById('reportListContainer');
@@ -3513,7 +3524,9 @@ try {
                         : '';
                     container.innerHTML += `<li class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div><b>${rentangTgl}</b> - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+                        <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+
+
                             <div class="d-flex align-items-center gap-2">
                                 <span class="report-status-badge ${statusClass}">${String(r.STATUS).toUpperCase()}</span>
                                 <div class="report-menu-wrap position-relative">
