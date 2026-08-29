@@ -2244,17 +2244,16 @@ u
                         ${fotoHtml}
                     </div>
                     ${fotoUrl ? `<div class="print-detail-row"><b>Link foto:</b> ${escapeHtml(fotoUrl)}</div>` : ''}
-                    <div class="print-signature">
-                        <div class="sign-block">
-                            <div>Mengetahui,</div>
-                            <div class="sign-line">(.....................................)</div>
-                        </div>
-                        <div class="sign-block">
-                            <div>${rentangTglRaw ? rentangTglCetak : '..........................'}</div>
-                            <div>Yang Melaksanakan,</div>
-                            <div class="sign-line">${escapeHtml(r.TASKFORCE || r.NIP || '')}</div>
-                        </div>
-                    </div>
+
+<div class="print-signature" style="justify-content: flex-end;">
+<div class="sign-block">
+<div>${rentangTglRaw ? rentangTglCetak : '..........................'}</div>
+<div>Yang Melaksanakan,</div>
+<div class="sign-line">${escapeHtml(r.TASKFORCE || r.NIP || '')}</div>
+</div>
+</div>
+
+      
                 </div>
             </div>
         `;
