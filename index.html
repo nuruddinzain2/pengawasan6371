@@ -1687,45 +1687,59 @@ function handleFileSelect(event) {
 }
     // Membaca file gambar, menggambarnya ke <canvas> dengan ukuran yang diperkecil
     // (kalau perlu), lalu mengembalikan hasilnya sebagai base64 JPEG yang sudah dikompres.
-    function compressImageFile(file, maxDimension, quality) {
-        return new Promise(function(resolve, reject) {
-            const reader = new FileReader();
-            reader.onerror = function() { reject(new Error('Gagal membaca berkas foto.')); };
-            reader.onload = function(evt) {
-                const img = new Image();
-                img.onerror = function() { reject(new Error('Berkas bukan gambar yang valid.')); };
-                img.onload = function() {
-                    let { width, height } = img;
+function compressImageFile(file, maxDimension, quality) {
+return new Promise(function(resolve, reject) {
+const reader = new FileReader();
+reader.onerror = function() { reject(new Error('Gagal membaca berkas foto.')); };
+reader.onload = function(evt) {
+const img = new Image();
+img.onerror = function() { reject(new Error('Berkas bukan gambar yang valid.')); };
+img.onload = function() {
+// ✅ FIX: Coba kompresi dengan ukuran bertahap lebih kecil kalau gagal
+const attempts = [maxDimension, 800, 600, 400];
+let attemptIndex = 0;
 
-                    if (width > maxDimension || height > maxDimension) {
-                        if (width >= height) {
-                            height = Math.round(height * (maxDimension / width));
-                            width = maxDimension;
-                        } else {
-                            width = Math.round(width * (maxDimension / height));
-                            height = maxDimension;
-                        }
-                    }
+function tryCompress(currentMaxDim) {
+let { width, height } = img;
+if (width > currentMaxDim || height > currentMaxDim) {
+if (width >= height) {
+height = Math.round(height * (currentMaxDim / width));
+width = currentMaxDim;
+} else {
+width = Math.round(width * (currentMaxDim / height));
+height = currentMaxDim;
+}
+}
 
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
+const canvas = document.createElement('canvas');
+canvas.width = width;
+canvas.height = height;
+const ctx = canvas.getContext('2d');
+ctx.drawImage(img, 0, 0, width, height);
 
-                    try {
-                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                        resolve(dataUrl);
-                    } catch (e) {
-                        reject(new Error('Gagal mengompresi foto: ' + e.message));
-                    }
-                };
-                img.src = evt.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
+try {
+const dataUrl = canvas.toDataURL('image/jpeg', quality);
+console.log('[COMPRESS] Berhasil dengan dimensi:', currentMaxDim, '→', width, 'x', height);
+resolve(dataUrl);
+} catch (e) {
+// ✅ FIX: Kalau gagal (canvas terlalu besar), coba dengan ukuran lebih kecil
+attemptIndex++;
+if (attemptIndex < attempts.length) {
+console.warn('[COMPRESS] Gagal dengan dimensi', currentMaxDim, ', mencoba', attempts[attemptIndex]);
+tryCompress(attempts[attemptIndex]);
+} else {
+reject(new Error('Gagal mengompresi foto setelah beberapa percobaan. Coba gunakan foto yang lebih kecil.'));
+}
+}
+}
 
+tryCompress(maxDimension);
+};
+img.src = evt.target.result;
+};
+reader.readAsDataURL(file);
+});
+}
     function getLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(p => {
