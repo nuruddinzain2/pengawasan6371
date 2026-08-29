@@ -1693,159 +1693,81 @@ function handleFileSelect(event) {
 
 function compressImageFile(file, maxDimension, quality) {
 return new Promise(function(resolve, reject) {
-
-// ✅ FIX (root cause): pada beberapa browser (terutama Safari/iOS dengan
-// foto format HEIC), elemen <img> bisa memicu onload dengan naturalWidth/
-// naturalHeight yang BENAR (dibaca dari metadata/container file) padahal
-// drawImage() ke canvas diam-diam TIDAK menggambar apa pun -- tidak ada
-// error/exception sama sekali. Makanya validasi naturalWidth/naturalHeight
-// saja tidak cukup: hasilnya tetap kanvas kosong (dulu terlihat hitam,
-// sekarang terlihat putih setelah kanvas diberi background putih).
-//
-// Untuk menutup celah ini dipakai dua lapis pertahanan:
-//   1) Coba decode lewat createImageBitmap() dulu -- API ini di sebagian
-//      besar browser modern akan MENOLAK (reject) secara eksplisit kalau
-//      formatnya benar-benar tidak didukung, alih-alih diam-diam "berhasil"
-//      dengan data kosong.
-//   2) Setelah digambar ke canvas (baik lewat createImageBitmap maupun
-//      fallback <img>), cek ISI PIKSELNYA. Kalau semua sampel piksel yang
-//      diambil identik (kanvas polos satu warna), itu tanda kuat gambar
-//      gagal tergambar sama sekali -- foto ditolak dengan pesan jelas,
-//      bukan diam-diam disimpan sebagai foto kosong.
-function isCanvasBlank(canvas, ctx) {
-    try {
-        var w = canvas.width, h = canvas.height;
-        var sampleSize = 12;
-        var xs = [];
-        for (var i = 0; i < sampleSize; i++) {
-            xs.push(Math.floor((w - 1) * (i / (sampleSize - 1))));
-        }
-        var ys = [];
-        for (var j = 0; j < sampleSize; j++) {
-            ys.push(Math.floor((h - 1) * (j / (sampleSize - 1))));
-        }
-        var firstPixel = null;
-        for (var xi = 0; xi < xs.length; xi++) {
-            for (var yi = 0; yi < ys.length; yi++) {
-                var data = ctx.getImageData(xs[xi], ys[yi], 1, 1).data;
-                var key = data[0] + ',' + data[1] + ',' + data[2];
-                if (firstPixel === null) {
-                    firstPixel = key;
-                } else if (key !== firstPixel) {
-                    return false; // ada variasi warna -> ada gambar sungguhan
-                }
-            }
-        }
-        return true; // semua sampel identik -> kemungkinan besar kanvas kosong
-    } catch (e) {
-        // Kalau getImageData gagal (misal canvas "tainted" oleh CORS),
-        // jangan anggap blank -- biarkan lolos ke toDataURL seperti biasa,
-        // supaya tidak menolak foto yang sebenarnya valid.
-        return false;
-    }
+var blobUrl = null;
+try {
+blobUrl = URL.createObjectURL(file);
+} catch (e) {
+reject(new Error('Browser tidak mendukung pemrosesan foto: ' + e.message));
+return;
 }
 
-function drawToCanvasAndExport(source, naturalW, naturalH, attempts, attemptIndex, cleanup) {
-    var currentMaxDim = attempts[attemptIndex];
-    var width = naturalW;
-    var height = naturalH;
-
-    if (width > currentMaxDim || height > currentMaxDim) {
-        if (width >= height) {
-            height = Math.round(height * (currentMaxDim / width));
-            width = currentMaxDim;
-        } else {
-            width = Math.round(width * (currentMaxDim / height));
-            height = currentMaxDim;
-        }
-    }
-
-    var canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    var ctx = canvas.getContext('2d');
-    // JPEG tidak mendukung transparansi -- isi putih dulu supaya area
-    // transparan tidak berubah jadi hitam saat diekspor ke JPEG.
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(source, 0, 0, width, height);
-
-    if (isCanvasBlank(canvas, ctx)) {
-        cleanup();
-        reject(new Error('Foto gagal diproses (hasil kosong/polos setelah dibaca browser). Ini biasa terjadi pada foto format HEIC dari iPhone. Ubah pengaturan kamera HP ke "Most Compatible/JPEG" (bukan HEIC), lalu coba upload lagi -- atau screenshot foto tersebut dan upload hasil screenshot-nya.'));
-        return;
-    }
-
-    try {
-        var dataUrl = canvas.toDataURL('image/jpeg', quality);
-        cleanup();
-        console.log('[COMPRESS] OK dimensi:', currentMaxDim, '->', width + 'x' + height);
-        resolve(dataUrl);
-    } catch (e) {
-        var nextIndex = attemptIndex + 1;
-        if (nextIndex < attempts.length) {
-            console.warn('[COMPRESS] Gagal di', currentMaxDim + 'px, coba', attempts[nextIndex] + 'px');
-            drawToCanvasAndExport(source, naturalW, naturalH, attempts, nextIndex, cleanup);
-        } else {
-            cleanup();
-            reject(new Error('Gagal mengompresi foto setelah beberapa percobaan. Coba foto yang lebih kecil.'));
-        }
-    }
+var img = new Image();
+img.onerror = function() {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Berkas bukan gambar yang valid atau format tidak didukung.'));
+};
+img.onload = function() {
+// ✅ FIX: Kalau gambar gagal benar-benar ter-decode (misal format HEIC dari
+// iPhone yang tidak didukung browser, atau file rusak), onload tetap
+// terpanggil tapi naturalWidth/naturalHeight bernilai 0. Tanpa pengecekan
+// ini, canvas akan digambar dari gambar "kosong" lalu diekspor sebagai JPEG
+// hitam solid berukuran sangat kecil (di bawah beberapa KB) tanpa pesan
+// error yang jelas ke pengguna.
+if (!img.naturalWidth || !img.naturalHeight) {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Foto tidak dapat dibaca oleh browser (kemungkinan format HEIC dari iPhone atau file rusak). Ubah pengaturan kamera HP ke format "Most Compatible/JPEG" (bukan HEIC), atau screenshot foto tersebut lalu upload ulang.'));
+return;
 }
 
 var attempts = [maxDimension, 800, 600, 400];
+var attemptIndex = 0;
 
-// --- Jalur 1 (diutamakan): createImageBitmap() ---
-// Lebih andal untuk mendeteksi format yang benar-benar tidak didukung,
-// karena akan me-reject Promise-nya alih-alih diam-diam "berhasil".
-if (window.createImageBitmap) {
-    createImageBitmap(file).then(function(bitmap) {
-        if (!bitmap.width || !bitmap.height) {
-            bitmap.close && bitmap.close();
-            fallbackToImageElement();
-            return;
-        }
-        drawToCanvasAndExport(bitmap, bitmap.width, bitmap.height, attempts, 0, function() {
-            bitmap.close && bitmap.close();
-        });
-    }).catch(function() {
-        // createImageBitmap menolak (format tidak didukung/file rusak) --
-        // coba jalur cadangan lewat <img> sebelum benar-benar menyerah,
-        // karena sebagian browser lama lebih baik lewat <img>.
-        fallbackToImageElement();
-    });
+function tryCompress(currentMaxDim) {
+var width = img.naturalWidth || img.width;
+var height = img.naturalHeight || img.height;
+
+if (width > currentMaxDim || height > currentMaxDim) {
+if (width >= height) {
+height = Math.round(height * (currentMaxDim / width));
+width = currentMaxDim;
 } else {
-    fallbackToImageElement();
+width = Math.round(width * (currentMaxDim / height));
+height = currentMaxDim;
+}
 }
 
-// --- Jalur 2 (cadangan): elemen <img> + blob URL ---
-function fallbackToImageElement() {
-    var blobUrl = null;
-    try {
-        blobUrl = URL.createObjectURL(file);
-    } catch (e) {
-        reject(new Error('Browser tidak mendukung pemrosesan foto: ' + e.message));
-        return;
-    }
+var canvas = document.createElement('canvas');
+canvas.width = width;
+canvas.height = height;
+var ctx = canvas.getContext('2d');
+// ✅ FIX: JPEG tidak mendukung transparansi. Kalau tidak diisi background
+// dulu, area transparan (misal dari PNG, atau canvas yang gagal digambar
+// penuh) akan default HITAM saat diekspor ke JPEG lewat toDataURL().
+// Mengisi putih dulu memastikan hasil akhirnya tidak pernah hitam gara-gara
+// transparansi.
+ctx.fillStyle = '#FFFFFF';
+ctx.fillRect(0, 0, width, height);
+ctx.drawImage(img, 0, 0, width, height);
 
-    var img = new Image();
-    img.onerror = function() {
-        if (blobUrl) URL.revokeObjectURL(blobUrl);
-        reject(new Error('Berkas bukan gambar yang valid atau format tidak didukung (kemungkinan format HEIC dari iPhone). Ubah pengaturan kamera HP ke "Most Compatible/JPEG", atau screenshot foto tersebut lalu upload ulang.'));
-    };
-    img.onload = function() {
-        if (!img.naturalWidth || !img.naturalHeight) {
-            if (blobUrl) URL.revokeObjectURL(blobUrl);
-            reject(new Error('Foto tidak dapat dibaca oleh browser (kemungkinan format HEIC dari iPhone atau file rusak). Ubah pengaturan kamera HP ke format "Most Compatible/JPEG" (bukan HEIC), atau screenshot foto tersebut lalu upload ulang.'));
-            return;
-        }
-        drawToCanvasAndExport(img, img.naturalWidth, img.naturalHeight, attempts, 0, function() {
-            if (blobUrl) URL.revokeObjectURL(blobUrl);
-        });
-    };
-    img.src = blobUrl;
+try {
+var dataUrl = canvas.toDataURL('image/jpeg', quality);
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+console.log('[COMPRESS] OK dimensi:', currentMaxDim, '->', width + 'x' + height);
+resolve(dataUrl);
+} catch (e) {
+attemptIndex++;
+if (attemptIndex < attempts.length) {
+console.warn('[COMPRESS] Gagal di', currentMaxDim + 'px, coba', attempts[attemptIndex] + 'px');
+tryCompress(attempts[attemptIndex]);
+} else {
+if (blobUrl) URL.revokeObjectURL(blobUrl);
+reject(new Error('Gagal mengompresi foto setelah beberapa percobaan. Coba foto yang lebih kecil.'));
 }
-
+}
+}
+tryCompress(maxDimension);
+};
+img.src = blobUrl;
 });
 }
     function getLocation() {
