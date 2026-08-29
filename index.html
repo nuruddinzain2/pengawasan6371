@@ -1236,48 +1236,54 @@
     // resolve maupun reject — sehingga tombol SIMPAN terlihat diam/loading
     // terus tanpa pesan error apapun ke pengguna.
     const UPLOAD_TIMEOUT_MS = 45000;
-
-    async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
-        const formData = new FormData();
-        formData.append('action', 'uploadPhoto');
-        formData.append('base64Data', base64Data);
-        formData.append('filename', filename);
-        formData.append('tim', tim || '');
-        formData.append('taskforce', taskforce || '');
-        formData.append('id', id || '');
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-
-        try {
-            const response = await fetch(CONFIG.WEBAPP_URL, {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error('Server menolak permintaan upload (status ' + response.status + ').');
-            }
-
-            let result;
-            try {
-                result = await response.json();
-            } catch (parseErr) {
-                throw new Error('Respon server tidak valid saat upload foto. Coba lagi atau gunakan foto yang lebih kecil.');
-            }
-            return result;
-
-        } catch (err) {
-            clearTimeout(timeoutId);
-            if (err.name === 'AbortError') {
-                throw new Error('UPLOAD FOTO TERLALU LAMA (TIMEOUT). Periksa koneksi internet Anda atau coba dengan foto yang lebih kecil.');
-            }
-            throw new Error('Gagal terhubung ke server saat upload foto: ' + err.message);
-        }
+async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
+    const formData = new FormData();
+    formData.append('action', 'uploadPhoto');
+    formData.append('base64Data', base64Data);
+    formData.append('filename', filename);
+    formData.append('tim', tim || '');
+    formData.append('taskforce', taskforce || '');
+    formData.append('id', id || '');
+    
+    // ✅ LOG: Ukuran base64 untuk debugging
+    const sizeKb = Math.round((base64Data.length * 0.75) / 1024);
+    console.log('[UPLOAD] Ukuran base64:', sizeKb, 'KB, ID:', id);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+    try {
+    const response = await fetch(CONFIG.WEBAPP_URL, {
+    method: 'POST',
+    body: formData,
+    signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error('Server menolak upload (status ' + response.status + '). ' + 
+        (sizeKb > 500 ? 'Coba foto lebih kecil.' : ''));
     }
-
+    let result;
+    try {
+    result = await response.json();
+    } catch (parseErr) {
+    throw new Error('Respon server tidak valid. Kemungkinan foto terlalu besar atau koneksi terputus.');
+    }
+    
+    // ✅ VALIDASI: Response harus punya link
+    if (result.success && !result.imageLink && !result.directLink) {
+    throw new Error('Upload berhasil di server tapi TIDAK ADA LINK yang dikembalikan. Cek backend Code.gs.');
+    }
+    
+    return result;
+    } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+    throw new Error('UPLOAD FOTO TIMEOUT (>45 detik). Koneksi lambat atau foto terlalu besar. Coba foto lebih kecil.');
+    }
+    throw new Error('Gagal upload foto: ' + err.message);
+    }
+}
     async function postFormApi(formData, timeoutMs, invalidResponseMessage) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs || UPLOAD_TIMEOUT_MS);
@@ -1625,35 +1631,60 @@ async function loadTaskforceDropdown(overrideTaskforce) {
     // beresolusi tinggi (bisa 3-10 MB) walau preview-nya terlihat kecil di HP.
     // Supaya selalu ringan dan konsisten dikirim ke server (apapun sumbernya),
     // foto di-resize & dikompres ulang lewat <canvas> sebelum diubah jadi base64.
-    const PHOTO_MAX_DIMENSION = 1280; // sisi terpanjang foto, dalam pixel
-    const PHOTO_JPEG_QUALITY = 0.7;   // 0.0 - 1.0, makin kecil makin ringan tapi makin buram
-
-    function handleFileSelect(event) {
-        const file = event.target.files[0]; if (!file) return;
-
-        if (!file.type || !file.type.startsWith('image/')) {
-            alert('BERKAS HARUS BERUPA FOTO/GAMBAR!'); event.target.value = ''; return;
-        }
-
-        document.getElementById('reportFotoFilename').value = 'photo.jpg'; // selalu jpg karena hasil kompresi
-        document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MEMPROSES FOTO...</div>';
-
-        compressImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY)
-            .then(function(dataUrl) {
-                document.getElementById('reportFoto').value = dataUrl;
-                document.getElementById('fotoPreview').innerHTML = `<img src="${dataUrl}" class="photo-preview">`;
-
-                // info ukuran setelah kompresi, supaya kelihatan kalau sudah ringan
-                const approxKb = Math.round((dataUrl.length * 0.75) / 1024);
-                document.getElementById('fotoPreview').innerHTML += `<div class="small text-muted mt-1">UKURAN SETELAH KOMPRESI: ~${approxKb} KB</div>`;
-            })
-            .catch(function(err) {
-                alert('GAGAL MEMPROSES FOTO: ' + err.message);
-                document.getElementById('fotoPreview').innerHTML = '';
-                event.target.value = '';
-            });
+   const PHOTO_MAX_DIMENSION = 1024; // sisi terpanjang foto, dalam pixel (turunkan dari 1280)
+const PHOTO_JPEG_QUALITY = 0.55;  // 0.0 - 1.0, turunkan dari 0.7 agar lebih ringan
+const PHOTO_MAX_BASE64_BYTES = 400 * 1024; // batas aman 400KB untuk base64
+    
+    
+function handleFileSelect(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+    alert('BERKAS HARUS BERUPA FOTO/GAMBAR!'); event.target.value = ''; return;
     }
-
+    
+    // ✅ VALIDASI: Cek ukuran file mentah dulu (sebelum kompresi)
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+    alert('❌ UKURAN FOTO TERLALU BESAR (MAKS 10MB). PILIH FOTO LAIN ATAU POTONG DULU.');
+    event.target.value = '';
+    return;
+    }
+    
+    document.getElementById('reportFotoFilename').value = 'photo.jpg';
+    document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MEMPROSES & MENGOMPRESI FOTO...</div>';
+    
+    compressImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY)
+    .then(function(dataUrl) {
+    // ✅ VALIDASI: Cek ukuran base64 hasil kompresi
+    const base64Size = Math.round((dataUrl.length * 0.75) / 1024);
+    
+    if (base64Size > PHOTO_MAX_BASE64_BYTES / 1024) {
+        // Kalau masih kebesaran, kompres ulang lebih agresif
+        return compressImageFile(file, 800, 0.4).then(function(dataUrl2) {
+        return { dataUrl: dataUrl2, recompressed: true };
+        });
+    }
+    return { dataUrl: dataUrl, recompressed: false };
+    })
+    .then(function(result) {
+    const dataUrl = result.dataUrl;
+    document.getElementById('reportFoto').value = dataUrl;
+    
+    const approxKb = Math.round((dataUrl.length * 0.75) / 1024);
+    let infoText = `✅ UKURAN SETELAH KOMPRESI: ~${approxKb} KB`;
+    if (result.recompressed) {
+        infoText += ' (DIKOMPRES LANJUTAN)';
+    }
+    
+    document.getElementById('fotoPreview').innerHTML = 
+        `<img src="${dataUrl}" class="photo-preview">` +
+        `<div class="small text-success mt-1 fw-bold">${infoText}</div>`;
+    })
+    .catch(function(err) {
+    alert('GAGAL MEMPROSES FOTO: ' + err.message);
+    document.getElementById('fotoPreview').innerHTML = '';
+    event.target.value = '';
+    });
+}
     // Membaca file gambar, menggambarnya ke <canvas> dengan ukuran yang diperkecil
     // (kalau perlu), lalu mengembalikan hasilnya sebagai base64 JPEG yang sudah dikompres.
     function compressImageFile(file, maxDimension, quality) {
@@ -1829,26 +1860,34 @@ async function loadTaskforceDropdown(overrideTaskforce) {
         try {
             // Kalau fotoValue berupa base64 baru (diawali "data:"), upload dulu ke Google Drive
             // supaya yang tersimpan di Spreadsheet hanya LINK-nya, bukan teks base64 raksasa.
-            if (fotoValue && fotoValue.startsWith('data:')) {
-                showAlert('reportAlert', '⏳ SILAKAN MENUNGGU, SEDANG MENGUNGGAH FOTO... (JANGAN TUTUP HALAMAN INI)', 'info');
-                const filename = document.getElementById('reportFotoFilename').value || 'photo.jpg';
-                const reportId = document.getElementById('reportId').value || ('REP_' + Date.now());
-                document.getElementById('reportId').value = reportId; // pastikan ID konsisten dipakai juga saat submitReport
-                const uploadRes = await uploadPhotoToServer(
-                    fotoValue,
-                    filename,
-                    document.getElementById('reportTim').value,
-                    state.taskforce,
-                    reportId
-                );
-
-                if (!uploadRes.success) {
-                    showAlert('reportAlert', '❌ GAGAL UNGGAH FOTO: ' + (uploadRes.message || '').toUpperCase(), 'danger');
-                    return;
-                }
-                fotoValue = uploadRes.imageLink || uploadRes.directLink;
-            }
-
+if (fotoValue && fotoValue.startsWith('data:')) {
+    const sizeKb = Math.round((fotoValue.length * 0.75) / 1024);
+    showAlert('reportAlert', 
+    `⏳ MENGUNGGAH FOTO (~${sizeKb} KB)... JANGAN TUTUP HALAMAN INI. ` +
+    (sizeKb > 400 ? '(FOTO AGAK BESAR, MOHON SABAR)' : ''), 
+    'info');
+    
+    const filename = document.getElementById('reportFotoFilename').value || 'photo.jpg';
+    const reportId = document.getElementById('reportId').value || ('REP_' + Date.now());
+    document.getElementById('reportId').value = reportId;
+    
+    const uploadRes = await uploadPhotoToServer(
+    fotoValue, filename,
+    document.getElementById('reportTim').value,
+    state.taskforce, reportId
+    );
+    
+    if (!uploadRes.success) {
+    showAlert('reportAlert', '❌ GAGAL UNGGAH FOTO: ' + (uploadRes.message || '').toUpperCase(), 'danger');
+    return;
+    }
+    
+    fotoValue = uploadRes.imageLink || uploadRes.directLink;
+    if (!fotoValue) {
+    showAlert('reportAlert', '❌ SERVER TIDAK MENGEMBALIKAN LINK FOTO.', 'danger');
+    return;
+    }
+}
             const tanggalBerangkat = document.getElementById('reportTanggalBerangkat').value;
             const tanggalPulang = document.getElementById('reportTanggalPulang').value;
 
