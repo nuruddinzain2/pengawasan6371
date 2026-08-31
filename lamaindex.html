@@ -2024,6 +2024,81 @@ showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning'
     }
 
     // =====================================================================
+    // PRATINJAU FOTO LAMA SAAT EDIT
+    // =====================================================================
+    // Link foto yang tersimpan adalah link Google Drive. Link Google Drive
+    // TIDAK selalu bisa langsung dipakai di <img src="..."> begitu saja
+    // (sering diblokir CORS/referrer policy Drive), sehingga kalau dipasang
+    // apa adanya, yang muncul ke pengguna hanya ikon "gambar rusak" -- padahal
+    // fotonya sendiri sebenarnya baik-baik saja di server. Ini bikin pengguna
+    // tidak bisa memastikan foto lama sudah benar atau belum saat mode edit.
+    //
+    // Fungsi ini mencoba beberapa variasi URL Google Drive satu per satu
+    // (memakai daftar kandidat yang sama dengan yang dipakai fitur PRINT),
+    // sampai salah satu benar-benar berhasil dimuat. Kalau semua kandidat
+    // gagal, pengguna tetap diberi tautan langsung untuk membuka foto di
+    // tab baru -- supaya tidak menyesatkan (tidak seolah-olah fotonya hilang
+    // padahal sebenarnya cuma gagal di-embed).
+    function renderExistingPhotoPreview(fotoUrl) {
+        const container = document.getElementById('fotoPreview');
+        const url = String(fotoUrl || '').trim();
+        if (!url) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML =
+            '<div class="small text-muted fw-bold">⏳ MEMUAT PRATINJAU FOTO SAAT INI...</div>';
+
+        const candidates = buildPhotoCandidates(url);
+        const img = new Image();
+        img.className = 'photo-preview';
+        img.alt = 'Foto saat ini';
+        let idx = 0;
+
+        function showSuccess() {
+            container.innerHTML = '';
+            container.appendChild(img);
+            const info = document.createElement('div');
+            info.className = 'small text-success fw-bold mt-1';
+            info.textContent = '✅ FOTO SAAT INI (PILIH FOTO BARU UNTUK MENGGANTI)';
+            container.appendChild(info);
+        }
+
+        function showFailure() {
+            const safeUrl = url.replace(/"/g, '&quot;');
+            container.innerHTML =
+                '<div class="small text-danger fw-bold mt-1">⚠️ PRATINJAU FOTO GAGAL DIMUAT DI SINI (BUKAN BERARTI FOTONYA HILANG).</div>' +
+                `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm fw-bold mt-1">🔗 BUKA FOTO DI TAB BARU UNTUK MEMERIKSA</a>` +
+                '<div class="small text-muted mt-1">PILIH FOTO BARU DI BAWAH INI KALAU MEMANG PERLU DIGANTI.</div>';
+        }
+
+        function tryNext() {
+            if (idx >= candidates.length) {
+                showFailure();
+                return;
+            }
+            img.src = candidates[idx];
+            idx += 1;
+        }
+
+        img.onload = function() {
+            // Jaga-jaga: kalau yang "berhasil dimuat" ternyata gambar 0x0
+            // (kosong), tetap lanjut coba kandidat berikutnya.
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                showSuccess();
+            } else {
+                tryNext();
+            }
+        };
+        img.onerror = function() {
+            tryNext();
+        };
+
+        tryNext();
+    }
+
+    // =====================================================================
     // EDIT LAPORAN
     // =====================================================================
     // Mengisi ulang seluruh form (termasuk dropdown berjenjang TIM->PML->
@@ -2074,10 +2149,10 @@ showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning'
         document.getElementById('reportFoto').value = r.FOTO || '';
         document.getElementById('reportFotoFilename').value = '';
         if (r.FOTO) {
-            document.getElementById('fotoPreview').innerHTML =
-                `<img src="${r.FOTO}" class="photo-preview"><div class="small text-muted mt-1">FOTO SAAT INI (PILIH FOTO BARU UNTUK MENGGANTI)</div>`;
+            renderExistingPhotoPreview(r.FOTO);
         } else {
-            document.getElementById('fotoPreview').innerHTML = '';
+            document.getElementById('fotoPreview').innerHTML =
+                '<div class="small text-muted fw-bold mt-1">ℹ️ LAPORAN INI BELUM PUNYA FOTO.</div>';
         }
 
         // --- Dropdown berjenjang: TIM -> PML -> PPL -> SubSLS ---
