@@ -86,6 +86,12 @@
         .main-nav-grid.has-kelola {
             grid-template-columns: repeat(4, 1fr);
         }
+        .main-nav-grid.has-rekap {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        .main-nav-grid.has-kelola.has-rekap {
+            grid-template-columns: repeat(5, 1fr);
+        }
         .main-nav-btn {
             border: 3px solid #e65100;
             background: #fff;
@@ -699,6 +705,153 @@
                 font-weight: bold;
             }
         }
+
+        /* =====================================================================
+           MENU REKAP: sub-nav (TABEL REKAP / DASHBOARD), filter TIM/TASKFORCE,
+           tabel rekap draft-final, kartu ringkasan dashboard, dan bar chart
+           sederhana (CSS murni, tanpa library eksternal).
+        ===================================================================== */
+        .rekap-filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 16px;
+            background: #fff7ee;
+            border: 1px solid #ffe0b2;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .rekap-filter-bar .rekap-filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 180px;
+            flex: 1 1 180px;
+        }
+        .rekap-filter-bar label {
+            font-size: 0.72rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #8d6e63;
+            letter-spacing: 0.03em;
+        }
+        .rekap-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .rekap-summary-card {
+            border-radius: 12px;
+            padding: 14px 12px;
+            text-align: center;
+            box-shadow: 0 3px 0 rgba(230, 81, 0, 0.12);
+            border: 1px solid #ffe0b2;
+        }
+        .rekap-summary-card .rekap-summary-value {
+            font-size: 1.9rem;
+            font-weight: 900;
+            line-height: 1.1;
+        }
+        .rekap-summary-card .rekap-summary-label {
+            font-size: 0.72rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-top: 4px;
+        }
+        .rekap-summary-card.card-total { background: #fff2e0; }
+        .rekap-summary-card.card-total .rekap-summary-value { color: #e65100; }
+        .rekap-summary-card.card-final { background: #d1f7e0; }
+        .rekap-summary-card.card-final .rekap-summary-value { color: #0a7a3d; }
+        .rekap-summary-card.card-draft { background: #fff0d5; }
+        .rekap-summary-card.card-draft .rekap-summary-value { color: #b54708; }
+        .rekap-summary-card.card-taskforce { background: #e8f0fe; }
+        .rekap-summary-card.card-taskforce .rekap-summary-value { color: #1a56db; }
+
+        .rekap-bar-row {
+            margin-bottom: 12px;
+        }
+        .rekap-bar-row-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            font-weight: bold;
+            color: #4e342e;
+            margin-bottom: 3px;
+        }
+        .rekap-bar-track {
+            display: flex;
+            width: 100%;
+            height: 16px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f1e6da;
+        }
+        .rekap-bar-final {
+            background: #0a7a3d;
+            height: 100%;
+        }
+        .rekap-bar-draft {
+            background: #ffb74d;
+            height: 100%;
+        }
+        .rekap-bar-legend {
+            display: flex;
+            gap: 14px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #8d6e63;
+            margin-bottom: 10px;
+        }
+        .rekap-bar-legend span::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .rekap-bar-legend .legend-final::before { background: #0a7a3d; }
+        .rekap-bar-legend .legend-draft::before { background: #ffb74d; }
+
+        .rekap-table-wrap {
+            overflow-x: auto;
+            border: 1px solid #ffe0b2;
+            border-radius: 10px;
+        }
+        .rekap-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+            background: #fff;
+        }
+        .rekap-table th, .rekap-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #ffe9cf;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .rekap-table th {
+            background: #fff2e0;
+            color: #e65100;
+            text-transform: uppercase;
+            font-size: 0.74rem;
+            letter-spacing: 0.03em;
+            position: sticky;
+            top: 0;
+        }
+        .rekap-table td.rekap-col-num { text-align: center; font-weight: bold; }
+        .rekap-table tr:last-child td { border-bottom: none; }
+        .rekap-table tr.rekap-row-total td {
+            background: #fff7ee;
+            font-weight: 900;
+            color: #e65100;
+        }
+        .rekap-sub-nav .btn { min-width: 140px; }
     </style>
 </head>
 <body>
@@ -753,6 +906,10 @@
                 <button id="tabKelolaBtn" type="button" class="main-nav-btn" style="display:none;" onclick="switchTab('tabKelola', event)">
                     <span class="main-nav-icon">⚙️</span>
                     <span>KELOLA</span>
+                </button>
+                <button id="tabRekapBtn" type="button" class="main-nav-btn" style="display:none;" onclick="switchTab('tabRekap', event)">
+                    <span class="main-nav-icon">📊</span>
+                    <span>REKAP</span>
                 </button>
                 <button id="tabPrintBtn" type="button" class="main-nav-btn" onclick="switchTab('tabPrint', event)">
                     <span class="main-nav-icon">🖨️</span>
@@ -1106,6 +1263,52 @@
                 </div>
             </div>
 
+            <!-- =============================================================
+                 MENU REKAP: rekap jumlah pengisian (draft/final) per TIM &
+                 per TASKFORCE, plus dashboard ringkas. Sumber data memakai
+                 action 'getKelolaSuratTugas' yang sama dengan KELOLA SURAT
+                 TUGAS (cakupan otomatis mengikuti role: ADMIN/ASESOR lihat
+                 semua TIM, KETUA hanya TIM yang dipimpinnya), diambil tanpa
+                 filter status supaya draft & final sama-sama terhitung.
+            ============================================================== -->
+            <div id="tabRekap" class="tab-content" style="display: none;">
+                <div id="rekapAlert"></div>
+
+                <div class="d-flex gap-2 mb-3 rekap-sub-nav">
+                    <button type="button" id="rekapSubBtnTabel" class="btn btn-sm fw-bold flex-grow-1 btn-primary" onclick="switchRekapSub('tabel')">📋 REKAP TABEL</button>
+                    <button type="button" id="rekapSubBtnDashboard" class="btn btn-sm fw-bold flex-grow-1 btn-outline-primary" onclick="switchRekapSub('dashboard')">📊 DASHBOARD</button>
+                </div>
+
+                <div class="rekap-filter-bar">
+                    <div class="rekap-filter-item">
+                        <label>FILTER TIM</label>
+                        <select id="rekapFilterTim" class="form-select form-select-sm fw-bold" onchange="handleRekapFilterTimChange()">
+                            <option value="">SEMUA TIM</option>
+                        </select>
+                    </div>
+                    <div class="rekap-filter-item">
+                        <label>FILTER TASKFORCE</label>
+                        <select id="rekapFilterTaskforce" class="form-select form-select-sm fw-bold" onchange="applyRekapFilters()">
+                            <option value="">SEMUA TASKFORCE</option>
+                        </select>
+                    </div>
+                    <div class="rekap-filter-item" style="flex: 0 0 auto; min-width: auto;">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="loadRekapData()">🔄 MUAT ULANG</button>
+                    </div>
+                </div>
+
+                <div id="rekapMeta" class="kelola-sheet-meta mb-2"></div>
+
+                <div id="rekapSubTabel">
+                    <div id="rekapTableContainer"></div>
+                </div>
+
+                <div id="rekapSubDashboard" style="display:none;">
+                    <div id="rekapDashboardContainer"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -1393,8 +1596,10 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
         document.querySelectorAll('.main-nav-btn').forEach(el => el.classList.remove('active'));
         document.getElementById('tabFormBtn').classList.add('active');
         document.getElementById('tabKelolaBtn').style.display = 'none';
+        document.getElementById('tabRekapBtn').style.display = 'none';
         document.getElementById('tabPrintBtn').style.display = 'flex';
         document.getElementById('mainNavGrid').classList.remove('has-kelola');
+        document.getElementById('mainNavGrid').classList.remove('has-rekap');
         state.role = 'anggota';
         state.managedTeams = [];
         state.viewableTeams = [];
@@ -1410,6 +1615,16 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
             document.getElementById('suratFilterTim').innerHTML = '<option value="">SEMUA TIM</option>';
             document.getElementById('suratFilterStatus').value = '';
             document.getElementById('suratReadOnlyNotice').style.display = 'none';
+        } catch (e) {}
+
+        // Reset juga state menu REKAP supaya sesi login berikutnya mulai bersih.
+        rekapData = [];
+        rekapFilterTimTerisi = false;
+        try {
+            document.getElementById('rekapFilterTim').innerHTML = '<option value="">SEMUA TIM</option>';
+            document.getElementById('rekapFilterTaskforce').innerHTML = '<option value="">SEMUA TASKFORCE</option>';
+            document.getElementById('rekapTableContainer').innerHTML = '';
+            document.getElementById('rekapDashboardContainer').innerHTML = '';
         } catch (e) {}
 
         // form.reset() ikut mengosongkan NIP, jadi isi ulang dari penyimpanan HP ini
@@ -1432,6 +1647,7 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
         if (tabId === 'tabList') loadReports();
         if (tabId === 'tabPrint') loadPrintReports();
         if (tabId === 'tabKelola') loadKelolaData();
+        if (tabId === 'tabRekap') loadRekapData();
     }
 
     // =====================================================================
@@ -1445,11 +1661,18 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
 const grid = document.getElementById('mainNavGrid');
 const kelolaBtn = document.getElementById('tabKelolaBtn');
 const printBtn = document.getElementById('tabPrintBtn');
+const rekapBtn = document.getElementById('tabRekapBtn');
 // Asesor juga boleh masuk KELOLA (khususnya untuk isi Surat Tugas)
 const bolehKelola = state.role === 'ketua' || state.role === 'admin' || state.role === 'asesor';
+// REKAP (rekap capaian + dashboard) memakai hak akses yang sama dengan
+// KELOLA SURAT TUGAS, karena datanya bersumber dari action yang sama
+// dan cakupannya sudah otomatis mengikuti role di backend.
+const bolehRekap = bolehKelola;
 kelolaBtn.style.display = bolehKelola ? 'flex' : 'none';
+rekapBtn.style.display = bolehRekap ? 'flex' : 'none';
 printBtn.style.display = 'flex';
 grid.classList.toggle('has-kelola', bolehKelola);
+grid.classList.toggle('has-rekap', bolehRekap);
 playWiggle();
 }
     // Menambahkan class animasi goyang ke semua tombol nav utama yang
@@ -1571,7 +1794,12 @@ async function loadTaskforceDropdown(overrideTaskforce) {
   if (res.success) {
     subslsSelect.dataValues = res.data;
     res.data.forEach(opt => {
-      subslsSelect.innerHTML += `<option value="${String(opt.id_subsls).trim()}">${String(opt.id_subsls).trim()}</option>`;
+      const idVal = String(opt.id_subsls).trim();
+      const namaVal = String(opt.nama_sls || '').trim();
+      // Gabungkan ID_SUBSLS dengan NAMA SLS/RT-nya supaya lebih mudah
+      // dikenali saat memilih (contoh: "6371010003000800 - RT 08").
+      const labelText = namaVal ? `${idVal} - ${namaVal.toUpperCase()}` : idVal;
+      subslsSelect.innerHTML += `<option value="${idVal}">${labelText}</option>`;
     });
   }
 }
@@ -2926,6 +3154,301 @@ sub = 'surat';
             btnAnggota.className = 'btn btn-sm fw-bold flex-grow-1 btn-primary';
             btnSurat.className = 'btn btn-sm fw-bold flex-grow-1 btn-outline-primary';
         }
+    }
+
+    // =====================================================================
+    // MENU REKAP: rekap jumlah pengisian (DRAFT vs FINAL) per TIM & per
+    // TASKFORCE, plus dashboard ringkas. Memakai action 'getKelolaSuratTugas'
+    // yang sama dengan KELOLA SURAT TUGAS (cakupan otomatis sesuai role di
+    // backend: ADMIN/ASESOR lihat semua TIM, KETUA hanya TIM yang dipimpin),
+    // tapi diambil TANPA filter status supaya draft & final sama-sama ikut
+    // terhitung, lalu diagregasi di sisi client.
+    // =====================================================================
+    let rekapData = [];
+    let rekapFilterTimTerisi = false;
+
+    async function loadRekapData() {
+        clearAlert('rekapAlert');
+        const meta = document.getElementById('rekapMeta');
+        const tableBox = document.getElementById('rekapTableContainer');
+        const dashBox = document.getElementById('rekapDashboardContainer');
+        meta.textContent = 'SEDANG MEMUAT DATA REKAP...';
+        tableBox.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT REKAP...</div>';
+        dashBox.innerHTML = '';
+
+        const loadingTimeout = setTimeout(() => {
+            meta.textContent = '⚠️ DATA MASIH DIMUAT... JIKA TERLALU LAMA, COBA MUAT ULANG.';
+        }, 15000);
+
+        try {
+            // tim & status sengaja dikosongkan supaya SEMUA data (draft +
+            // final, seluruh TIM yang boleh dilihat role ini) ikut terambil;
+            // penyaringan TIM/TASKFORCE dilakukan di sisi client (lebih cepat
+            // saat user gonta-ganti filter tanpa perlu fetch ulang).
+            let res = await callApi({
+                action: 'getKelolaSuratTugas',
+                nip: state.nip,
+                requester_taskforce: state.taskforce,
+                tim: '',
+                status: ''
+            });
+            clearTimeout(loadingTimeout);
+
+            if (!res.success) {
+                meta.textContent = '';
+                showAlert('rekapAlert', '❌ ' + (res.message || 'GAGAL MEMUAT DATA REKAP.').toUpperCase(), 'danger');
+                tableBox.innerHTML = '';
+                return;
+            }
+
+            rekapData = res.data || [];
+            isiFilterRekap(rekapData);
+            meta.textContent = `MENAMPILKAN REKAP DARI ${rekapData.length} LAPORAN`;
+            applyRekapFilters();
+        } catch (err) {
+            clearTimeout(loadingTimeout);
+            meta.textContent = '';
+            showAlert('rekapAlert', '❌ GAGAL MEMUAT DATA REKAP: ' + err.message.toUpperCase(), 'danger');
+            tableBox.innerHTML = '';
+        }
+    }
+
+    // Isi dropdown filter TIM hanya sekali per pemuatan data (supaya pilihan
+    // user tidak ke-reset tiap kali data dimuat ulang secara otomatis).
+    function isiFilterRekap(data) {
+        if (rekapFilterTimTerisi) return;
+        const select = document.getElementById('rekapFilterTim');
+        const seen = {};
+        data.forEach(r => {
+            const tim = String(r.TIM || '').trim();
+            if (tim && !seen[tim.toLowerCase()]) {
+                seen[tim.toLowerCase()] = true;
+                const opt = document.createElement('option');
+                opt.value = tim;
+                opt.textContent = tim.toUpperCase();
+                select.appendChild(opt);
+            }
+        });
+        if (Object.keys(seen).length > 0) rekapFilterTimTerisi = true;
+        isiFilterTaskforceRekap(data, '');
+    }
+
+    // Dropdown filter TASKFORCE mengikuti TIM yang dipilih (cascading) --
+    // supaya daftarnya tidak kepanjangan kalau lintas-TIM taskforce-nya beda.
+    function isiFilterTaskforceRekap(data, timAktif) {
+        const select = document.getElementById('rekapFilterTaskforce');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">SEMUA TASKFORCE</option>';
+        const seen = {};
+        data.forEach(r => {
+            const tim = String(r.TIM || '').trim();
+            const tf = String(r.TASKFORCE || '').trim();
+            if (!tf) return;
+            if (timAktif && norm(tim) !== norm(timAktif)) return;
+            if (!seen[tf.toLowerCase()]) {
+                seen[tf.toLowerCase()] = true;
+                const opt = document.createElement('option');
+                opt.value = tf;
+                opt.textContent = tf.toUpperCase();
+                select.appendChild(opt);
+            }
+        });
+        // Pertahankan pilihan TASKFORCE sebelumnya kalau masih ada di daftar baru.
+        if (currentVal && seen[currentVal.toLowerCase()]) {
+            select.value = currentVal;
+        }
+    }
+
+    function handleRekapFilterTimChange() {
+        const timAktif = document.getElementById('rekapFilterTim').value;
+        isiFilterTaskforceRekap(rekapData, timAktif);
+        applyRekapFilters();
+    }
+
+    function getRekapFilteredData() {
+        const timFilter = document.getElementById('rekapFilterTim').value;
+        const tfFilter = document.getElementById('rekapFilterTaskforce').value;
+        return rekapData.filter(r => {
+            if (timFilter && norm(r.TIM) !== norm(timFilter)) return false;
+            if (tfFilter && norm(r.TASKFORCE) !== norm(tfFilter)) return false;
+            return true;
+        });
+    }
+
+    function applyRekapFilters() {
+        renderRekapTable();
+        renderRekapDashboard();
+    }
+
+    function switchRekapSub(sub) {
+        const btnTabel = document.getElementById('rekapSubBtnTabel');
+        const btnDash = document.getElementById('rekapSubBtnDashboard');
+        const boxTabel = document.getElementById('rekapSubTabel');
+        const boxDash = document.getElementById('rekapSubDashboard');
+        if (sub === 'dashboard') {
+            boxTabel.style.display = 'none';
+            boxDash.style.display = 'block';
+            btnDash.className = 'btn btn-sm fw-bold flex-grow-1 btn-primary';
+            btnTabel.className = 'btn btn-sm fw-bold flex-grow-1 btn-outline-primary';
+        } else {
+            boxTabel.style.display = 'block';
+            boxDash.style.display = 'none';
+            btnTabel.className = 'btn btn-sm fw-bold flex-grow-1 btn-primary';
+            btnDash.className = 'btn btn-sm fw-bold flex-grow-1 btn-outline-primary';
+        }
+    }
+
+    // Mengagregasi data laporan menjadi rekap per TIM + per TASKFORCE,
+    // masing-masing dengan hitungan DRAFT, FINAL, dan TOTAL.
+    function aggregateRekap(data) {
+        const map = {};
+        data.forEach(r => {
+            const tim = String(r.TIM || '-').trim() || '-';
+            const tf = String(r.TASKFORCE || '-').trim() || '-';
+            const key = tim.toLowerCase() + '||' + tf.toLowerCase();
+            if (!map[key]) {
+                map[key] = { tim: tim, taskforce: tf, draft: 0, final: 0 };
+            }
+            const status = norm(r.STATUS);
+            if (status === 'final') map[key].final++;
+            else map[key].draft++; // status lain (kosong dsb) dihitung sebagai draft
+        });
+        return Object.values(map).sort((a, b) => {
+            const timCompare = a.tim.localeCompare(b.tim, 'id');
+            if (timCompare !== 0) return timCompare;
+            return a.taskforce.localeCompare(b.taskforce, 'id');
+        });
+    }
+
+    function renderRekapTable() {
+        const container = document.getElementById('rekapTableContainer');
+        const filtered = getRekapFilteredData();
+        const rows = aggregateRekap(filtered);
+
+        if (rows.length === 0) {
+            container.innerHTML = '<div class="small text-muted text-center fw-bold py-3">BELUM ADA DATA LAPORAN UNTUK FILTER INI.</div>';
+            return;
+        }
+
+        let totalDraft = 0, totalFinal = 0;
+        const bodyRows = rows.map((row, idx) => {
+            totalDraft += row.draft;
+            totalFinal += row.final;
+            const totalRow = row.draft + row.final;
+            return `<tr>
+                <td class="rekap-col-num">${idx + 1}</td>
+                <td>${escapeHtml(row.tim.toUpperCase())}</td>
+                <td>${escapeHtml(row.taskforce.toUpperCase())}</td>
+                <td class="rekap-col-num"><span class="report-status-badge status-draft">${row.draft}</span></td>
+                <td class="rekap-col-num"><span class="report-status-badge status-final">${row.final}</span></td>
+                <td class="rekap-col-num">${totalRow}</td>
+            </tr>`;
+        }).join('');
+
+        const grandTotal = totalDraft + totalFinal;
+        const totalRowHtml = `<tr class="rekap-row-total">
+            <td></td>
+            <td colspan="2">TOTAL KESELURUHAN</td>
+            <td class="rekap-col-num">${totalDraft}</td>
+            <td class="rekap-col-num">${totalFinal}</td>
+            <td class="rekap-col-num">${grandTotal}</td>
+        </tr>`;
+
+        container.innerHTML = `<div class="rekap-table-wrap">
+            <table class="rekap-table">
+                <thead>
+                    <tr>
+                        <th>NO</th>
+                        <th>TIM</th>
+                        <th>TASKFORCE</th>
+                        <th>DRAFT</th>
+                        <th>FINAL</th>
+                        <th>TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>${bodyRows}${totalRowHtml}</tbody>
+            </table>
+        </div>`;
+    }
+
+    function renderRekapDashboard() {
+        const container = document.getElementById('rekapDashboardContainer');
+        const filtered = getRekapFilteredData();
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="small text-muted text-center fw-bold py-3">BELUM ADA DATA LAPORAN UNTUK FILTER INI.</div>';
+            return;
+        }
+
+        let totalDraft = 0, totalFinal = 0;
+        const taskforceSet = {};
+        filtered.forEach(r => {
+            if (norm(r.STATUS) === 'final') totalFinal++;
+            else totalDraft++;
+            const tf = String(r.TASKFORCE || '').trim();
+            if (tf) taskforceSet[tf.toLowerCase()] = true;
+        });
+        const grandTotal = totalDraft + totalFinal;
+        const jumlahTaskforce = Object.keys(taskforceSet).length;
+
+        const summaryHtml = `<div class="rekap-summary-grid">
+            <div class="rekap-summary-card card-total">
+                <div class="rekap-summary-value">${grandTotal}</div>
+                <div class="rekap-summary-label">Total Laporan</div>
+            </div>
+            <div class="rekap-summary-card card-final">
+                <div class="rekap-summary-value">${totalFinal}</div>
+                <div class="rekap-summary-label">Final</div>
+            </div>
+            <div class="rekap-summary-card card-draft">
+                <div class="rekap-summary-value">${totalDraft}</div>
+                <div class="rekap-summary-label">Draft</div>
+            </div>
+            <div class="rekap-summary-card card-taskforce">
+                <div class="rekap-summary-value">${jumlahTaskforce}</div>
+                <div class="rekap-summary-label">Taskforce Aktif</div>
+            </div>
+        </div>`;
+
+        // Breakdown batang (bar) per TIM (gabungan semua taskforce di TIM
+        // tsb) supaya kelihatan TIM mana yang progresnya paling banyak FINAL.
+        const perTim = {};
+        filtered.forEach(r => {
+            const tim = String(r.TIM || '-').trim() || '-';
+            if (!perTim[tim]) perTim[tim] = { draft: 0, final: 0 };
+            if (norm(r.STATUS) === 'final') perTim[tim].final++;
+            else perTim[tim].draft++;
+        });
+        const timRows = Object.keys(perTim).sort((a, b) => a.localeCompare(b, 'id'));
+
+        let barsHtml = '';
+        if (timRows.length > 1) {
+            // Legenda hanya perlu ditampilkan sekali kalau ada lebih dari 1 baris TIM.
+            barsHtml += `<div class="rekap-bar-legend">
+                <span class="legend-final">FINAL</span>
+                <span class="legend-draft">DRAFT</span>
+            </div>`;
+        }
+        timRows.forEach(tim => {
+            const d = perTim[tim];
+            const total = d.draft + d.final;
+            const finalPct = total > 0 ? (d.final / total * 100) : 0;
+            const draftPct = total > 0 ? (d.draft / total * 100) : 0;
+            barsHtml += `<div class="rekap-bar-row">
+                <div class="rekap-bar-row-head">
+                    <span>${escapeHtml(tim.toUpperCase())}</span>
+                    <span>${d.final} FINAL / ${d.draft} DRAFT (${total} TOTAL)</span>
+                </div>
+                <div class="rekap-bar-track">
+                    <div class="rekap-bar-final" style="width:${finalPct}%;"></div>
+                    <div class="rekap-bar-draft" style="width:${draftPct}%;"></div>
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = summaryHtml +
+            `<h5 class="section-title mt-4">CAPAIAN PER TIM (DRAFT VS FINAL)</h5>` +
+            barsHtml;
     }
 
     // =====================================================================
