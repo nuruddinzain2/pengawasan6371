@@ -1294,7 +1294,7 @@
                     </div>
                     <div class="rekap-filter-item" style="flex: 0 0 auto; min-width: auto;">
                         <label>&nbsp;</label>
-                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="loadRekapData()">🔄 MUAT ULANG</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="loadRekapData(true)">🔄 MUAT ULANG</button>
                     </div>
                 </div>
 
@@ -1620,6 +1620,8 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
         // Reset juga state menu REKAP supaya sesi login berikutnya mulai bersih.
         rekapData = [];
         rekapFilterTimTerisi = false;
+        rekapLoaded = false;
+        rekapLoadingPromise = null;
         try {
             document.getElementById('rekapFilterTim').innerHTML = '<option value="">SEMUA TIM</option>';
             document.getElementById('rekapFilterTaskforce').innerHTML = '<option value="">SEMUA TASKFORCE</option>';
@@ -3158,16 +3160,66 @@ sub = 'surat';
 
     // =====================================================================
     // MENU REKAP: rekap jumlah pengisian (DRAFT vs FINAL) per TIM & per
-    // TASKFORCE, plus dashboard ringkas. Memakai action 'getKelolaSuratTugas'
-    // yang sama dengan KELOLA SURAT TUGAS (cakupan otomatis sesuai role di
-    // backend: ADMIN/ASESOR lihat semua TIM, KETUA hanya TIM yang dipimpin),
-    // tapi diambil TANPA filter status supaya draft & final sama-sama ikut
-    // terhitung, lalu diagregasi di sisi client.
+    // TASKFORCE, plus dashboard ringkas.
+    //
+    // Jalur CEPAT (dipakai kalau backend sudah punya action baru
+    // 'getRekapCapaian'): server langsung mengagregasi & hanya mengirim
+    // {tim, taskforce, draft, final} per kombinasi -- jauh lebih ringan
+    // daripada mengirim ribuan baris laporan mentah lewat jaringan.
+    //
+    // Jalur CADANGAN (otomatis dipakai kalau action baru itu belum ada di
+    // backend / gagal): fallback ke action 'getKelolaSuratTugas' yang sudah
+    // ada sebelumnya (mengambil SEMUA baris laporan, tim & status
+    // dikosongkan), lalu diagregasi di sisi client seperti versi awal.
+    // Dengan begini menu REKAP tetap jalan walau backend .gs belum
+    // di-deploy ulang dengan fungsi apiGetRekapCapaian().
     // =====================================================================
-    let rekapData = [];
+    let rekapData = []; // selalu berbentuk [{tim, taskforce, draft, final}, ...]
     let rekapFilterTimTerisi = false;
+    let rekapLoaded = false;
+    let rekapLoadingPromise = null;
 
-    async function loadRekapData() {
+    // Mengagregasi data laporan MENTAH (baris apa adanya dari sheet HASIL,
+    // field TIM/TASKFORCE/STATUS) menjadi rekap per TIM + per TASKFORCE.
+    // Dipakai HANYA sebagai fallback saat backend belum punya action
+    // 'getRekapCapaian' (lihat loadRekapData).
+    function aggregateRekapDariLaporanMentah(data) {
+        const map = {};
+        data.forEach(r => {
+            const tim = String(r.TIM || '-').trim() || '-';
+            const tf = String(r.TASKFORCE || '-').trim() || '-';
+            const key = tim.toLowerCase() + '||' + tf.toLowerCase();
+            if (!map[key]) {
+                map[key] = { tim: tim, taskforce: tf, draft: 0, final: 0 };
+            }
+            const status = norm(r.STATUS);
+            if (status === 'final') map[key].final++;
+            else map[key].draft++; // status lain (kosong dsb) dihitung sebagai draft
+        });
+        return Object.values(map);
+    }
+
+    function urutkanRekap(rows) {
+        return rows.slice().sort((a, b) => {
+            const timCompare = String(a.tim).localeCompare(String(b.tim), 'id');
+            if (timCompare !== 0) return timCompare;
+            return String(a.taskforce).localeCompare(String(b.taskforce), 'id');
+        });
+    }
+
+    async function loadRekapData(forceReload) {
+        // Kalau data REKAP sudah pernah berhasil dimuat sebelumnya di sesi
+        // ini, langsung pakai cache (tidak fetch ulang ke server) supaya
+        // pindah-pindah tab LAPORAN/RIWAYAT/REKAP terasa instan/tidak lambat.
+        // Fetch ulang hanya terjadi saat pertama kali dibuka, atau saat
+        // tombol "MUAT ULANG" ditekan (forceReload = true).
+        if (rekapLoaded && !forceReload) {
+            applyRekapFilters();
+            return;
+        }
+        // Kalau sedang ada proses muat yang berjalan, jangan tumpuk permintaan baru.
+        if (rekapLoadingPromise && !forceReload) return rekapLoadingPromise;
+
         clearAlert('rekapAlert');
         const meta = document.getElementById('rekapMeta');
         const tableBox = document.getElementById('rekapTableContainer');
@@ -3177,39 +3229,80 @@ sub = 'surat';
         dashBox.innerHTML = '';
 
         const loadingTimeout = setTimeout(() => {
-            meta.textContent = '⚠️ DATA MASIH DIMUAT... JIKA TERLALU LAMA, COBA MUAT ULANG.';
-        }, 15000);
+            meta.textContent = '⚠️ DATA MASIH DIMUAT... KONEKSI KE SERVER SEDANG LAMBAT, MOHON TUNGGU SEBENTAR LAGI.';
+        }, 12000);
 
-        try {
-            // tim & status sengaja dikosongkan supaya SEMUA data (draft +
-            // final, seluruh TIM yang boleh dilihat role ini) ikut terambil;
-            // penyaringan TIM/TASKFORCE dilakukan di sisi client (lebih cepat
-            // saat user gonta-ganti filter tanpa perlu fetch ulang).
-            let res = await callApi({
-                action: 'getKelolaSuratTugas',
-                nip: state.nip,
-                requester_taskforce: state.taskforce,
-                tim: '',
-                status: ''
-            });
-            clearTimeout(loadingTimeout);
+        rekapLoadingPromise = (async () => {
+            // Google Apps Script kadang "cold start" atau sesekali gagal
+            // sesaat (404/timeout) -- jadi dicoba otomatis sampai 3x dengan
+            // jeda sebelum benar-benar dianggap gagal ke pengguna.
+            const MAX_ATTEMPT = 3;
+            let lastErr = null;
+            for (let attempt = 1; attempt <= MAX_ATTEMPT; attempt++) {
+                try {
+                    // 1) Coba jalur CEPAT dulu: server sudah agregasi sendiri.
+                    let res = await callApi({
+                        action: 'getRekapCapaian',
+                        nip: state.nip,
+                        requester_taskforce: state.taskforce
+                    });
 
-            if (!res.success) {
-                meta.textContent = '';
-                showAlert('rekapAlert', '❌ ' + (res.message || 'GAGAL MEMUAT DATA REKAP.').toUpperCase(), 'danger');
-                tableBox.innerHTML = '';
-                return;
+                    if (res && res.success) {
+                        clearTimeout(loadingTimeout);
+                        rekapData = urutkanRekap(res.data || []);
+                        rekapLoaded = true;
+                        isiFilterRekap(rekapData);
+                        const totalLaporan = rekapData.reduce((sum, r) => sum + (r.draft || 0) + (r.final || 0), 0);
+                        meta.textContent = `MENAMPILKAN REKAP DARI ${totalLaporan} LAPORAN`;
+                        applyRekapFilters();
+                        return;
+                    }
+
+                    // 2) Kalau action baru belum dikenali backend (belum sempat
+                    //    di-deploy ulang) ATAU gagal karena sebab lain, fallback
+                    //    ke cara lama: ambil semua laporan mentah lalu agregasi
+                    //    di client. Ini juga jadi percobaan "attempt" berikutnya.
+                    let resFallback = await callApi({
+                        action: 'getKelolaSuratTugas',
+                        nip: state.nip,
+                        requester_taskforce: state.taskforce,
+                        tim: '',
+                        status: ''
+                    });
+                    if (!resFallback.success) {
+                        throw new Error(resFallback.message || (res && res.message) || 'Server menolak permintaan.');
+                    }
+                    clearTimeout(loadingTimeout);
+                    rekapData = urutkanRekap(aggregateRekapDariLaporanMentah(resFallback.data || []));
+                    rekapLoaded = true;
+                    isiFilterRekap(rekapData);
+                    const totalLaporanFallback = rekapData.reduce((sum, r) => sum + (r.draft || 0) + (r.final || 0), 0);
+                    meta.textContent = `MENAMPILKAN REKAP DARI ${totalLaporanFallback} LAPORAN`;
+                    applyRekapFilters();
+                    return;
+                } catch (err) {
+                    lastErr = err;
+                    if (attempt < MAX_ATTEMPT) {
+                        meta.textContent = `⏳ PERCOBAAN KE-${attempt} GAGAL, MENCOBA LAGI (${attempt + 1}/${MAX_ATTEMPT})...`;
+                        await new Promise(r => setTimeout(r, 1500 * attempt));
+                    }
+                }
             }
-
-            rekapData = res.data || [];
-            isiFilterRekap(rekapData);
-            meta.textContent = `MENAMPILKAN REKAP DARI ${rekapData.length} LAPORAN`;
-            applyRekapFilters();
-        } catch (err) {
             clearTimeout(loadingTimeout);
             meta.textContent = '';
-            showAlert('rekapAlert', '❌ GAGAL MEMUAT DATA REKAP: ' + err.message.toUpperCase(), 'danger');
-            tableBox.innerHTML = '';
+            showAlert(
+                'rekapAlert',
+                '❌ GAGAL MEMUAT DATA REKAP: ' + (lastErr && lastErr.message ? lastErr.message.toUpperCase() : 'KONEKSI SERVER GAGAL SETELAH BEBERAPA KALI PERCOBAAN.') +
+                '. INI BIASANYA HANYA GANGGUAN SESAAT DARI SERVER GOOGLE APPS SCRIPT -- SILAKAN COBA LAGI.',
+                'danger'
+            );
+            tableBox.innerHTML = '<div class="small text-center py-3"><button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="loadRekapData(true)">🔄 COBA LAGI</button></div>';
+        })();
+
+        try {
+            await rekapLoadingPromise;
+        } finally {
+            rekapLoadingPromise = null;
         }
     }
 
@@ -3220,7 +3313,7 @@ sub = 'surat';
         const select = document.getElementById('rekapFilterTim');
         const seen = {};
         data.forEach(r => {
-            const tim = String(r.TIM || '').trim();
+            const tim = String(r.tim || '').trim();
             if (tim && !seen[tim.toLowerCase()]) {
                 seen[tim.toLowerCase()] = true;
                 const opt = document.createElement('option');
@@ -3241,8 +3334,8 @@ sub = 'surat';
         select.innerHTML = '<option value="">SEMUA TASKFORCE</option>';
         const seen = {};
         data.forEach(r => {
-            const tim = String(r.TIM || '').trim();
-            const tf = String(r.TASKFORCE || '').trim();
+            const tim = String(r.tim || '').trim();
+            const tf = String(r.taskforce || '').trim();
             if (!tf) return;
             if (timAktif && norm(tim) !== norm(timAktif)) return;
             if (!seen[tf.toLowerCase()]) {
@@ -3269,8 +3362,8 @@ sub = 'surat';
         const timFilter = document.getElementById('rekapFilterTim').value;
         const tfFilter = document.getElementById('rekapFilterTaskforce').value;
         return rekapData.filter(r => {
-            if (timFilter && norm(r.TIM) !== norm(timFilter)) return false;
-            if (tfFilter && norm(r.TASKFORCE) !== norm(tfFilter)) return false;
+            if (timFilter && norm(r.tim) !== norm(timFilter)) return false;
+            if (tfFilter && norm(r.taskforce) !== norm(tfFilter)) return false;
             return true;
         });
     }
@@ -3298,32 +3391,9 @@ sub = 'surat';
         }
     }
 
-    // Mengagregasi data laporan menjadi rekap per TIM + per TASKFORCE,
-    // masing-masing dengan hitungan DRAFT, FINAL, dan TOTAL.
-    function aggregateRekap(data) {
-        const map = {};
-        data.forEach(r => {
-            const tim = String(r.TIM || '-').trim() || '-';
-            const tf = String(r.TASKFORCE || '-').trim() || '-';
-            const key = tim.toLowerCase() + '||' + tf.toLowerCase();
-            if (!map[key]) {
-                map[key] = { tim: tim, taskforce: tf, draft: 0, final: 0 };
-            }
-            const status = norm(r.STATUS);
-            if (status === 'final') map[key].final++;
-            else map[key].draft++; // status lain (kosong dsb) dihitung sebagai draft
-        });
-        return Object.values(map).sort((a, b) => {
-            const timCompare = a.tim.localeCompare(b.tim, 'id');
-            if (timCompare !== 0) return timCompare;
-            return a.taskforce.localeCompare(b.taskforce, 'id');
-        });
-    }
-
     function renderRekapTable() {
         const container = document.getElementById('rekapTableContainer');
-        const filtered = getRekapFilteredData();
-        const rows = aggregateRekap(filtered);
+        const rows = urutkanRekap(getRekapFilteredData());
 
         if (rows.length === 0) {
             container.innerHTML = '<div class="small text-muted text-center fw-bold py-3">BELUM ADA DATA LAPORAN UNTUK FILTER INI.</div>';
@@ -3332,15 +3402,17 @@ sub = 'surat';
 
         let totalDraft = 0, totalFinal = 0;
         const bodyRows = rows.map((row, idx) => {
-            totalDraft += row.draft;
-            totalFinal += row.final;
-            const totalRow = row.draft + row.final;
+            const draft = row.draft || 0;
+            const final = row.final || 0;
+            totalDraft += draft;
+            totalFinal += final;
+            const totalRow = draft + final;
             return `<tr>
                 <td class="rekap-col-num">${idx + 1}</td>
-                <td>${escapeHtml(row.tim.toUpperCase())}</td>
-                <td>${escapeHtml(row.taskforce.toUpperCase())}</td>
-                <td class="rekap-col-num"><span class="report-status-badge status-draft">${row.draft}</span></td>
-                <td class="rekap-col-num"><span class="report-status-badge status-final">${row.final}</span></td>
+                <td>${escapeHtml(String(row.tim).toUpperCase())}</td>
+                <td>${escapeHtml(String(row.taskforce).toUpperCase())}</td>
+                <td class="rekap-col-num"><span class="report-status-badge status-draft">${draft}</span></td>
+                <td class="rekap-col-num"><span class="report-status-badge status-final">${final}</span></td>
                 <td class="rekap-col-num">${totalRow}</td>
             </tr>`;
         }).join('');
@@ -3383,9 +3455,9 @@ sub = 'surat';
         let totalDraft = 0, totalFinal = 0;
         const taskforceSet = {};
         filtered.forEach(r => {
-            if (norm(r.STATUS) === 'final') totalFinal++;
-            else totalDraft++;
-            const tf = String(r.TASKFORCE || '').trim();
+            totalDraft += (r.draft || 0);
+            totalFinal += (r.final || 0);
+            const tf = String(r.taskforce || '').trim();
             if (tf) taskforceSet[tf.toLowerCase()] = true;
         });
         const grandTotal = totalDraft + totalFinal;
@@ -3414,10 +3486,10 @@ sub = 'surat';
         // tsb) supaya kelihatan TIM mana yang progresnya paling banyak FINAL.
         const perTim = {};
         filtered.forEach(r => {
-            const tim = String(r.TIM || '-').trim() || '-';
+            const tim = String(r.tim || '-').trim() || '-';
             if (!perTim[tim]) perTim[tim] = { draft: 0, final: 0 };
-            if (norm(r.STATUS) === 'final') perTim[tim].final++;
-            else perTim[tim].draft++;
+            perTim[tim].draft += (r.draft || 0);
+            perTim[tim].final += (r.final || 0);
         });
         const timRows = Object.keys(perTim).sort((a, b) => a.localeCompare(b, 'id'));
 
