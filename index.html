@@ -1338,11 +1338,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- heic2any: konversi foto format HEIC/HEIF (default kamera iPhone) menjadi JPEG
-     langsung di browser, karena Chrome/Android/kebanyakan browser tidak bisa
-     mendekode HEIC lewat <img>/canvas. Dipakai di handleFileSelect() sebelum
-     foto dikompres seperti biasa. -->
-<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script>
 
     const CONFIG = {
@@ -1871,22 +1866,9 @@ const PHOTO_JPEG_QUALITY = 0.55;  // 0.0 - 1.0, turunkan dari 0.7 agar lebih rin
 const PHOTO_MAX_BASE64_BYTES = 400 * 1024; // batas aman 400KB untuk base64
     
     
-// Deteksi file HEIC/HEIF (format default kamera iPhone). Sengaja dicek dari
-// nama file JUGA (bukan cuma file.type), karena banyak browser/OS mengirim
-// file.type KOSONG untuk HEIC alih-alih "image/heic".
-function isHeicFile(file) {
-    const name = (file.name || '').toLowerCase();
-    const type = (file.type || '').toLowerCase();
-    return type === 'image/heic' || type === 'image/heif' ||
-           name.endsWith('.heic') || name.endsWith('.heif');
-}
-
 function handleFileSelect(event) {
     const file = event.target.files[0]; if (!file) return;
-    const isHeic = isHeicFile(file);
-    // Untuk HEIC, file.type sering kosong -- jadi validasi "harus image/..."
-    // dilewati khusus untuk HEIC (sudah dipastikan lewat isHeicFile di atas).
-    if (!isHeic && (!file.type || !file.type.startsWith('image/'))) {
+    if (!file.type || !file.type.startsWith('image/')) {
     alert('BERKAS HARUS BERUPA FOTO/GAMBAR!'); event.target.value = ''; return;
     }
     
@@ -1899,32 +1881,8 @@ function handleFileSelect(event) {
     
     document.getElementById('reportFotoFilename').value = 'photo.jpg';
     document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MEMPROSES & MENGOMPRESI FOTO...</div>';
-
-    // Kalau HEIC/HEIF, konversi ke JPEG dulu pakai heic2any (di browser)
-    // sebelum masuk ke alur kompresi <canvas> yang sudah ada. Format lain
-    // (JPEG/PNG/WEBP dst) langsung lanjut seperti biasa.
-    let filePromise;
-    if (isHeic) {
-        document.getElementById('fotoPreview').innerHTML = '<div class="small text-muted fw-bold">⏳ MENGONVERSI FOTO HEIC KE JPEG...</div>';
-        filePromise = heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 })
-            .then(function(converted) {
-                // heic2any bisa mengembalikan ARRAY kalau file HEIC berisi
-                // beberapa gambar (mis. Live Photo) -- ambil yang pertama saja.
-                return Array.isArray(converted) ? converted[0] : converted;
-            })
-            .catch(function(err) {
-                throw new Error('GAGAL MENGONVERSI FOTO HEIC: ' +
-                    (err && err.message ? err.message : 'FORMAT TIDAK DIDUKUNG BROWSER INI') +
-                    '. COBA SCREENSHOT FOTO TERSEBUT LALU UPLOAD ULANG, ATAU GANTI SETTING KAMERA HP KE "MOST COMPATIBLE/JPEG".');
-            });
-    } else {
-        filePromise = Promise.resolve(file);
-    }
-
-    filePromise
-    .then(function(fileSiapKompres) {
-        return compressImageFile(fileSiapKompres, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY);
-    })
+    
+    compressImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY)
     .then(function(dataUrl) {
     // ✅ VALIDASI: Cek ukuran base64 hasil kompresi
     const base64Size = Math.round((dataUrl.length * 0.75) / 1024);
@@ -4395,6 +4353,7 @@ if (res.role === 'asesor') {
             container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT DAFTAR PRINT FINAL.</div>';
         }
     }
+    
 
     // norm() versi javascript sederhana, dipakai untuk perbandingan status
     // di sisi client (mirip helper norm() di backend Apps Script).
