@@ -2506,7 +2506,7 @@ u
             : `${formatPrintDayDate(tglBerangkat)} s/d ${formatPrintDayDate(tglPulang)}`;
         const tglSurat = String(r['TANGGAL SURAT TUGAS'] || '').split('T')[0];
 
-        const tujuanLokasi = [r['NAMA SLS'], r.ID_SubSLS].filter(Boolean).map(v => String(v).trim()).join(' / ');
+        const tujuanLokasi = [String(r.TUGAS || '-').toUpperCase(), r.TIM ? String(r.TIM).toUpperCase() : ''].filter(Boolean).join(' - ');
         const namaPelaksana = [r.TASKFORCE, r.NIP ? `NIP ${r.NIP}` : ''].filter(Boolean).join(' - ');
         const detailWilayah = [
             r.TIM ? `TIM ${escapeHtml(r.TIM)}` : '',
@@ -2539,7 +2539,7 @@ u
                         </tr>
                         <tr>
                             <td class="label">Tujuan Tugas</td>
-                            <td class="value">${escapeHtml([String(r.TUGAS || '-').toUpperCase(), r.TIM ? ('TIM ' + String(r.TIM).toUpperCase()) : ''].filter(Boolean).join(' - '))}</td>
+                            <td class="value">${escapeHtml(String(r.TUGAS || '-').toUpperCase())}</td>
                             <td class="label">Tanggal Surat</td>
                             <td class="value">${formatPrintDate(tglSurat)}</td>
                         </tr>
