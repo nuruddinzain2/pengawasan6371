@@ -2539,7 +2539,7 @@ u
                         </tr>
                         <tr>
                             <td class="label">Tujuan Tugas</td>
-                            <td class="value">${escapeHtml(String(r.TUGAS || '-').toUpperCase())}</td>
+                            <td class="value">${escapeHtml([String(r.TUGAS || '-').toUpperCase(), r.TIM ? ('TIM ' + String(r.TIM).toUpperCase()) : ''].filter(Boolean).join(' - '))}</td>
                             <td class="label">Tanggal Surat</td>
                             <td class="value">${formatPrintDate(tglSurat)}</td>
                         </tr>
