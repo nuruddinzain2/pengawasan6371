@@ -2506,7 +2506,7 @@ u
             : `${formatPrintDayDate(tglBerangkat)} s/d ${formatPrintDayDate(tglPulang)}`;
         const tglSurat = String(r['TANGGAL SURAT TUGAS'] || '').split('T')[0];
 
-        const tujuanLokasi = [r['NAMA SLS'], r.ID_SubSLS].filter(Boolean).map(v => String(v).trim()).join(' / ');
+        const tujuanLokasi = [String(r.TUGAS || '-').toUpperCase(), r.TIM ? String(r.TIM).toUpperCase() : ''].filter(Boolean).join(' - ');
         const namaPelaksana = [r.TASKFORCE, r.NIP ? `NIP ${r.NIP}` : ''].filter(Boolean).join(' - ');
         const detailWilayah = [
             r.TIM ? `TIM ${escapeHtml(r.TIM)}` : '',
