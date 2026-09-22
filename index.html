@@ -1391,16 +1391,12 @@
     // server, lalu menyimpannya ke kuotaAktifSaatIni supaya SISA KUOTA di
     // form laporan ikut berubah kalau admin/ketua sudah mengubah kuota.
     //
-    // Catatan penting: endpoint yang dipakai di sini ('getAllKuota') adalah
-    // endpoint yang sama dipakai di menu KELOLA > ANGGOTA & KUOTA, yang di
-    // backend kemungkinan besar hanya mengizinkan requester ber-role KETUA
-    // atau ADMIN. Kalau backend menolak permintaan ini untuk role ANGGOTA
-    // biasa, fungsi ini akan diam-diam gagal dan otomatis kembali memakai
-    // CONFIG.KUOTA_DEFAULT (perilaku lama) supaya form tetap tampil normal.
-    // Supaya ANGGOTA biasa juga bisa dapat kuota aktualnya, backend (Apps
-    // Script) idealnya ditambah 1 action ringan (mis. 'getMyKuota') yang
-    // boleh dipanggil siapa saja untuk membaca kuota TIM+TASKFORCE miliknya
-    // sendiri, tanpa perlu jadi KETUA/ADMIN.
+    // Dipakai action 'getKuota' (BUKAN 'getAllKuota') karena di backend
+    // (Code.gs) apiGetKuota() sengaja TIDAK dibatasi role -- boleh dipanggil
+    // ANGGOTA biasa untuk membaca kuota TIM+TASKFORCE-nya sendiri.
+    // 'getAllKuota' sebelumnya dipakai di sini SALAH, karena backend-nya
+    // menolak permintaan itu untuk role ANGGOTA (hanya KETUA/ADMIN yang
+    // diizinkan), sehingga selalu diam-diam fallback ke KUOTA_DEFAULT (20).
     async function refreshKuotaAktif() {
         const tim = (document.getElementById('reportTim') || {}).value;
         const taskforce = state.taskforce || (document.getElementById('reportTaskforce') || {}).value;
@@ -1410,10 +1406,9 @@
             return;
         }
         try {
-            const res = await callApi({ action: 'getAllKuota', nip: state.nip, requester_taskforce: state.taskforce, tim: tim });
-            if (res && res.success && Array.isArray(res.data)) {
-                const row = res.data.find(r => norm(r.taskforce) === norm(taskforce));
-                kuotaAktifSaatIni = row ? Number(row.kuota) : CONFIG.KUOTA_DEFAULT;
+            const res = await callApi({ action: 'getKuota', tim: tim, taskforce: taskforce });
+            if (res && res.success && res.data && !Number.isNaN(Number(res.data.kuota))) {
+                kuotaAktifSaatIni = Number(res.data.kuota);
             } else {
                 kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
             }
