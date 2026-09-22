@@ -1397,11 +1397,45 @@
     // 'getAllKuota' sebelumnya dipakai di sini SALAH, karena backend-nya
     // menolak permintaan itu untuk role ANGGOTA (hanya KETUA/ADMIN yang
     // diizinkan), sehingga selalu diam-diam fallback ke KUOTA_DEFAULT (20).
+    // Total HARI yang sudah "terpakai" dari laporan-laporan berstatus FINAL
+    // milik pengguna ini untuk TIM yang sedang dipilih (laporan DRAFT
+    // SENGAJA TIDAK DIHITUNG DI SINI -- kuota hanya berkurang oleh laporan
+    // yang sudah benar-benar FINAL, sesuai aturan bisnisnya). Dipakai oleh
+    // updateSisaKuota() supaya SISA KUOTA yang tampil di form adalah
+    // "kuota TIM dikurangi total hari FINAL yang sudah ada, dikurangi hari
+    // di form yang sedang diisi sekarang" -- bukan cuma dikurangi hari di
+    // form saja seperti sebelumnya.
+    let kuotaTerpakaiFinal = 0;
+
+    // Mengambil & menjumlahkan KUNJUNGAN (jumlah hari) dari seluruh laporan
+    // FINAL milik NIP yang sedang login, untuk TIM yang sedang dipilih di
+    // form. Laporan yang SEDANG DIEDIT (reportId saat ini) DIKECUALIKAN
+    // dari penjumlahan ini, supaya tidak terhitung dobel dengan hari yang
+    // sudah otomatis ditambahkan lewat form yang sedang dibuka.
+    async function refreshKuotaTerpakaiFinal(tim) {
+        kuotaTerpakaiFinal = 0;
+        if (!tim) return;
+        try {
+            const res = await callApi({ action: 'getMyReports', nip: state.nip, status: 'final' });
+            if (!res || !res.success || !Array.isArray(res.data)) return;
+            const idSedangDiedit = (document.getElementById('reportId') || {}).value || '';
+            kuotaTerpakaiFinal = res.data.reduce((total, r) => {
+                if (idSedangDiedit && String(r.ID) === String(idSedangDiedit)) return total; // kecualikan diri sendiri saat edit
+                if (norm(r.TIM) !== norm(tim)) return total; // hanya TIM yang sama dengan yang sedang dipilih
+                const hari = Number(r.KUNJUNGAN) || 0;
+                return total + hari;
+            }, 0);
+        } catch (e) {
+            kuotaTerpakaiFinal = 0;
+        }
+    }
+
     async function refreshKuotaAktif() {
         const tim = (document.getElementById('reportTim') || {}).value;
         const taskforce = state.taskforce || (document.getElementById('reportTaskforce') || {}).value;
         if (!tim || !taskforce) {
             kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
+            kuotaTerpakaiFinal = 0;
             updateSisaKuota();
             return;
         }
@@ -1415,6 +1449,7 @@
         } catch (e) {
             kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
         }
+        await refreshKuotaTerpakaiFinal(tim);
         updateSisaKuota();
     }
 
@@ -1924,7 +1959,9 @@ async function loadTaskforceDropdown(overrideTaskforce) {
         }
 
         document.getElementById('reportKunjungan').value = jumlahHari;
-        document.getElementById('reportSisaKuota').value = kuotaAktifSaatIni - jumlahHari;
+        // SISA KUOTA = kuota TIM - total hari yang SUDAH FINAL sebelumnya - hari di form ini.
+        // Laporan berstatus DRAFT sengaja tidak ikut mengurangi (lihat kuotaTerpakaiFinal).
+        document.getElementById('reportSisaKuota').value = kuotaAktifSaatIni - kuotaTerpakaiFinal - jumlahHari;
     }
 
     // Foto dari kamera biasanya sudah otomatis kecil, tapi foto dari GALERI sering
