@@ -595,6 +595,13 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+            /* Print massal (checklist): tiap laporan mulai di halaman baru,
+               kecuali laporan yang terakhir (supaya tidak ada halaman
+               kosong tambahan di akhir). */
+            .print-page:not(:last-child) {
+                page-break-after: always;
+                break-after: page;
+            }
             .print-sheet {
                 border: 1.5px solid #000;
                 padding: 14px 16px;
@@ -949,7 +956,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label">TIM</label>
-                            <select id="reportTim" class="form-select" onchange="loadTaskforceDropdown()" required>
+                            <select id="reportTim" class="form-select" onchange="loadTaskforceDropdown(); refreshKuotaAktif();" required>
                                 <option value="">-- PILIH TIM --</option>
                             </select>
                         </div>
@@ -1061,7 +1068,31 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold text-uppercase mb-0">MENU PRINT LAPORAN FINAL</h6>
                 </div>
-                <div class="print-access-note">Di tab ini hanya ditampilkan laporan berstatus `FINAL`. Tombol cetak aktif saat dibuka dari PC/laptop.</div>
+                <div class="print-access-note">Di tab ini hanya ditampilkan laporan berstatus `FINAL`. Tombol cetak aktif saat dibuka dari PC/laptop. <span id="printScopeNote"></span></div>
+
+                <!-- Filter TIM & ANGGOTA -- hanya tampil untuk ADMIN karena hanya ADMIN yang
+                     melihat laporan FINAL milik semua anggota lintas TIM sekaligus. -->
+                <div id="printAdminFilterBox" class="row g-2 mb-2" style="display:none;">
+                    <div class="col-md-6">
+                        <select id="printFilterTim" class="form-select form-select-sm" onchange="applyPrintFilters()">
+                            <option value="">SEMUA TIM</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <select id="printFilterTaskforce" class="form-select form-select-sm" onchange="applyPrintFilters()">
+                            <option value="">SEMUA ANGGOTA</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="printSelectAll" onchange="togglePrintSelectAll(this)">
+                        <label class="form-check-label small fw-bold text-uppercase" for="printSelectAll">PILIH SEMUA</label>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="printSelectedReports()">🖨️ PRINT YANG DICENTANG</button>
+                </div>
+
                 <div id="printListContainer"></div>
             </div>
 
@@ -1347,6 +1378,75 @@
     };
 
     let state = { nip: '', taskforce: '', isLoggedIn: false, role: 'anggota', managedTeams: [], viewableTeams: [] };
+
+    // Kuota yang SEBENARNYA dipakai untuk hitung SISA KUOTA di form laporan.
+    // Defaultnya sama seperti sebelumnya (CONFIG.KUOTA_DEFAULT), tapi akan
+    // ditimpa oleh angka kuota ASLI dari server begitu berhasil diambil
+    // (lihat refreshKuotaAktif()). Ini yang memperbaiki bug "kuota diubah
+    // admin tapi form tetap baca 20" -- sebelumnya updateSisaKuota() SELALU
+    // pakai CONFIG.KUOTA_DEFAULT dan tidak pernah tanya server sama sekali.
+    let kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
+
+    // Total HARI yang sudah "terpakai" dari laporan-laporan berstatus FINAL
+    // milik pengguna ini untuk TIM yang sedang dipilih (laporan DRAFT
+    // SENGAJA TIDAK DIHITUNG -- kuota hanya berkurang oleh laporan yang
+    // sudah benar-benar FINAL). Diisi oleh refreshKuotaAktif() lewat action
+    // 'getKuotaInfo', dipakai oleh updateSisaKuota().
+    let kuotaTerpakaiFinal = 0;
+
+    // Mengambil kuota TIM+TASKFORCE milik pengguna yang sedang login dari
+    // server, lalu menyimpannya ke kuotaAktifSaatIni supaya SISA KUOTA di
+    // form laporan ikut berubah kalau admin/ketua sudah mengubah kuota.
+    //
+    // Dipakai action 'getKuota' (BUKAN 'getAllKuota') karena di backend
+    // (Code.gs) apiGetKuota() sengaja TIDAK dibatasi role -- boleh dipanggil
+    // ANGGOTA biasa untuk membaca kuota TIM+TASKFORCE-nya sendiri.
+    // 'getAllKuota' sebelumnya dipakai di sini SALAH, karena backend-nya
+    // menolak permintaan itu untuk role ANGGOTA (hanya KETUA/ADMIN yang
+    // diizinkan), sehingga selalu diam-diam fallback ke KUOTA_DEFAULT (20).
+    // Mengambil kuota EFEKTIF + kuota yang sudah TERPAKAI dari laporan FINAL
+    // DALAM SATU PANGGILAN API SEKALIGUS (action 'getKuotaInfo'), supaya
+    // memilih TIM di form tidak terasa lambat.
+    //
+    // CATATAN PERFORMA: sebelumnya bagian ini memanggil 2 action terpisah
+    // (getKuota, lalu getMyReports yang membaca SELURUH kolom SELURUH
+    // baris sheet HASIL -- termasuk URAIAN KEGIATAN & link FOTO yang berat)
+    // setiap kali TIM dipilih. Itu yang membuat form terasa lambat. Sekarang
+    // diganti 1 panggilan ke 'getKuotaInfo', yang di backend hanya membaca
+    // 5 kolom (ID, NIP, TIM, STATUS, KUNJUNGAN) lewat getRange(), bukan
+    // seluruh sheet.
+    async function refreshKuotaAktif() {
+        const tim = (document.getElementById('reportTim') || {}).value;
+        const taskforce = state.taskforce || (document.getElementById('reportTaskforce') || {}).value;
+        const idSedangDiedit = (document.getElementById('reportId') || {}).value || '';
+
+        if (!tim || !taskforce) {
+            kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
+            kuotaTerpakaiFinal = 0;
+            updateSisaKuota();
+            return;
+        }
+        try {
+            const res = await callApi({
+                action: 'getKuotaInfo',
+                tim: tim,
+                taskforce: taskforce,
+                nip: state.nip,
+                exclude_id: idSedangDiedit
+            });
+            if (res && res.success && res.data) {
+                kuotaAktifSaatIni = Number.isNaN(Number(res.data.kuota)) ? CONFIG.KUOTA_DEFAULT : Number(res.data.kuota);
+                kuotaTerpakaiFinal = Number(res.data.total_kunjungan_final) || 0;
+            } else {
+                kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
+                kuotaTerpakaiFinal = 0;
+            }
+        } catch (e) {
+            kuotaAktifSaatIni = CONFIG.KUOTA_DEFAULT;
+            kuotaTerpakaiFinal = 0;
+        }
+        updateSisaKuota();
+    }
 
     function showAlert(containerId, message, type) {
         const container = document.getElementById(containerId);
@@ -1854,7 +1954,9 @@ async function loadTaskforceDropdown(overrideTaskforce) {
         }
 
         document.getElementById('reportKunjungan').value = jumlahHari;
-        document.getElementById('reportSisaKuota').value = CONFIG.KUOTA_DEFAULT - jumlahHari;
+        // SISA KUOTA = kuota TIM - total hari yang SUDAH FINAL sebelumnya - hari di form ini.
+        // Laporan berstatus DRAFT sengaja tidak ikut mengurangi (lihat kuotaTerpakaiFinal).
+        document.getElementById('reportSisaKuota').value = kuotaAktifSaatIni - kuotaTerpakaiFinal - jumlahHari;
     }
 
     // Foto dari kamera biasanya sudah otomatis kecil, tapi foto dari GALERI sering
@@ -2396,6 +2498,7 @@ try {
   await loadTimDropdown();
   // ✅ FIX: Tambahkan .trim() untuk mencegah kegagalan pencocokan nilai option akibat spasi tersembunyi
   document.getElementById('reportTim').value = String(r.TIM || '').trim();
+  refreshKuotaAktif(); // pastikan SISA KUOTA saat edit juga pakai kuota TERBARU dari server, bukan angka lama
   
   // ✅ FIX: Kirim r.TASKFORCE agar API memfilter berdasarkan taskforce pemilik laporan, 
   // bukan taskforce Admin/Asesor yang sedang mengedit.
@@ -2484,17 +2587,11 @@ return [
 u
 ];
 }
-    function printReport(id) {
-        const r = reportListCache[id];
-        if (!r) {
-            alert('DATA LAPORAN TIDAK DITEMUKAN. SILAKAN MUAT ULANG RIWAYAT.');
-            return;
-        }
-        if (norm(r.STATUS) !== 'final') {
-            alert('HANYA LAPORAN DENGAN STATUS FINAL YANG DAPAT DICETAK.');
-            return;
-        }
-
+    // Membangun HTML satu lembar cetak (satu laporan) sebagai STRING saja,
+    // tanpa langsung menaruhnya ke DOM atau memanggil print. Dipakai baik
+    // oleh printReport() (cetak 1 laporan) maupun printSelectedReports()
+    // (cetak banyak laporan sekaligus, tinggal digabung/di-join per laporan).
+    function buildPrintBlockHtml(r) {
         const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
         const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
         const rentangTglRaw = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
@@ -2516,11 +2613,15 @@ u
         const uraian = escapeHtml(r['URAIAN KEGIATAN'] || '-').replace(/\n/g, '<br>');
         const fotoUrl = String(r.FOTO || '').trim();
         const fotoUrlAttr = fotoUrl.replace(/"/g, '&quot;');
+        // ✅ Tidak lagi pakai id="printFotoImg" (id harus unik di halaman),
+        // karena print massal bisa menaruh banyak <img> sekaligus di
+        // #printArea. Sekarang dipakai class + atribut data-foto-url, lalu
+        // semuanya diproses bersama oleh waitForPrintImages().
         const fotoHtml = fotoUrl
-            ? `<img id="printFotoImg" src="${fotoUrlAttr}" alt="Dokumentasi kegiatan" crossorigin="anonymous" referrerpolicy="no-referrer">`
+            ? `<img class="print-foto-img" data-foto-url="${fotoUrlAttr}" alt="Dokumentasi kegiatan" crossorigin="anonymous" referrerpolicy="no-referrer">`
             : `<div class="print-photo-empty">Belum ada foto kegiatan</div>`;
 
-        document.getElementById('printArea').innerHTML = `
+        return `
             <div class="print-page">
                 <div class="print-sheet">
                     <div class="print-title">Laporan Kegiatan</div>
@@ -2582,79 +2683,135 @@ u
                 </div>
             </div>
         `;
-// Penting: tunggu gambar selesai dimuat dulu sebelum memanggil print,
-// kalau tidak sering kejadian gambar kosong saat dialog print muncul.
-const doPrint = () => setTimeout(() => window.print(), 60);
-if (fotoUrl) {
-const fotoBox = document.getElementById('printFotoBox');
-const img = document.getElementById('printFotoImg');
-if (!img) {
-doPrint();
-return;
-}
-let done = false;
-const finish = () => {
-if (done) return;
-done = true;
-doPrint();
-};
-const candidates = buildPhotoCandidates(fotoUrl);
-let idx = 0;
-// ✅ FIX: Tambah log untuk debug URL mana yang berhasil/gagal
-console.log('[PRINT] Mencoba load foto dari URL:', candidates[0]);
+    }
 
-const tryNext = () => {
-idx += 1;
-if (idx >= candidates.length) {
-console.warn('[PRINT] Semua URL gagal, print tanpa foto');
-if (fotoBox) {
-fotoBox.innerHTML = '<div class="print-photo-empty">⚠️ Foto tidak dapat dimuat. Pastikan file di Google Drive di-set "Anyone with the link can view".</div>';
-}
-finish();
-return;
-}
-console.log('[PRINT] Coba URL ke-' + idx + ':', candidates[idx]);
-img.src = candidates[idx];
-};
+    // Menunggu SEMUA foto (<img class="print-foto-img">) di dalam containerEl
+    // selesai dicoba dimuat -- masing-masing lewat urutan kandidat URL dari
+    // buildPhotoCandidates() -- baru memanggil callback() sekali. Dipakai baik
+    // untuk cetak 1 laporan maupun cetak banyak laporan sekaligus supaya tidak
+    // ada foto yang masih kosong saat dialog print muncul.
+    function waitForPrintImages(containerEl, callback) {
+        const imgs = Array.from(containerEl.querySelectorAll('img.print-foto-img'));
+        if (imgs.length === 0) {
+            callback();
+            return;
+        }
+        let sisa = imgs.length;
+        let sudahJalan = false;
+        const jalankanCallback = () => {
+            if (sudahJalan) return;
+            sudahJalan = true;
+            callback();
+        };
+        const tandaiSelesaiSatu = () => {
+            sisa -= 1;
+            if (sisa <= 0) jalankanCallback();
+        };
 
-// ✅ FIX: Reset handler sebelumnya (kalau ada)
-img.onload = null;
-img.onerror = null;
+        imgs.forEach(img => {
+            const fotoUrl = img.getAttribute('data-foto-url') || '';
+            const candidates = buildPhotoCandidates(fotoUrl);
+            let idx = 0;
+            let selesai = false;
+            const selesaikanSatuGambar = () => {
+                if (selesai) return;
+                selesai = true;
+                tandaiSelesaiSatu();
+            };
+            const tryNext = () => {
+                idx += 1;
+                if (idx >= candidates.length) {
+                    const box = img.closest('.print-photo-box');
+                    if (box) {
+                        box.innerHTML = '<div class="print-photo-empty">⚠️ Foto tidak dapat dimuat. Pastikan file di Google Drive di-set "Anyone with the link can view".</div>';
+                    }
+                    selesaikanSatuGambar();
+                    return;
+                }
+                img.src = candidates[idx];
+            };
+            img.onload = () => {
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                    selesaikanSatuGambar();
+                } else {
+                    tryNext();
+                }
+            };
+            img.onerror = () => tryNext();
 
-img.onload = () => {
-// ✅ FIX: Cek apakah gambar benar-benar valid (bukan 0x0 atau hitam)
-if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-console.log('[PRINT] Foto berhasil dimuat:', img.naturalWidth + 'x' + img.naturalHeight);
-finish();
-} else {
-console.warn('[PRINT] Gambar 0x0, coba URL lain');
-tryNext();
-}
-};
+            if (candidates.length > 0) {
+                img.src = candidates[0];
+            } else {
+                selesaikanSatuGambar();
+            }
+            try {
+                if (img.decode) {
+                    img.decode().then(() => {
+                        if (img.naturalWidth > 0) selesaikanSatuGambar();
+                    }).catch(() => {});
+                }
+            } catch (e) {}
 
-img.onerror = (e) => {
-console.warn('[PRINT] Gagal load URL ke-' + idx + ':', candidates[idx]);
-tryNext();
-};
+            // Jaga-jaga per gambar: jangan sampai satu foto bermasalah membuat
+            // seluruh proses cetak macet selamanya.
+            setTimeout(selesaikanSatuGambar, 10000);
+        });
+    }
 
-// Mulai dari kandidat pertama
-if (candidates.length > 0) img.src = candidates[0];
+    // Cetak SATU laporan (tombol "🖨️ PRINT FINAL" di setiap kartu laporan).
+    function printReport(id) {
+        const r = reportListCache[id];
+        if (!r) {
+            alert('DATA LAPORAN TIDAK DITEMUKAN. SILAKAN MUAT ULANG RIWAYAT.');
+            return;
+        }
+        if (norm(r.STATUS) !== 'final') {
+            alert('HANYA LAPORAN DENGAN STATUS FINAL YANG DAPAT DICETAK.');
+            return;
+        }
+        const printArea = document.getElementById('printArea');
+        printArea.innerHTML = buildPrintBlockHtml(r);
+        waitForPrintImages(printArea, () => setTimeout(() => window.print(), 60));
+    }
 
-// ✅ FIX: decode() untuk memastikan gambar siap dirender
-try {
-if (img.decode) {
-img.decode().then(() => {
-if (img.naturalWidth > 0) finish();
-}).catch(() => {});
-}
-} catch (e) {}
+    // =====================================================================
+    // PRINT MASSAL: cetak sekaligus semua laporan FINAL yang dicentang di
+    // tab PRINT (bisa lintas TIM, dan -- khusus ADMIN -- lintas ANGGOTA).
+    // Setiap laporan tercetak di halaman terpisah (lihat CSS
+    // .print-page:not(:last-child) { page-break-after: always; }).
+    // =====================================================================
+    function printSelectedReports() {
+        const checked = Array.from(document.querySelectorAll('#printListContainer .print-select-checkbox:checked'));
+        if (checked.length === 0) {
+            alert('CENTANG MINIMAL SATU LAPORAN UNTUK DICETAK.');
+            return;
+        }
 
-// Fallback: print tetap jalan setelah 10 detik
-setTimeout(finish, 10000);
-} else {
-doPrint();
-}
-    } // ✅ FIX: penutup fungsi printReport(id) yang sebelumnya hilang, menyebabkan seluruh script gagal di-parse browser
+        const ids = checked.map(cb => cb.value);
+        const rows = ids.map(id => reportListCache[id]).filter(Boolean);
+
+        if (rows.length !== ids.length) {
+            alert('SEBAGIAN LAPORAN YANG DICENTANG TIDAK DITEMUKAN. SILAKAN MUAT ULANG DAFTAR PRINT.');
+            return;
+        }
+        const bukanFinal = rows.filter(r => norm(r.STATUS) !== 'final');
+        if (bukanFinal.length > 0) {
+            alert('HANYA LAPORAN BERSTATUS FINAL YANG DAPAT DICETAK.');
+            return;
+        }
+
+        const printArea = document.getElementById('printArea');
+        printArea.innerHTML = rows.map(r => buildPrintBlockHtml(r)).join('');
+        waitForPrintImages(printArea, () => setTimeout(() => window.print(), 60));
+    }
+
+    // Centang/hapus centang semua laporan yang sedang tampil di daftar PRINT
+    // (mengikuti filter TIM/ANGGOTA yang aktif, khusus untuk ADMIN).
+    function togglePrintSelectAll(checkboxEl) {
+        document.querySelectorAll('#printListContainer .print-select-checkbox').forEach(cb => {
+            cb.checked = checkboxEl.checked;
+        });
+    }
 
     // =====================================================================
     // TAB KELOLA: anggota, kuota, dan (khusus ADMIN) kelola KETUA TIM.
@@ -4260,20 +4417,27 @@ if (res.role === 'asesor') {
             return;
         }
 
+        // Khusus ADMIN (yang melihat laporan lintas ANGGOTA), tampilkan juga
+        // nama TASKFORCE pemilik laporan supaya tidak tertukar saat mencentang.
+        const tampilkanPemilik = state.role === 'admin';
+
         container.innerHTML = '<ul class="list-group small fw-bold">';
         data.forEach(r => {
             reportListCache[r.ID] = r;
+            const idAman = escapeHtml(String(r.ID));
             const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
             const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
             const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
-          
-          
+            const labelPemilik = tampilkanPemilik ? ` - ${escapeHtml(String(r.TASKFORCE || '-').toUpperCase())}` : '';
+
             container.innerHTML += `<li class="list-group-item">
-                <div class="d-flex justify-content-between align-items-center">
-         
-         <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
-         
-         
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="form-check flex-grow-1 mb-0">
+                        <input class="form-check-input print-select-checkbox" type="checkbox" value="${idAman}" id="printChk_${idAman}">
+                        <label class="form-check-label" for="printChk_${idAman}">
+                            <b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()}${labelPemilik} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})
+                        </label>
+                    </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="report-status-badge status-final">FINAL</span>
                     </div>
@@ -4339,19 +4503,126 @@ if (res.role === 'asesor') {
         }
     }
 
+    // Data mentah laporan FINAL yang sedang dimuat di tab PRINT, SEBELUM
+    // difilter TIM/ANGGOTA (khusus tampilan ADMIN). Untuk ANGGOTA biasa ini
+    // otomatis cuma berisi laporan miliknya sendiri (server yang menjamin,
+    // lewat action 'getMyReports').
+    let printAllData = [];
+    let printFilterTimTerisi = false;
+
     async function loadPrintReports() {
         const container = document.getElementById('printListContainer');
+        const filterBox = document.getElementById('printAdminFilterBox');
+        const scopeNote = document.getElementById('printScopeNote');
         container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT LAPORAN FINAL...</div>';
+
+        const isAdmin = state.role === 'admin';
+        if (filterBox) filterBox.style.display = isAdmin ? 'flex' : 'none';
+        if (scopeNote) {
+            scopeNote.textContent = isAdmin
+                ? 'ANDA LOGIN SEBAGAI ADMIN: LAPORAN FINAL SEMUA ANGGOTA & TIM DITAMPILKAN.'
+                : 'HANYA LAPORAN FINAL MILIK ANDA SENDIRI YANG DITAMPILKAN.';
+        }
+
         try {
-            const res = await callApi({ action: 'getMyReports', nip: state.nip, status: 'final' });
-            if (res.success) {
-                renderFinalPrintCards('printListContainer', res.data || []);
+            let data = [];
+            if (isAdmin) {
+                // ADMIN: ambil laporan FINAL lintas semua TIM & semua ANGGOTA,
+                // pakai action yang sama dipakai menu KELOLA > SURAT TUGAS
+                // (tim kosong = semua TIM, status 'final' = hanya yang final).
+                const res = await callApi({
+                    action: 'getKelolaSuratTugas',
+                    nip: state.nip,
+                    requester_taskforce: state.taskforce,
+                    tim: '',
+                    status: 'final'
+                });
+                if (!res.success) {
+                    container.innerHTML = `<div class="small text-danger text-center fw-bold">❌ ${(res.message || 'GAGAL MEMUAT DAFTAR PRINT FINAL.').toUpperCase()}</div>`;
+                    return;
+                }
+                data = (res.data || []).filter(r => norm(r.STATUS) === 'final');
             } else {
-                container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT DAFTAR PRINT FINAL.</div>';
+                // ANGGOTA (dan role lain selain admin): hanya laporan final miliknya sendiri.
+                const res = await callApi({ action: 'getMyReports', nip: state.nip, status: 'final' });
+                if (!res.success) {
+                    container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT DAFTAR PRINT FINAL.</div>';
+                    return;
+                }
+                data = res.data || [];
             }
+
+            printAllData = data;
+            if (isAdmin) isiFilterPrintTim(data);
+            applyPrintFilters();
         } catch (e) {
             container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT DAFTAR PRINT FINAL.</div>';
         }
+    }
+
+    // Mengisi dropdown filter TIM (khusus ADMIN) hanya sekali per pemuatan
+    // data, supaya pilihan tidak ke-reset tiap kali reload.
+    function isiFilterPrintTim(data) {
+        if (printFilterTimTerisi) return;
+        const select = document.getElementById('printFilterTim');
+        if (!select) return;
+        const seen = {};
+        data.forEach(r => {
+            const tim = String(r.TIM || '').trim();
+            if (tim && !seen[tim.toLowerCase()]) {
+                seen[tim.toLowerCase()] = true;
+                const opt = document.createElement('option');
+                opt.value = tim;
+                opt.textContent = tim.toUpperCase();
+                select.appendChild(opt);
+            }
+        });
+        if (Object.keys(seen).length > 0) printFilterTimTerisi = true;
+        isiFilterPrintTaskforce(data, '');
+    }
+
+    // Dropdown filter ANGGOTA (khusus ADMIN) mengikuti TIM yang dipilih.
+    function isiFilterPrintTaskforce(data, timAktif) {
+        const select = document.getElementById('printFilterTaskforce');
+        if (!select) return;
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">SEMUA ANGGOTA</option>';
+        const seen = {};
+        data.forEach(r => {
+            const tim = String(r.TIM || '').trim();
+            const tf = String(r.TASKFORCE || '').trim();
+            if (!tf) return;
+            if (timAktif && norm(tim) !== norm(timAktif)) return;
+            if (!seen[tf.toLowerCase()]) {
+                seen[tf.toLowerCase()] = true;
+                const opt = document.createElement('option');
+                opt.value = tf;
+                opt.textContent = tf.toUpperCase();
+                select.appendChild(opt);
+            }
+        });
+        if (currentVal && seen[currentVal.toLowerCase()]) select.value = currentVal;
+    }
+
+    // Menerapkan filter TIM/ANGGOTA (khusus ADMIN) ke printAllData, lalu
+    // merender ulang daftar checklist di tab PRINT.
+    function applyPrintFilters() {
+        const timSelect = document.getElementById('printFilterTim');
+        const tfSelect = document.getElementById('printFilterTaskforce');
+        const timFilter = timSelect ? timSelect.value : '';
+        const tfFilter = tfSelect ? tfSelect.value : '';
+
+        if (timSelect) isiFilterPrintTaskforce(printAllData, timFilter);
+
+        const filtered = printAllData.filter(r => {
+            if (timFilter && norm(r.TIM) !== norm(timFilter)) return false;
+            if (tfFilter && norm(r.TASKFORCE) !== norm(tfFilter)) return false;
+            return true;
+        });
+
+        renderFinalPrintCards('printListContainer', filtered);
+        const selectAll = document.getElementById('printSelectAll');
+        if (selectAll) selectAll.checked = false;
     }
     
 
