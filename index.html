@@ -1029,13 +1029,18 @@
             </div>
 
             <div id="tabList" class="tab-content" style="display: none;">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold text-uppercase">RIWAYAT PELAPORAN ANDA</h6>
-                    <select id="filterStatus" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="loadReports()">
-                        <option value="">SEMUA STATUS</option>
-                        <option value="draft">DRAFT</option>
-                        <option value="final">FINAL</option>
-                    </select>
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                    <h6 class="fw-bold text-uppercase mb-0">RIWAYAT PELAPORAN ANDA</h6>
+                    <div class="d-flex gap-2">
+                        <select id="filterRiwayatTim" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="applyRiwayatFilter()">
+                            <option value="">SEMUA TIM</option>
+                        </select>
+                        <select id="filterStatus" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="loadReports()">
+                            <option value="">SEMUA STATUS</option>
+                            <option value="draft">DRAFT</option>
+                            <option value="final">FINAL</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="print-access-note">Menu `PRINT FINAL` hanya muncul di PC/laptop dan hanya dapat dipakai untuk laporan yang sudah berstatus final.</div>
                 <div id="reportListContainer"></div>
@@ -4343,50 +4348,102 @@ if (res.role === 'asesor') {
 
 
 
+    // Data mentah hasil fetch terakhir dari server untuk tab RIWAYAT (sudah
+    // difilter STATUS oleh server, TAPI BELUM difilter TIM). Filter TIM
+    // dilakukan di CLIENT SIDE dari data ini (applyRiwayatFilter()), supaya
+    // ganti-ganti TIM tidak perlu fetch ulang ke server -- cuma render ulang.
+    let riwayatAllData = [];
+    let riwayatFilterTimTerisi = false;
+
+    // Mengisi dropdown filter TIM di tab RIWAYAT dari data yang baru saja
+    // dimuat. Opsi HANYA DITAMBAH (tidak pernah dihapus) supaya TIM yang
+    // pernah muncul di status lain (misal DRAFT) tidak hilang dari pilihan
+    // saat berpindah ke filter status FINAL.
+    function isiFilterRiwayatTim(data) {
+        const select = document.getElementById('filterRiwayatTim');
+        if (!select) return;
+        const sudahAda = {};
+        Array.from(select.options).forEach(opt => { if (opt.value) sudahAda[norm(opt.value)] = true; });
+        (data || []).forEach(r => {
+            const tim = String(r.TIM || '').trim();
+            if (tim && !sudahAda[norm(tim)]) {
+                sudahAda[norm(tim)] = true;
+                const opt = document.createElement('option');
+                opt.value = tim;
+                opt.textContent = tim.toUpperCase();
+                select.appendChild(opt);
+            }
+        });
+    }
+
+    // Menerapkan filter TIM (client-side, tanpa fetch ulang) ke data yang
+    // sudah dimuat, lalu merender ulang daftar riwayat.
+    function applyRiwayatFilter() {
+        const timFilter = (document.getElementById('filterRiwayatTim') || {}).value || '';
+        const filtered = timFilter
+            ? riwayatAllData.filter(r => norm(r.TIM) === norm(timFilter))
+            : riwayatAllData;
+        renderRiwayatCards(filtered);
+    }
+
+    // Merender daftar kartu riwayat laporan ke #reportListContainer.
+    // Dipisah dari loadReports() supaya bisa dipanggil ulang oleh
+    // applyRiwayatFilter() tanpa perlu fetch ulang ke server.
+    function renderRiwayatCards(data) {
+        const container = document.getElementById('reportListContainer');
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="small text-muted py-2 text-center fw-bold">BELUM ADA DATA LAPORAN.</div>';
+            return;
+        }
+        reportListCache = {};
+        container.innerHTML = '<ul class="list-group small fw-bold">';
+        data.forEach(r => {
+            reportListCache[r.ID] = r;
+            const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+            const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+            const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+            const isFinal = norm(r.STATUS) === 'final';
+            const statusClass = isFinal ? 'status-final' : 'status-draft';
+            const editBtnClass = isFinal ? 'btn-edit-final' : 'btn-edit-draft';
+            const printBtn = isFinal
+                ? `<button type="button" class="btn btn-sm fw-bold btn-print btn-print-final" onclick="printReport('${r.ID}')">🖨️ PRINT FINAL</button>`
+                : '';
+            container.innerHTML += `<li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+
+
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="report-status-badge ${statusClass}">${String(r.STATUS).toUpperCase()}</span>
+                        <div class="report-menu-wrap position-relative">
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold py-0 px-2" onclick="toggleReportMenu(event, '${r.ID}')" aria-label="MENU LAINNYA">&#8942;</button>
+                            <div id="reportMenu_${r.ID}" class="report-menu-dropdown" style="display:none;">
+                                <button type="button" class="report-menu-item text-danger" onclick="confirmDeleteReport('${r.ID}')">🗑️ HAPUS LAPORAN</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-sm fw-bold ${editBtnClass}" onclick="editReport('${r.ID}')">✏️ EDIT</button>
+                    ${printBtn}
+                </div>
+            </li>`;
+        });
+        container.innerHTML += '</ul>';
+    }
+
     async function loadReports() {
         let container = document.getElementById('reportListContainer');
         container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT DATA...</div>';
         try {
             let filter = document.getElementById('filterStatus').value;
             let res = await callApi({ action: 'getMyReports', nip: state.nip, status: filter });
-            if (res.success && res.data.length > 0) {
-                reportListCache = {};
-                container.innerHTML = '<ul class="list-group small fw-bold">';
-                res.data.forEach(r => {
-                    reportListCache[r.ID] = r;
-                    const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
-                    const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
-                    const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
-                    const isFinal = norm(r.STATUS) === 'final';
-                    const statusClass = isFinal ? 'status-final' : 'status-draft';
-                    const editBtnClass = isFinal ? 'btn-edit-final' : 'btn-edit-draft';
-                    const printBtn = isFinal
-                        ? `<button type="button" class="btn btn-sm fw-bold btn-print btn-print-final" onclick="printReport('${r.ID}')">🖨️ PRINT FINAL</button>`
-                        : '';
-                    container.innerHTML += `<li class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                        <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
-
-
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="report-status-badge ${statusClass}">${String(r.STATUS).toUpperCase()}</span>
-                                <div class="report-menu-wrap position-relative">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm fw-bold py-0 px-2" onclick="toggleReportMenu(event, '${r.ID}')" aria-label="MENU LAINNYA">&#8942;</button>
-                                    <div id="reportMenu_${r.ID}" class="report-menu-dropdown" style="display:none;">
-                                        <button type="button" class="report-menu-item text-danger" onclick="confirmDeleteReport('${r.ID}')">🗑️ HAPUS LAPORAN</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 mt-2">
-                            <button type="button" class="btn btn-sm fw-bold ${editBtnClass}" onclick="editReport('${r.ID}')">✏️ EDIT</button>
-                            ${printBtn}
-                        </div>
-                    </li>`;
-                });
-                container.innerHTML += '</ul>';
-            } else { 
-                container.innerHTML = '<div class="small text-muted py-2 text-center fw-bold">BELUM ADA DATA LAPORAN.</div>'; 
+            if (res.success) {
+                riwayatAllData = res.data || [];
+                isiFilterRiwayatTim(riwayatAllData);
+                applyRiwayatFilter();
+            } else {
+                container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT RIWAYAT LAPORAN.</div>';
             }
         } catch (e) { 
             container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT RIWAYAT LAPORAN.</div>'; 
