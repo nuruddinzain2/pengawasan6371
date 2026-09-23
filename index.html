@@ -956,49 +956,26 @@
 
                         <div class="col-md-6">
                             <label class="form-label">TIM</label>
-                            <select id="reportTim" class="form-select" onchange="loadTaskforceDropdown(); refreshKuotaAktif();" required>
+                            <select id="reportTim" class="form-select" onchange="refreshKuotaAktif();" required>
                                 <option value="">-- PILIH TIM --</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">PML</label>
-                            <select id="reportPml" class="form-select" onchange="loadPplDropdown()" required>
-                                <option value="">-- PILIH PML --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">PPL</label>
-                            <select id="reportPpl" class="form-select" onchange="loadSubslsDropdown()" required>
-                                <option value="">-- PILIH PPL --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">ID SUBSLS</label>
-                            <select id="reportSubsls" class="form-select" onchange="loadSubslsDetail()" required>
-                                <option value="">-- PILIH ID_SUBSLS --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">NAMA SLS</label>
-                            <input type="text" id="reportNamaSls" class="form-control bg-light" readonly>
-                        </div>
 
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small text-muted">TOTAL ASSIGNMENT</label>
-                            <input type="text" id="reportTotalAssigment" class="form-control bg-light" readonly>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small text-muted">MUATAN KK</label>
-                            <input type="text" id="reportMuatanKk" class="form-control bg-light" readonly>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small text-muted">MUATAN USAHA</label>
-                            <input type="text" id="reportMuatanUsaha" class="form-control bg-light" readonly>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small text-muted">TOTAL MUATAN</label>
-                            <input type="text" id="reportTotalMuatan" class="form-control bg-light" readonly>
-                        </div>
+                        <!-- PML/PPL/ID SUBSLS/NAMA SLS/kolom muatan DIHAPUS dari tampilan
+                             (2026-09, atas permintaan: sudah tidak diperlukan & cascading-nya
+                             memperlambat form). Elemennya TETAP ADA sebagai hidden input
+                             (kosong) supaya kode JS lain (submit, editReport, dst) yang
+                             masih merujuk ke ID ini tidak error, dan supaya data lama milik
+                             petugas lain (kolom NAMA PML/NAMA PPL/ID_SubSLS/dll di sheet
+                             HASIL) TIDAK berubah/hilang sama sekali. -->
+                        <input type="hidden" id="reportPml" value="">
+                        <input type="hidden" id="reportPpl" value="">
+                        <input type="hidden" id="reportSubsls" value="">
+                        <input type="hidden" id="reportNamaSls" value="">
+                        <input type="hidden" id="reportTotalAssigment" value="">
+                        <input type="hidden" id="reportMuatanKk" value="">
+                        <input type="hidden" id="reportMuatanUsaha" value="">
+                        <input type="hidden" id="reportTotalMuatan" value="">
 
                         <div class="col-12">
                             <h5 class="section-title">CAPAIAN KINERJA & LAMPIRAN</h5>
@@ -1846,88 +1823,21 @@ playWiggle();
 
 
 
-async function loadTaskforceDropdown(overrideTaskforce) {
-  const tim = document.getElementById('reportTim').value;
-  const pmlSelect = document.getElementById('reportPml');
-  const pplSelect = document.getElementById('reportPpl');
-  const subslsSelect = document.getElementById('reportSubsls');
-  pmlSelect.innerHTML = '<option value="">-- PILIH PML --</option>';
-  pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
-  subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
-  clearDetailFields();
-  if (!tim) return;
-  
-  // ✅ FIX: Gunakan taskforce dari laporan (saat edit) atau state.taskforce (saat buat baru)
-  const tf = overrideTaskforce || state.taskforce;
-  
-  let res = await callApi({ action: 'getDropdownData', level: 'pml', tim: tim, taskforce: tf });
-  if (res.success) {
-    res.data.forEach(opt => pmlSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
-  }
-}
-
- async function loadPplDropdown(overrideTaskforce) {
-  const tim = document.getElementById('reportTim').value;
-  const pml = document.getElementById('reportPml').value;
-  const pplSelect = document.getElementById('reportPpl');
-  const subslsSelect = document.getElementById('reportSubsls');
-  pplSelect.innerHTML = '<option value="">-- PILIH PPL --</option>';
-  subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
-  clearDetailFields();
-  if (!tim || !pml) return;
-  
-  const tf = overrideTaskforce || state.taskforce;
-  let res = await callApi({ action: 'getDropdownData', level: 'ppl', tim: tim, pml: pml, taskforce: tf });
-  if (res.success) {
-    res.data.forEach(opt => pplSelect.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
-  }
-}
-    async function loadSubslsDropdown(overrideTaskforce) {
-  const tim = document.getElementById('reportTim').value;
-  const pml = document.getElementById('reportPml').value;
-  const ppl = document.getElementById('reportPpl').value;
-  const subslsSelect = document.getElementById('reportSubsls');
-  subslsSelect.innerHTML = '<option value="">-- PILIH ID_SUBSLS --</option>';
-  clearDetailFields();
-  if (!tim || !pml || !ppl) return;
-  
-  const tf = overrideTaskforce || state.taskforce;
-  let res = await callApi({ action: 'getDropdownData', level: 'subsls', tim: tim, pml: pml, ppl: ppl, taskforce: tf });
-  if (res.success) {
-    subslsSelect.dataValues = res.data;
-    res.data.forEach(opt => {
-      const idVal = String(opt.id_subsls).trim();
-      const namaVal = String(opt.nama_sls || '').trim();
-      // Gabungkan ID_SUBSLS dengan NAMA SLS/RT-nya supaya lebih mudah
-      // dikenali saat memilih (contoh: "6371010003000800 - RT 08").
-      const labelText = namaVal ? `${idVal} - ${namaVal.toUpperCase()}` : idVal;
-      subslsSelect.innerHTML += `<option value="${idVal}">${labelText}</option>`;
-    });
-  }
-}
-
-    function loadSubslsDetail() {
-        const select = document.getElementById('reportSubsls');
-        const id = select.value.trim();
-        clearDetailFields();
-        if (!id || !select.dataValues) return;
-
-        const matched = select.dataValues.find(v => String(v.id_subsls).trim() === id);
-        if (matched) {
-            document.getElementById('reportNamaSls').value = matched.nama_sls || '';
-            document.getElementById('reportTotalAssigment').value = matched.total_assigment || '0';
-            document.getElementById('reportMuatanKk').value = matched.muatan_kk || '0';
-            document.getElementById('reportMuatanUsaha').value = matched.muatan_usaha || '0';
-            document.getElementById('reportTotalMuatan').value = matched.total_muatan || '0';
-        }
-    }
-
+    // =========================================================================
+    // CATATAN (2026-09): PML / PPL / ID SUBSLS / NAMA SLS / kolom muatan sudah
+    // TIDAK DITAMPILKAN lagi di form (lihat elemen hidden di HTML). Fungsi-
+    // fungsi cascading loadTaskforceDropdown()/loadPplDropdown()/
+    // loadSubslsDropdown()/loadSubslsDetail() DIHAPUS karena sudah tidak
+    // dipanggil dari mana pun -- inilah yang tadinya membuat form lambat
+    // (3 pemanggilan API berantai setiap kali TIM/PML/PPL berubah, tiap
+    // panggilan membaca ulang seluruh sheet DATABASE). Memilih TIM sekarang
+    // HANYA memicu refreshKuotaAktif() (1 panggilan API ringan).
+    //
+    // clearDetailFields() DIPERTAHANKAN (fungsi kosong/no-op tidak perlu,
+    // tapi beberapa tempat lama mungkin masih memanggilnya) supaya aman.
     function clearDetailFields() {
-        document.getElementById('reportNamaSls').value = '';
-        document.getElementById('reportTotalAssigment').value = '';
-        document.getElementById('reportMuatanKk').value = '';
-        document.getElementById('reportMuatanUsaha').value = '';
-        document.getElementById('reportTotalMuatan').value = '';
+        // Sengaja dibiarkan kosong -- field-field ini sudah jadi hidden
+        // input dan tidak perlu dibersihkan tampilannya lagi.
     }
 
     // Menghitung JUMLAH KUNJUNGAN secara otomatis dari rentang Tanggal
@@ -2127,9 +2037,6 @@ img.src = blobUrl;
         { id: 'reportTanggalBerangkat', label: 'TANGGAL BERANGKAT' },
         { id: 'reportTanggalPulang', label: 'TANGGAL PULANG' },
         { id: 'reportTim', label: 'TIM' },
-        { id: 'reportPml', label: 'PML' },
-        { id: 'reportPpl', label: 'PPL' },
-        { id: 'reportSubsls', label: 'ID SUBSLS' },
         { id: 'reportUraian', label: 'URAIAN KEGIATAN' },
         { id: 'reportKoordinat', label: 'TITIK KOORDINAT' }
     ];
@@ -2487,47 +2394,30 @@ showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning'
                 '<div class="small text-muted fw-bold mt-1">ℹ️ LAPORAN INI BELUM PUNYA FOTO.</div>';
         }
 
-        // --- Dropdown berjenjang: TIM -> PML -> PPL -> SubSLS ---
-        // Setiap tahap menunggu (await) daftar opsi termuat lebih dulu,
-        // baru nilai lama di-set, sebelum lanjut memuat tahap berikutnya.
-        
-        // --- Dropdown berjenjang: TIM -> PML -> PPL -> SubSLS ---
-// Setiap tahap menunggu (await) daftar opsi termuat lebih dulu,
-// baru nilai lama di-set, sebelum lanjut memuat tahap berikutnya.
-try {
-  await loadTimDropdown();
-  // ✅ FIX: Tambahkan .trim() untuk mencegah kegagalan pencocokan nilai option akibat spasi tersembunyi
-  document.getElementById('reportTim').value = String(r.TIM || '').trim();
-  refreshKuotaAktif(); // pastikan SISA KUOTA saat edit juga pakai kuota TERBARU dari server, bukan angka lama
-  
-  // ✅ FIX: Kirim r.TASKFORCE agar API memfilter berdasarkan taskforce pemilik laporan, 
-  // bukan taskforce Admin/Asesor yang sedang mengedit.
-  await loadTaskforceDropdown(r.TASKFORCE); 
-  document.getElementById('reportPml').value = String(r['NAMA PML'] || '').trim();
-  
-  await loadPplDropdown(r.TASKFORCE);
-  document.getElementById('reportPpl').value = String(r['NAMA PPL'] || '').trim();
-  
-  await loadSubslsDropdown(r.TASKFORCE);
-  document.getElementById('reportSubsls').value = String(r.ID_SubSLS || '').trim();
-  
-  loadSubslsDetail();
-  
-  // Jika data muatan dari dropdown SubSLS tidak ketemu (misalnya data
-  // master di sheet DATABASE berubah), tetap tampilkan nilai yang
-  // tersimpan di laporan supaya tidak hilang.
-  if (!document.getElementById('reportTotalAssigment').value) {
-    document.getElementById('reportNamaSls').value = r['NAMA SLS'] || '';
-    document.getElementById('reportTotalAssigment').value = r['Total Assigment'] || '0';
-    document.getElementById('reportMuatanKk').value = r['Muatan Kk Wilkerstat'] || '0';
-    document.getElementById('reportMuatanUsaha').value = r['Muatan Usaha Wilkerstat'] || '0';
-    document.getElementById('reportTotalMuatan').value = r['Total Muatan Wilkerstat'] || '0';
-  }
-  
-  clearAlert('reportAlert');
-  showAlert('reportAlert', 'ℹ️ MODE EDIT: UBAH DATA YANG DIPERLUKAN, LALU SIMPAN DRAFT ATAU KIRIM FINAL.', 'info');
-} catch (err) {
-  showAlert('reportAlert', '❌ SEBAGIAN DATA GAGAL DIMUAT (DROPDOWN WILAYAH): ' + err.message.toUpperCase(), 'danger');
+        // --- TIM (dropdown) + field WILAYAH KERJA lama (sekarang hidden) ---
+        // PML/PPL/ID SUBSLS/NAMA SLS/muatan TIDAK lagi di-cascading-fetch dari
+        // sheet DATABASE (2026-09) -- nilai lama laporan ini langsung dipakai
+        // apa adanya supaya TIDAK HILANG saat laporan disimpan ulang, dan
+        // supaya buka form edit jadi jauh lebih cepat (tidak ada 3 panggilan
+        // API berantai seperti sebelumnya).
+        try {
+          await loadTimDropdown();
+          document.getElementById('reportTim').value = String(r.TIM || '').trim();
+          refreshKuotaAktif(); // pastikan SISA KUOTA saat edit juga pakai kuota TERBARU dari server, bukan angka lama
+
+          document.getElementById('reportPml').value = String(r['NAMA PML'] || '').trim();
+          document.getElementById('reportPpl').value = String(r['NAMA PPL'] || '').trim();
+          document.getElementById('reportSubsls').value = String(r.ID_SubSLS || '').trim();
+          document.getElementById('reportNamaSls').value = r['NAMA SLS'] || '';
+          document.getElementById('reportTotalAssigment').value = r['Total Assigment'] || '0';
+          document.getElementById('reportMuatanKk').value = r['Muatan Kk Wilkerstat'] || '0';
+          document.getElementById('reportMuatanUsaha').value = r['Muatan Usaha Wilkerstat'] || '0';
+          document.getElementById('reportTotalMuatan').value = r['Total Muatan Wilkerstat'] || '0';
+
+          clearAlert('reportAlert');
+          showAlert('reportAlert', 'ℹ️ MODE EDIT: UBAH DATA YANG DIPERLUKAN, LALU SIMPAN DRAFT ATAU KIRIM FINAL.', 'info');
+        } catch (err) {
+          showAlert('reportAlert', '❌ SEBAGIAN DATA GAGAL DIMUAT: ' + err.message.toUpperCase(), 'danger');
 }
     }
 
