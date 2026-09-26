@@ -1477,16 +1477,46 @@
         return `${tahun}-${bulan}-${tanggal}`;
     }
 
+    // Kalau fetch() biasa TERBUKTI tidak jalan di perangkat/browser ini
+    // (contoh: CORS diblokir di beberapa browser HP), tandai di sini supaya
+    // panggilan-panggilan BERIKUTNYA dalam sesi yang sama langsung pakai
+    // JSONP tanpa perlu coba-gagal fetch() lagi setiap kali. Sebelum
+    // perbaikan ini, SETIAP satu panggilan API (login, ambil TUGAS, ambil
+    // TIM, dst) yang gagal lewat fetch() harus menunggu fetch() gagal dulu
+    // (bisa lama di jaringan HP) SEBELUM pindah ke JSONP -- keterlambatan
+    // ini menumpuk di setiap panggilan, bukan cuma sekali, sehingga login
+    // di HP terasa jauh lebih lambat dibanding di PC walau di PC fetch()
+    // langsung berhasil.
+    let fetchTerbuktiTidakJalan = false;
+
+    // Batas waktu percobaan fetch() biasa sebelum menyerah dan pindah ke
+    // JSONP. Dibuat pendek (3 detik) supaya kalau fetch() menggantung lama
+    // di jaringan HP, kita tidak ikut menunggu lama -- langsung pindah cara.
+    const FETCH_API_TIMEOUT_MS = 3000;
+
     async function callApi(params) {
+        // Begitu fetch() pernah terbukti gagal di sesi ini, langsung pakai
+        // JSONP tanpa mencoba fetch() lagi -- menghindari pengulangan
+        // percobaan-gagal yang membuang waktu di setiap panggilan.
+        if (fetchTerbuktiTidakJalan) {
+            return await callApiJsonp(params);
+        }
+
         const url = new URL(CONFIG.WEBAPP_URL);
         for (const [key, value] of Object.entries(params)) {
             url.searchParams.set(key, String(value).trim());
         }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_API_TIMEOUT_MS);
         try {
-            const response = await fetch(url.toString(), { method: 'GET', mode: 'cors' });
+            const response = await fetch(url.toString(), { method: 'GET', mode: 'cors', signal: controller.signal });
+            clearTimeout(timeoutId);
             if (!response.ok) throw new Error();
             return await response.json();
         } catch (err) {
+            clearTimeout(timeoutId);
+            fetchTerbuktiTidakJalan = true; // jangan coba fetch() lagi untuk panggilan berikutnya di sesi ini
             return await callApiJsonp(params);
         }
     }
