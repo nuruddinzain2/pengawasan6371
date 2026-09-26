@@ -1653,9 +1653,18 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
                     document.getElementById('reportPanel').style.display = 'block';
                     
                     applyRoleVisibility();
-                    await loadTugasOptions();
-                    await loadTimDropdown();
-                    loadReports();
+                    // Dijalankan BERSAMAAN (Promise.all), bukan berurutan --
+                    // keduanya tidak saling bergantung, jadi tidak perlu
+                    // menunggu satu selesai baru mulai yang lain. Ini
+                    // memotong waktu tunggu login kira-kira separuhnya.
+                    //
+                    // loadReports() SENGAJA TIDAK dipanggil di sini lagi --
+                    // tab yang aktif setelah login adalah LAPORAN, bukan
+                    // RIWAYAT, jadi mengambil seluruh riwayat laporan di
+                    // sini cuma buang-buang waktu & kuota data (terutama di
+                    // HP). Riwayat baru diambil saat tab RIWAYAT benar-benar
+                    // dibuka (lihat switchTab()).
+                    await Promise.all([loadTugasOptions(), loadTimDropdown()]);
                 }
             }
         } catch (err) {
