@@ -573,8 +573,21 @@
                 size: A4 portrait;
                 margin: 10mm;
             }
-            body * {
-                visibility: hidden;
+            /* PERBAIKAN HALAMAN KOSONG TAMBAHAN: sebelumnya seluruh isi
+               aplikasi disembunyikan lewat "body * { visibility: hidden }".
+               visibility:hidden TIDAK menghapus elemen dari tata letak --
+               tingginya tetap dihitung penuh, cuma tidak terlihat. Karena
+               aplikasi ini satu halaman panjang berisi banyak tab/menu,
+               total tinggi "tak kasat mata" itu tetap ikut dihitung sebagai
+               area cetak oleh browser, sehingga sering muncul 1 halaman
+               kosong tambahan di akhir hasil cetak.
+               Perbaikan: .container (pembungkus SELURUH aplikasi, di luar
+               area cetak #printArea) langsung disembunyikan dengan
+               display:none -- ini BENAR-BENAR mengeluarkannya dari tata
+               letak (tinggi jadi 0px), sehingga hanya konten cetak sendiri
+               yang menentukan jumlah halaman. */
+            .container {
+                display: none !important;
             }
             .print-only, .print-only * {
                 visibility: visible;
