@@ -1031,7 +1031,7 @@
             <div id="tabList" class="tab-content" style="display: none;">
                 <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                     <h6 class="fw-bold text-uppercase mb-0">RIWAYAT PELAPORAN ANDA</h6>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
                         <select id="filterRiwayatTim" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="applyRiwayatFilter()">
                             <option value="">SEMUA TIM</option>
                         </select>
@@ -1040,8 +1040,13 @@
                             <option value="draft">DRAFT</option>
                             <option value="final">FINAL</option>
                         </select>
+                        <select id="sortRiwayat" class="form-select form-select-sm w-auto fw-bold text-uppercase" onchange="applyRiwayatFilter()">
+                            <option value="desc">TANGGAL TERBARU</option>
+                            <option value="asc">TANGGAL TERLAMA</option>
+                        </select>
                     </div>
                 </div>
+                <div id="riwayatJumlahTampil" class="small text-muted fw-bold mb-2"></div>
                 <div class="print-access-note">Menu `PRINT FINAL` hanya muncul di PC/laptop dan hanya dapat dipakai untuk laporan yang sudah berstatus final.</div>
                 <div id="reportListContainer"></div>
             </div>
@@ -4424,13 +4429,36 @@ if (res.role === 'asesor') {
         });
     }
 
-    // Menerapkan filter TIM (client-side, tanpa fetch ulang) ke data yang
-    // sudah dimuat, lalu merender ulang daftar riwayat.
+    // Menerapkan filter TIM (client-side, tanpa fetch ulang) + URUTAN
+    // TANGGAL ke data yang sudah dimuat, lalu merender ulang daftar riwayat
+    // dan memperbarui keterangan jumlah yang ditampilkan.
     function applyRiwayatFilter() {
         const timFilter = (document.getElementById('filterRiwayatTim') || {}).value || '';
-        const filtered = timFilter
+        const urutan = (document.getElementById('sortRiwayat') || {}).value || 'desc';
+
+        let filtered = timFilter
             ? riwayatAllData.filter(r => norm(r.TIM) === norm(timFilter))
-            : riwayatAllData;
+            : riwayatAllData.slice(); // salin array supaya sort() tidak mengubah riwayatAllData asli
+
+        // Urutkan berdasarkan TANGGAL BERANGKAT. 'desc' = terbaru dulu (default),
+        // 'asc' = terlama dulu. Kalau tanggalnya sama, jaga urutan dengan ID
+        // (biasanya berkorelasi dengan waktu dibuat) sebagai penentu kedua.
+        filtered.sort((a, b) => {
+            const tglA = String(a['TANGGAL BERANGKAT'] || '').split('T')[0];
+            const tglB = String(b['TANGGAL BERANGKAT'] || '').split('T')[0];
+            if (tglA !== tglB) {
+                return urutan === 'asc' ? tglA.localeCompare(tglB) : tglB.localeCompare(tglA);
+            }
+            const idA = String(a.ID || '');
+            const idB = String(b.ID || '');
+            return urutan === 'asc' ? idA.localeCompare(idB) : idB.localeCompare(idA);
+        });
+
+        const jumlahEl = document.getElementById('riwayatJumlahTampil');
+        if (jumlahEl) {
+            jumlahEl.textContent = `MENAMPILKAN ${filtered.length} LAPORAN`;
+        }
+
         renderRiwayatCards(filtered);
     }
 
