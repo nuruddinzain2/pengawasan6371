@@ -969,7 +969,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label">TIM</label>
-                            <select id="reportTim" class="form-select" onchange="refreshKuotaAktif();" required>
+                            <select id="reportTim" class="form-select" onchange="refreshKuotaAktif(); refreshTombolKamusSe();" required>
                                 <option value="">-- PILIH TIM --</option>
                             </select>
                         </div>
@@ -995,7 +995,15 @@
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label">URAIAN KEGIATAN</label>
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                <label class="form-label mb-0">URAIAN KEGIATAN</label>
+                                <!-- Tombol KAMUS -- HANYA tampil kalau TIM yang dipilih adalah
+                                     SENSUS EKONOMI (lihat refreshTombolKamusSe()). Data kamus
+                                     BARU diambil dari server saat tombol ini PERTAMA KALI
+                                     diklik (lazy-load), bukan otomatis saat form dibuka, supaya
+                                     tidak memperlambat alur normal pengisian laporan. -->
+                                <button type="button" id="btnKamusSe" class="btn btn-outline-secondary btn-sm fw-bold" style="display:none;" onclick="openKamusSeModal()">📖 KAMUS URAIAN</button>
+                            </div>
                             <textarea id="reportUraian" class="form-control" rows="3" placeholder="Tuliskan detail progres lapangan hari ini..." required></textarea>
                         </div>
 
@@ -1368,6 +1376,48 @@
     </div>
 </div>
 
+<!-- ================================================================
+     MODAL KAMUS URAIAN KEGIATAN -- KHUSUS TIM SENSUS EKONOMI (BARU)
+     Menyusun otomatis kalimat URAIAN KEGIATAN dari Kecamatan/Kelurahan/
+     RT/PPL/PML yang dipilih berjenjang. Data diambil dari server (action
+     'getKamusSeData') HANYA SEKALI saat modal ini pertama kali dibuka,
+     lalu disimpan di memori browser (kamusSeDataCache) untuk dipakai
+     berulang tanpa panggil server lagi.
+================================================================= -->
+<div id="kamusSeModalOverlay" class="confirm-modal-overlay">
+    <div class="confirm-modal-box" style="max-width:480px; text-align:left;">
+        <h6 class="text-uppercase fw-bold mb-3">📖 KAMUS URAIAN KEGIATAN</h6>
+
+        <div id="kamusSeLoading" class="small text-muted fw-bold text-center py-3">⏳ MEMUAT DATA WILAYAH...</div>
+        <div id="kamusSeError" class="small text-danger fw-bold text-center py-3" style="display:none;"></div>
+
+        <div id="kamusSeForm" style="display:none;">
+            <label class="form-label small fw-bold text-uppercase mb-1">KECAMATAN</label>
+            <select id="kamusSeKecamatan" class="form-select form-select-sm mb-2" onchange="isiDropdownKelurahanKamus()">
+                <option value="">-- PILIH KECAMATAN --</option>
+            </select>
+
+            <label class="form-label small fw-bold text-uppercase mb-1">KELURAHAN</label>
+            <select id="kamusSeKelurahan" class="form-select form-select-sm mb-2" onchange="isiDropdownRtKamus()">
+                <option value="">-- PILIH KELURAHAN --</option>
+            </select>
+
+            <label class="form-label small fw-bold text-uppercase mb-1">RT/RW</label>
+            <select id="kamusSeRt" class="form-select form-select-sm mb-2" onchange="tampilkanPreviewKamusSe()">
+                <option value="">-- PILIH RT/RW --</option>
+            </select>
+
+            <label class="form-label small fw-bold text-uppercase mb-1">PRATINJAU KALIMAT</label>
+            <div id="kamusSePreview" class="small border rounded p-2 bg-light mb-3" style="min-height:70px;"></div>
+
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm w-50 fw-bold" onclick="closeKamusSeModal()">BATAL</button>
+                <button type="button" class="btn btn-primary btn-sm w-50 fw-bold" onclick="sisipkanKamusSe()">✅ SISIPKAN</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 
@@ -1446,6 +1496,186 @@
             kuotaTerpakaiFinal = 0;
         }
         updateSisaKuota();
+    }
+
+    // =========================================================================
+    // KAMUS URAIAN KEGIATAN -- KHUSUS TIM SENSUS EKONOMI (BARU)
+    // =========================================================================
+    // kamusSeDataCache: null = belum pernah diambil dari server. Setelah
+    // pertama kali berhasil diambil, disimpan di sini dan dipakai berulang
+    // untuk sisa sesi (buka form baru/laporan lain) TANPA panggil server
+    // lagi -- inilah yang membuat fitur ini tidak mengganggu kecepatan,
+    // karena hanya 1 kali round-trip ke server SEUMUR sesi, dan HANYA
+    // terjadi kalau tombol kamus benar-benar diklik.
+    let kamusSeDataCache = null;
+
+    function isTimSensusEkonomi(timValue) {
+        return /sensus\s*ekonomi/i.test(String(timValue || ''));
+    }
+
+    // Menampilkan/menyembunyikan tombol "📖 KAMUS URAIAN" tergantung TIM
+    // yang sedang dipilih di form. Dipanggil setiap kali TIM berubah
+    // (manual oleh pengguna) atau saat membuka laporan lama untuk diedit.
+    function refreshTombolKamusSe() {
+        const tim = (document.getElementById('reportTim') || {}).value || '';
+        const btn = document.getElementById('btnKamusSe');
+        if (btn) btn.style.display = isTimSensusEkonomi(tim) ? 'inline-block' : 'none';
+    }
+
+    async function openKamusSeModal() {
+        const overlay = document.getElementById('kamusSeModalOverlay');
+        const loadingEl = document.getElementById('kamusSeLoading');
+        const errorEl = document.getElementById('kamusSeError');
+        const formEl = document.getElementById('kamusSeForm');
+
+        overlay.classList.add('show');
+        errorEl.style.display = 'none';
+
+        if (kamusSeDataCache) {
+            loadingEl.style.display = 'none';
+            formEl.style.display = 'block';
+            isiDropdownKecamatanKamus();
+            return;
+        }
+
+        loadingEl.style.display = 'block';
+        formEl.style.display = 'none';
+        try {
+            const res = await callApi({ action: 'getKamusSeData' });
+            if (res && res.success && Array.isArray(res.data)) {
+                kamusSeDataCache = res.data;
+                loadingEl.style.display = 'none';
+                formEl.style.display = 'block';
+                isiDropdownKecamatanKamus();
+            } else {
+                loadingEl.style.display = 'none';
+                errorEl.textContent = '❌ ' + ((res && res.message) ? res.message.toUpperCase() : 'GAGAL MEMUAT DATA WILAYAH.');
+                errorEl.style.display = 'block';
+            }
+        } catch (e) {
+            loadingEl.style.display = 'none';
+            errorEl.textContent = '❌ GAGAL MEMUAT DATA WILAYAH. PERIKSA KONEKSI ANDA.';
+            errorEl.style.display = 'block';
+        }
+    }
+
+    function closeKamusSeModal() {
+        document.getElementById('kamusSeModalOverlay').classList.remove('show');
+    }
+
+    function isiDropdownKecamatanKamus() {
+        const select = document.getElementById('kamusSeKecamatan');
+        select.innerHTML = '<option value="">-- PILIH KECAMATAN --</option>';
+        const seen = {};
+        (kamusSeDataCache || []).forEach(r => {
+            if (r.kecamatan && !seen[norm(r.kecamatan)]) {
+                seen[norm(r.kecamatan)] = true;
+                select.innerHTML += `<option value="${escapeHtml(r.kecamatan)}">${escapeHtml(r.kecamatan.toUpperCase())}</option>`;
+            }
+        });
+        document.getElementById('kamusSeKelurahan').innerHTML = '<option value="">-- PILIH KELURAHAN --</option>';
+        document.getElementById('kamusSeRt').innerHTML = '<option value="">-- PILIH RT/RW --</option>';
+        document.getElementById('kamusSePreview').textContent = '';
+    }
+
+    function isiDropdownKelurahanKamus() {
+        const kec = document.getElementById('kamusSeKecamatan').value;
+        const select = document.getElementById('kamusSeKelurahan');
+        select.innerHTML = '<option value="">-- PILIH KELURAHAN --</option>';
+        document.getElementById('kamusSeRt').innerHTML = '<option value="">-- PILIH RT/RW --</option>';
+        document.getElementById('kamusSePreview').textContent = '';
+        if (!kec) return;
+        const seen = {};
+        (kamusSeDataCache || []).forEach(r => {
+            if (norm(r.kecamatan) === norm(kec) && r.kelurahan && !seen[norm(r.kelurahan)]) {
+                seen[norm(r.kelurahan)] = true;
+                select.innerHTML += `<option value="${escapeHtml(r.kelurahan)}">${escapeHtml(r.kelurahan.toUpperCase())}</option>`;
+            }
+        });
+    }
+
+    function isiDropdownRtKamus() {
+        const kec = document.getElementById('kamusSeKecamatan').value;
+        const kel = document.getElementById('kamusSeKelurahan').value;
+        const select = document.getElementById('kamusSeRt');
+        select.innerHTML = '<option value="">-- PILIH RT/RW --</option>';
+        document.getElementById('kamusSePreview').textContent = '';
+        if (!kec || !kel) return;
+        select.dataValues = [];
+        (kamusSeDataCache || []).forEach(r => {
+            if (norm(r.kecamatan) === norm(kec) && norm(r.kelurahan) === norm(kel) && r.nama_rt) {
+                select.dataValues.push(r);
+                const idx = select.dataValues.length - 1;
+                const label = r.nama_rt + (r.ppl ? ` (PPL: ${r.ppl.toUpperCase()}${r.pml ? ', PML: ' + r.pml.toUpperCase() : ''})` : '');
+                select.innerHTML += `<option value="${idx}">${escapeHtml(label)}</option>`;
+            }
+        });
+    }
+
+    // Format tanggal "YYYY-MM-DD" menjadi format Indonesia, contoh:
+    // "2026-06-20" -> "20 Juni 2026". Dipakai khusus untuk kalimat kamus
+    // (berbeda dari formatPrintDate yang dipakai untuk cetak).
+    function formatTanggalIndonesiaKamus(tglStr) {
+        const bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const parts = String(tglStr || '').split('T')[0].split('-');
+        if (parts.length !== 3) return tglStr || '-';
+        const bulanIdx = parseInt(parts[1], 10) - 1;
+        if (bulanIdx < 0 || bulanIdx > 11 || isNaN(parseInt(parts[2], 10))) return tglStr;
+        return `${parseInt(parts[2], 10)} ${bulanIndo[bulanIdx]} ${parts[0]}`;
+    }
+
+    // Menyusun kalimat URAIAN KEGIATAN dari 1 baris data kamus (Kecamatan/
+    // Kelurahan/RT/PPL/PML) + TANGGAL BERANGKAT & TUGAS yang sedang dipilih
+    // di form. Contoh hasil:
+    // "Pada tgl 20 Juni 2026 melakukan pengawasan ke Kecamatan BANJARMASIN
+    //  TIMUR di Kelurahan SUNGAI LULUT RT 031 RW 002. Pada pengawasan
+    //  tersebut mendampingi PPL an. Rachmat dan PML an. Alfian."
+    function bangunKalimatKamusSe(item) {
+        const tglBerangkat = (document.getElementById('reportTanggalBerangkat') || {}).value || '';
+        const tugasValue = (document.getElementById('reportTugas') || {}).value || '';
+        const tugasText = (tugasValue || 'pengawasan').toLowerCase();
+        const tglIndo = formatTanggalIndonesiaKamus(tglBerangkat);
+        const kec = (item.kecamatan || '-').toUpperCase();
+        const kel = (item.kelurahan || '-').toUpperCase();
+        const rt = item.nama_rt || '-';
+
+        let kalimat = `Pada tgl ${tglIndo} melakukan ${tugasText} ke Kecamatan ${kec} di Kelurahan ${kel} ${rt}.`;
+        if (item.ppl || item.pml) {
+            kalimat += ` Pada ${tugasText} tersebut mendampingi`;
+            if (item.ppl) kalimat += ` PPL an. ${item.ppl}`;
+            if (item.ppl && item.pml) kalimat += ' dan';
+            if (item.pml) kalimat += ` PML an. ${item.pml}`;
+            kalimat += '.';
+        }
+        return kalimat;
+    }
+
+    function tampilkanPreviewKamusSe() {
+        const rtSelect = document.getElementById('kamusSeRt');
+        const idx = rtSelect.value;
+        const previewEl = document.getElementById('kamusSePreview');
+        if (idx === '' || !rtSelect.dataValues || !rtSelect.dataValues[idx]) {
+            previewEl.textContent = '';
+            return;
+        }
+        previewEl.textContent = bangunKalimatKamusSe(rtSelect.dataValues[idx]);
+    }
+
+    // Menyisipkan kalimat hasil kamus ke URAIAN KEGIATAN. Kalau field sudah
+    // ada isinya, kalimat baru DITAMBAHKAN (bukan menimpa), supaya petugas
+    // masih bisa menulis catatan tambahan sebelum/sesudahnya.
+    function sisipkanKamusSe() {
+        const rtSelect = document.getElementById('kamusSeRt');
+        const idx = rtSelect.value;
+        if (idx === '' || !rtSelect.dataValues || !rtSelect.dataValues[idx]) {
+            alert('PILIH RT/RW TERLEBIH DAHULU.');
+            return;
+        }
+        const kalimat = bangunKalimatKamusSe(rtSelect.dataValues[idx]);
+        const uraianEl = document.getElementById('reportUraian');
+        const isiSaatIni = uraianEl.value.trim();
+        uraianEl.value = isiSaatIni ? (isiSaatIni + ' ' + kalimat) : kalimat;
+        closeKamusSeModal();
     }
 
     function showAlert(containerId, message, type) {
@@ -2355,6 +2585,7 @@ showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning'
         document.getElementById('btnBatalEdit').style.display = 'none';
         updateSisaKuota();
         clearDetailFields();
+        refreshTombolKamusSe(); // form.reset() mengosongkan TIM -> tombol KAMUS ikut disembunyikan
     }
 
     function batalEdit() {
@@ -2504,6 +2735,7 @@ showAlert('reportAlert', '⚠️ LINK FOTO TIDAK VALID: ' + fotoValue, 'warning'
           await loadTimDropdown();
           document.getElementById('reportTim').value = String(r.TIM || '').trim();
           refreshKuotaAktif(); // pastikan SISA KUOTA saat edit juga pakai kuota TERBARU dari server, bukan angka lama
+          refreshTombolKamusSe(); // tampilkan/sembunyikan tombol KAMUS sesuai TIM laporan ini
 
           document.getElementById('reportPml').value = String(r['NAMA PML'] || '').trim();
           document.getElementById('reportPpl').value = String(r['NAMA PPL'] || '').trim();
