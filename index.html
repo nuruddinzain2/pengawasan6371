@@ -1407,6 +1407,24 @@
                 <option value="">-- PILIH RT/RW --</option>
             </select>
 
+            <hr class="my-2">
+            <div class="small fw-bold text-uppercase text-muted mb-1">KETERANGAN TAMBAHAN (OPSIONAL)</div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <label class="form-label small mb-1">JUMLAH KELUARGA</label>
+                    <input type="number" min="0" id="kamusSeJumlahKeluarga" class="form-control form-control-sm" placeholder="Kosongkan jika tidak perlu" oninput="tampilkanPreviewKamusSe()">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small mb-1">JUMLAH BKU</label>
+                    <input type="number" min="0" id="kamusSeJumlahBku" class="form-control form-control-sm" placeholder="Kosongkan jika tidak perlu" oninput="tampilkanPreviewKamusSe()">
+                </div>
+            </div>
+
+            <label class="form-label small mb-1">PERMASALAHAN (CENTANG YANG SESUAI, BOLEH LEBIH DARI SATU)</label>
+            <div id="kamusSeDaftarMasalah" class="mb-2" style="max-height:120px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px;"></div>
+            <input type="text" id="kamusSeMasalahLain" class="form-control form-control-sm mb-2" placeholder="Permasalahan lain (opsional, ketik sendiri)" oninput="tampilkanPreviewKamusSe()">
+
             <label class="form-label small fw-bold text-uppercase mb-1">PRATINJAU KALIMAT</label>
             <div id="kamusSePreview" class="small border rounded p-2 bg-light mb-3" style="min-height:70px;"></div>
 
@@ -1509,6 +1527,31 @@
     // terjadi kalau tombol kamus benar-benar diklik.
     let kamusSeDataCache = null;
 
+    // Daftar "kamus" permasalahan lapangan yang UMUM ditemui saat Sensus
+    // Ekonomi -- statis (tidak perlu diambil dari server, jadi selalu
+    // instan), bisa dicentang lebih dari satu. Ada juga kolom bebas
+    // "Permasalahan lain" untuk yang tidak ada di daftar ini.
+    const KAMUS_SE_DAFTAR_MASALAH = [
+        'banyak ruta yang tidak ada karena sedang bekerja',
+        'ada rumah yang pagarnya dikunci padahal responden ada di dalam rumah, sehingga petugas tidak dapat menemui responden',
+        'responden menolak untuk diwawancarai',
+        'alamat responden sulit ditemukan/tidak sesuai dengan yang tercatat',
+        'responden sedang bepergian dalam waktu lama',
+        'rumah/bangunan kosong tidak berpenghuni'
+    ];
+
+    function renderDaftarMasalahKamusSe() {
+        const container = document.getElementById('kamusSeDaftarMasalah');
+        if (!container || container.dataset.terisi === '1') return; // isi sekali saja
+        container.innerHTML = KAMUS_SE_DAFTAR_MASALAH.map((teks, idx) => `
+            <div class="form-check">
+                <input class="form-check-input kamus-se-masalah-checkbox" type="checkbox" value="${idx}" id="kamusSeMasalah_${idx}" onchange="tampilkanPreviewKamusSe()">
+                <label class="form-check-label small" for="kamusSeMasalah_${idx}">${escapeHtml(teks)}</label>
+            </div>
+        `).join('');
+        container.dataset.terisi = '1';
+    }
+
     function isTimSensusEkonomi(timValue) {
         return /sensus\s*ekonomi/i.test(String(timValue || ''));
     }
@@ -1530,6 +1573,8 @@
 
         overlay.classList.add('show');
         errorEl.style.display = 'none';
+        renderDaftarMasalahKamusSe();
+        resetKeteranganTambahanKamusSe();
 
         if (kamusSeDataCache) {
             loadingEl.style.display = 'none';
@@ -1561,6 +1606,20 @@
 
     function closeKamusSeModal() {
         document.getElementById('kamusSeModalOverlay').classList.remove('show');
+    }
+
+    // Mengosongkan field KETERANGAN TAMBAHAN (Jumlah Keluarga, Jumlah BKU,
+    // centang Permasalahan, Permasalahan lain) setiap kali modal kamus
+    // dibuka -- supaya tidak ke-bawa dari laporan sebelumnya secara tidak
+    // sengaja.
+    function resetKeteranganTambahanKamusSe() {
+        const jumlahKeluargaEl = document.getElementById('kamusSeJumlahKeluarga');
+        const jumlahBkuEl = document.getElementById('kamusSeJumlahBku');
+        const masalahLainEl = document.getElementById('kamusSeMasalahLain');
+        if (jumlahKeluargaEl) jumlahKeluargaEl.value = '';
+        if (jumlahBkuEl) jumlahBkuEl.value = '';
+        if (masalahLainEl) masalahLainEl.value = '';
+        document.querySelectorAll('.kamus-se-masalah-checkbox').forEach(cb => { cb.checked = false; });
     }
 
     function isiDropdownKecamatanKamus() {
@@ -1647,6 +1706,32 @@
             if (item.pml) kalimat += ` PML an. ${item.pml}`;
             kalimat += '.';
         }
+
+        // --- Bagian OPSIONAL: Jumlah Keluarga & Jumlah BKU ---
+        const jumlahKeluarga = (document.getElementById('kamusSeJumlahKeluarga') || {}).value || '';
+        const jumlahBku = (document.getElementById('kamusSeJumlahBku') || {}).value || '';
+        if (jumlahKeluarga || jumlahBku) {
+            kalimat += ` Saat melakukan ${tugasText} ditemukan`;
+            if (jumlahKeluarga) kalimat += ` ${jumlahKeluarga} keluarga`;
+            if (jumlahKeluarga && jumlahBku) kalimat += ' dan';
+            if (jumlahBku) kalimat += ` ${jumlahBku} BKU (Bangunan Kegiatan Usaha)`;
+            kalimat += '.';
+        }
+
+        // --- Bagian OPSIONAL: Permasalahan (kamus tercentang + isian bebas) ---
+        const daftarTerpilih = [];
+        document.querySelectorAll('.kamus-se-masalah-checkbox:checked').forEach(cb => {
+            const teks = KAMUS_SE_DAFTAR_MASALAH[parseInt(cb.value, 10)];
+            if (teks) daftarTerpilih.push(teks);
+        });
+        const masalahLain = ((document.getElementById('kamusSeMasalahLain') || {}).value || '').trim();
+        if (masalahLain) daftarTerpilih.push(masalahLain);
+
+        if (daftarTerpilih.length > 0) {
+            const bagianMasalah = daftarTerpilih.map((teks, idx) => idx === 0 ? teks : `selain itu ditemukan ${teks}`).join(', ');
+            kalimat += ` Permasalahan yang ditemukan ${bagianMasalah}.`;
+        }
+
         return kalimat;
     }
 
