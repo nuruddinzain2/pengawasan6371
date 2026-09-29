@@ -1388,8 +1388,19 @@
     <div class="confirm-modal-box" style="max-width:480px; text-align:left;">
         <h6 class="text-uppercase fw-bold mb-3">📖 KAMUS URAIAN KEGIATAN</h6>
 
-        <div id="kamusSeLoading" class="small text-muted fw-bold text-center py-3">⏳ MEMUAT DATA WILAYAH...</div>
-        <div id="kamusSeError" class="small text-danger fw-bold text-center py-3" style="display:none;"></div>
+        <div id="kamusSeLoading" class="small text-muted fw-bold text-center py-3">
+            ⏳ MEMUAT DATA WILAYAH...
+            <div class="mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="closeKamusSeModal()">BATAL</button>
+            </div>
+        </div>
+        <div id="kamusSeError" class="small text-danger fw-bold text-center py-3" style="display:none;">
+            <div id="kamusSeErrorText"></div>
+            <div class="mt-2 d-flex gap-2 justify-content-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="closeKamusSeModal()">TUTUP</button>
+                <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="openKamusSeModal()">🔄 COBA LAGI</button>
+            </div>
+        </div>
 
         <div id="kamusSeForm" style="display:none;">
             <label class="form-label small fw-bold text-uppercase mb-1">KECAMATAN</label>
@@ -1594,12 +1605,12 @@
                 isiDropdownKecamatanKamus();
             } else {
                 loadingEl.style.display = 'none';
-                errorEl.textContent = '❌ ' + ((res && res.message) ? res.message.toUpperCase() : 'GAGAL MEMUAT DATA WILAYAH.');
+                document.getElementById('kamusSeErrorText').textContent = '❌ ' + ((res && res.message) ? res.message.toUpperCase() : 'GAGAL MEMUAT DATA WILAYAH.');
                 errorEl.style.display = 'block';
             }
         } catch (e) {
             loadingEl.style.display = 'none';
-            errorEl.textContent = '❌ GAGAL MEMUAT DATA WILAYAH. PERIKSA KONEKSI ANDA.';
+            document.getElementById('kamusSeErrorText').textContent = '❌ GAGAL MEMUAT DATA WILAYAH. PERIKSA KONEKSI ANDA.';
             errorEl.style.display = 'block';
         }
     }
