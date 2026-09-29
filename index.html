@@ -468,6 +468,13 @@
             width: 90%;
             padding: 20px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            /* PERBAIKAN: batasi tinggi kotak modal maksimal 90% tinggi layar,
+               dan buat isinya bisa di-scroll sendiri kalau kepanjangan --
+               supaya di layar pendek (laptop resolusi kecil, zoom browser
+               besar, dll) tombol di bagian bawah (mis. SISIPKAN) tidak
+               ketutup di luar layar tanpa cara mengaksesnya. */
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .confirm-modal-box h6 {
             font-weight: bold;
