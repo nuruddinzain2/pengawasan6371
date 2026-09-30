@@ -2080,16 +2080,19 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
                     }
                     state.nip = result.nip;
                     state.taskforce = result.taskforce;
-                    // Role SEMENTARA diisi default 'anggota' (tanpa akses KELOLA/
-                    // REKAP) -- role SEBENARNYA diambil terpisah di bawah lewat
-                    // action 'getRoleInfo', supaya login tidak perlu menunggu
-                    // baca sheet DATABASE (sheet paling besar di sistem ini)
-                    // sebelum bisa masuk ke menu utama. Begitu 'getRoleInfo'
-                    // selesai, applyRoleVisibility() dipanggil ULANG untuk
-                    // memunculkan tab KELOLA/REKAP kalau memang berhak.
-                    state.role = 'anggota';
-                    state.managedTeams = [];
-                    state.viewableTeams = [];
+                    // Role SEMENTARA diisi dari respons login (result.role) kalau
+                    // ADA, atau 'anggota' kalau tidak ada -- lalu akan ditimpa
+                    // lagi di bawah oleh action terpisah 'getRoleInfo' (supaya
+                    // login tidak perlu menunggu baca sheet DATABASE yang besar).
+                    // SENGAJA tetap membaca result.role di sini (bukan langsung
+                    // 'anggota') sebagai JARING PENGAMAN: kalau backend yang
+                    // sedang aktif kebetulan versi LAMA (belum kenal action
+                    // 'getRoleInfo', sehingga panggilan itu nanti gagal), tab
+                    // KELOLA/REKAP tetap bisa muncul dari role yang sudah
+                    // dikirim login, bukan hilang total.
+                    state.role = result.role || 'anggota';
+                    state.managedTeams = result.managedTeams || [];
+                    state.viewableTeams = result.viewableTeams || [];
                     
                     // Simpan NIP di HP/browser ini supaya tidak perlu diketik ulang saat buka halaman lagi
                     try { localStorage.setItem('lastNip', result.nip); } catch (e) {}
