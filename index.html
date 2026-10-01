@@ -1700,14 +1700,34 @@
         document.querySelectorAll('.kamus-se-solusi-checkbox').forEach(cb => { cb.checked = false; });
     }
 
+    // Mencocokkan KECAMATAN pakai DUA VARIABEL KUNCI sekaligus: kolom
+    // "Kecamatan" (berkode, mis. "[010] BANJARMASIN SELATAN") DAN kolom
+    // "Kec 2" (nama bersih tanpa kode). Kalau salah satu cocok, dianggap
+    // cocok -- supaya kalau penulisan kode di salah satu kolom tidak
+    // konsisten antar baris untuk Kelurahan yang sama, barisnya tetap
+    // ketemu lewat kolom yang satunya (inilah penyebab RT di beberapa
+    // Kelurahan seperti "Kelayan Timur" sempat tidak lengkap muncul).
+    function cocokKecamatanKamus(row, nilaiTerpilih) {
+        const n = norm(nilaiTerpilih);
+        return norm(row.kecamatan) === n || norm(row.kecamatan2) === n;
+    }
+
+    // Nama kecamatan yang BERSIH untuk ditampilkan (tanpa kode "[010]") --
+    // dipakai sebagai label dropdown & di kalimat hasil kamus. Fallback ke
+    // kolom "Kecamatan" biasa kalau "Kec 2" kosong untuk baris itu.
+    function namaKecamatanBersih(row) {
+        return (row.kecamatan2 || row.kecamatan || '').trim();
+    }
+
     function isiDropdownKecamatanKamus() {
         const select = document.getElementById('kamusSeKecamatan');
         select.innerHTML = '<option value="">-- PILIH KECAMATAN --</option>';
         const seen = {};
         (kamusSeDataCache || []).forEach(r => {
-            if (r.kecamatan && !seen[norm(r.kecamatan)]) {
-                seen[norm(r.kecamatan)] = true;
-                select.innerHTML += `<option value="${escapeHtml(r.kecamatan)}">${escapeHtml(r.kecamatan.toUpperCase())}</option>`;
+            const nama = namaKecamatanBersih(r);
+            if (nama && !seen[norm(nama)]) {
+                seen[norm(nama)] = true;
+                select.innerHTML += `<option value="${escapeHtml(nama)}">${escapeHtml(nama.toUpperCase())}</option>`;
             }
         });
         document.getElementById('kamusSeKelurahan').innerHTML = '<option value="">-- PILIH KELURAHAN --</option>';
@@ -1724,7 +1744,7 @@
         if (!kec) return;
         const seen = {};
         (kamusSeDataCache || []).forEach(r => {
-            if (norm(r.kecamatan) === norm(kec) && r.kelurahan && !seen[norm(r.kelurahan)]) {
+            if (cocokKecamatanKamus(r, kec) && r.kelurahan && !seen[norm(r.kelurahan)]) {
                 seen[norm(r.kelurahan)] = true;
                 select.innerHTML += `<option value="${escapeHtml(r.kelurahan)}">${escapeHtml(r.kelurahan.toUpperCase())}</option>`;
             }
@@ -1740,10 +1760,16 @@
         if (!kec || !kel) return;
         select.dataValues = [];
         (kamusSeDataCache || []).forEach(r => {
-            if (norm(r.kecamatan) === norm(kec) && norm(r.kelurahan) === norm(kel) && r.nama_rt) {
+            if (cocokKecamatanKamus(r, kec) && norm(r.kelurahan) === norm(kel) && r.nama_rt) {
                 select.dataValues.push(r);
                 const idx = select.dataValues.length - 1;
-                const label = r.nama_rt + (r.ppl ? ` (PPL: ${r.ppl.toUpperCase()}${r.pml ? ', PML: ' + r.pml.toUpperCase() : ''})` : '');
+                // Sertakan ID_SubSLS di label kalau ada, supaya kalau ada
+                // RT dengan NAMA sama tapi beda wilayah pisah (ID_SubSLS
+                // beda, mis. RT yang sama tapi dipecah untuk beberapa
+                // petugas), pengguna bisa membedakannya dengan jelas --
+                // bukan cuma mengandalkan nama RT yang bisa kembar.
+                const kodeSubsls = r.id_subsls ? ` [${r.id_subsls}]` : '';
+                const label = r.nama_rt + kodeSubsls + (r.ppl ? ` (PPL: ${r.ppl.toUpperCase()}${r.pml ? ', PML: ' + r.pml.toUpperCase() : ''})` : '');
                 select.innerHTML += `<option value="${idx}">${escapeHtml(label)}</option>`;
             }
         });
@@ -1772,7 +1798,7 @@
         const tugasValue = (document.getElementById('reportTugas') || {}).value || '';
         const tugasText = (tugasValue || 'pengawasan').toLowerCase();
         const tglIndo = formatTanggalIndonesiaKamus(tglBerangkat);
-        const kec = (item.kecamatan || '-').toUpperCase();
+        const kec = (namaKecamatanBersih(item) || '-').toUpperCase();
         const kel = (item.kelurahan || '-').toUpperCase();
         const rt = item.nama_rt || '-';
 
