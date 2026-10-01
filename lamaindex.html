@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SISTEM PELAPORAN LAPANGAN</title>
-    <link rel="preconnect" href="https://script.google.com">
-    <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -1446,6 +1443,10 @@
             <div id="kamusSeDaftarMasalah" class="mb-2" style="max-height:120px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px;"></div>
             <input type="text" id="kamusSeMasalahLain" class="form-control form-control-sm mb-2" placeholder="Permasalahan lain (opsional, ketik sendiri)" oninput="tampilkanPreviewKamusSe()">
 
+            <label class="form-label small mb-1">TINDAK LANJUT / SOLUSI (OPSIONAL, CENTANG YANG SESUAI)</label>
+            <div id="kamusSeDaftarSolusi" class="mb-2" style="max-height:120px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px;"></div>
+            <input type="text" id="kamusSeSolusiLain" class="form-control form-control-sm mb-2" placeholder="Tindak lanjut lain (opsional, ketik sendiri)" oninput="tampilkanPreviewKamusSe()">
+
             <label class="form-label small fw-bold text-uppercase mb-1">PRATINJAU KALIMAT</label>
             <div id="kamusSePreview" class="small border rounded p-2 bg-light mb-3" style="min-height:70px;"></div>
 
@@ -1457,7 +1458,7 @@
     </div>
 </div>
 
-<script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 
     const CONFIG = {
@@ -1558,19 +1559,49 @@
         'responden menolak untuk diwawancarai',
         'alamat responden sulit ditemukan/tidak sesuai dengan yang tercatat',
         'responden sedang bepergian dalam waktu lama',
-        'rumah/bangunan kosong tidak berpenghuni'
+        'rumah/bangunan kosong tidak berpenghuni',
+        // BARU (dari contoh laporan lapangan): rumah kosong karena penghuni
+        // bekerja, hanya bisa ditemui di hari libur.
+        'terdapat rumah kosong yang penghuninya bekerja sehingga hanya dapat ditemui di hari libur',
+        // BARU: bangunan masuk prelist petugas padahal seharusnya berada di
+        // luar wilayah tugasnya.
+        'terdapat bangunan yang masuk ke prelist petugas padahal seharusnya berada di luar wilayah tugasnya'
+    ];
+
+    // Daftar "kamus" TINDAK LANJUT / SOLUSI yang UMUM dilakukan untuk
+    // menangani permasalahan lapangan Sensus Ekonomi -- sama seperti daftar
+    // masalah di atas, statis & instan (tidak perlu ambil dari server), bisa
+    // dicentang lebih dari satu, dan ada kolom bebas untuk solusi lain.
+    const KAMUS_SE_DAFTAR_SOLUSI = [
+        'berkoordinasi dengan RT setempat dan melakukan kunjungan ulang',
+        'berkoordinasi dengan admin BPS Kabupaten/Kota untuk memindahkan prelist ke wilayah tugas yang sesuai',
+        'melakukan kunjungan ulang di waktu/hari yang berbeda (misalnya malam hari atau hari libur)',
+        'menitipkan pesan/nomor kontak petugas kepada tetangga atau ketua RT untuk disampaikan ke responden',
+        'melaporkan permasalahan kepada PML/PPL untuk ditindaklanjuti lebih lanjut'
     ];
 
     function renderDaftarMasalahKamusSe() {
         const container = document.getElementById('kamusSeDaftarMasalah');
-        if (!container || container.dataset.terisi === '1') return; // isi sekali saja
-        container.innerHTML = KAMUS_SE_DAFTAR_MASALAH.map((teks, idx) => `
-            <div class="form-check">
-                <input class="form-check-input kamus-se-masalah-checkbox" type="checkbox" value="${idx}" id="kamusSeMasalah_${idx}" onchange="tampilkanPreviewKamusSe()">
-                <label class="form-check-label small" for="kamusSeMasalah_${idx}">${escapeHtml(teks)}</label>
-            </div>
-        `).join('');
-        container.dataset.terisi = '1';
+        if (container && container.dataset.terisi !== '1') {
+            container.innerHTML = KAMUS_SE_DAFTAR_MASALAH.map((teks, idx) => `
+                <div class="form-check">
+                    <input class="form-check-input kamus-se-masalah-checkbox" type="checkbox" value="${idx}" id="kamusSeMasalah_${idx}" onchange="tampilkanPreviewKamusSe()">
+                    <label class="form-check-label small" for="kamusSeMasalah_${idx}">${escapeHtml(teks)}</label>
+                </div>
+            `).join('');
+            container.dataset.terisi = '1';
+        }
+
+        const containerSolusi = document.getElementById('kamusSeDaftarSolusi');
+        if (containerSolusi && containerSolusi.dataset.terisi !== '1') {
+            containerSolusi.innerHTML = KAMUS_SE_DAFTAR_SOLUSI.map((teks, idx) => `
+                <div class="form-check">
+                    <input class="form-check-input kamus-se-solusi-checkbox" type="checkbox" value="${idx}" id="kamusSeSolusi_${idx}" onchange="tampilkanPreviewKamusSe()">
+                    <label class="form-check-label small" for="kamusSeSolusi_${idx}">${escapeHtml(teks)}</label>
+                </div>
+            `).join('');
+            containerSolusi.dataset.terisi = '1';
+        }
     }
 
     function isTimSensusEkonomi(timValue) {
@@ -1607,20 +1638,43 @@
         loadingEl.style.display = 'block';
         formEl.style.display = 'none';
         try {
-            const res = await callApi({ action: 'getKamusSeData' });
-            if (res && res.success && Array.isArray(res.data)) {
-                kamusSeDataCache = res.data;
-                loadingEl.style.display = 'none';
-                formEl.style.display = 'block';
-                isiDropdownKecamatanKamus();
-            } else {
-                loadingEl.style.display = 'none';
-                document.getElementById('kamusSeErrorText').textContent = '❌ ' + ((res && res.message) ? res.message.toUpperCase() : 'GAGAL MEMUAT DATA WILAYAH.');
-                errorEl.style.display = 'block';
+            let data = null;
+
+            // OPSI TERCEPAT (opsional): kalau ada file "kamus_se.json" di
+            // folder yang sama dengan index.html (di GitHub Pages), file itu
+            // dibaca LANGSUNG lewat fetch biasa -- TANPA lewat Apps Script
+            // sama sekali. Jauh lebih cepat karena dilayani langsung oleh
+            // GitHub Pages (seperti membuka gambar/file statis biasa), tidak
+            // ada proses server yang perlu dijalankan. Kalau file ini belum
+            // ada (404) atau gagal dibaca, otomatis lanjut ke cara lama
+            // (action 'getKamusSeData' ke Apps Script) tanpa mengganggu apa
+            // pun -- jadi aman dipasang bertahap.
+            try {
+                const resStatis = await fetch('./kamus_se.json', { cache: 'force-cache' });
+                if (resStatis.ok) {
+                    const dataStatis = await resStatis.json();
+                    if (Array.isArray(dataStatis)) data = dataStatis;
+                }
+            } catch (eStatis) {
+                // Diamkan saja -- lanjut coba lewat Apps Script di bawah.
             }
+
+            if (!data) {
+                const res = await callApi({ action: 'getKamusSeData' });
+                if (res && res.success && Array.isArray(res.data)) {
+                    data = res.data;
+                } else {
+                    throw new Error((res && res.message) || 'Gagal memuat data wilayah.');
+                }
+            }
+
+            kamusSeDataCache = data;
+            loadingEl.style.display = 'none';
+            formEl.style.display = 'block';
+            isiDropdownKecamatanKamus();
         } catch (e) {
             loadingEl.style.display = 'none';
-            document.getElementById('kamusSeErrorText').textContent = '❌ GAGAL MEMUAT DATA WILAYAH. PERIKSA KONEKSI ANDA.';
+            document.getElementById('kamusSeErrorText').textContent = '❌ ' + (e.message ? e.message.toUpperCase() : 'GAGAL MEMUAT DATA WILAYAH. PERIKSA KONEKSI ANDA.');
             errorEl.style.display = 'block';
         }
     }
@@ -1637,10 +1691,13 @@
         const jumlahKeluargaEl = document.getElementById('kamusSeJumlahKeluarga');
         const jumlahBkuEl = document.getElementById('kamusSeJumlahBku');
         const masalahLainEl = document.getElementById('kamusSeMasalahLain');
+        const solusiLainEl = document.getElementById('kamusSeSolusiLain');
         if (jumlahKeluargaEl) jumlahKeluargaEl.value = '';
         if (jumlahBkuEl) jumlahBkuEl.value = '';
         if (masalahLainEl) masalahLainEl.value = '';
+        if (solusiLainEl) solusiLainEl.value = '';
         document.querySelectorAll('.kamus-se-masalah-checkbox').forEach(cb => { cb.checked = false; });
+        document.querySelectorAll('.kamus-se-solusi-checkbox').forEach(cb => { cb.checked = false; });
     }
 
     function isiDropdownKecamatanKamus() {
@@ -1753,6 +1810,20 @@
             kalimat += ` Permasalahan yang ditemukan ${bagianMasalah}.`;
         }
 
+        // --- Bagian OPSIONAL: Tindak Lanjut / Solusi (kamus tercentang + isian bebas) ---
+        const daftarSolusiTerpilih = [];
+        document.querySelectorAll('.kamus-se-solusi-checkbox:checked').forEach(cb => {
+            const teks = KAMUS_SE_DAFTAR_SOLUSI[parseInt(cb.value, 10)];
+            if (teks) daftarSolusiTerpilih.push(teks);
+        });
+        const solusiLain = ((document.getElementById('kamusSeSolusiLain') || {}).value || '').trim();
+        if (solusiLain) daftarSolusiTerpilih.push(solusiLain);
+
+        if (daftarSolusiTerpilih.length > 0) {
+            const bagianSolusi = daftarSolusiTerpilih.map((teks, idx) => idx === 0 ? teks : `serta ${teks}`).join(', ');
+            kalimat += ` Tindak lanjut yang disarankan yaitu ${bagianSolusi}.`;
+        }
+
         return kalimat;
     }
 
@@ -1852,97 +1923,15 @@
     // PC walau di PC fetch() langsung berhasil.
     let fetchTerbuktiTidakJalan = isPerangkatHp;
 
-    // =====================================================================
-    // LAPISAN API (VERSI CEPAT + TAHAN GANGGUAN)
-    // =====================================================================
-    // Masalah lama: satu kali gagal (cold start / gangguan sesaat Apps
-    // Script) langsung dianggap GAGAL ke pengguna, terutama di RIWAYAT.
-    // Sekarang:
-    //  1. Action BACA (idempotent) otomatis dicoba ulang sampai 3x dengan
-    //     jeda bertahap. Action TULIS (simpan/hapus/ubah) TIDAK diulang
-    //     otomatis supaya tidak menghasilkan data ganda.
-    //  2. Permintaan BACA yang sama & sedang berjalan digabung jadi satu
-    //     (tidak menumpuk beban ke server).
-    //  3. Timeout per percobaan dipendekkan (15 dtk) -- lebih baik gagal
-    //     cepat lalu coba ulang daripada menggantung 30 detik.
-    const FETCH_API_TIMEOUT_MS = 8000;   // cold start Apps Script bisa 3-6 dtk
-    const JSONP_TIMEOUT_MS = 15000;
-    const API_MAX_ATTEMPT_BACA = 3;
+    // Batas waktu percobaan fetch() biasa sebelum menyerah dan pindah ke
+    // JSONP. Dibuat pendek (3 detik) supaya kalau fetch() menggantung lama
+    // di jaringan HP, kita tidak ikut menunggu lama -- langsung pindah cara.
+    const FETCH_API_TIMEOUT_MS = 3000;
 
-    const READ_ACTIONS = new Set([
-        'login', 'getTugasOptions', 'getDropdownData', 'getMyReports',
-        'getKuotaInfo', 'getKuota', 'getAllKuota', 'getAllNames',
-        'getEmailDirectory', 'getKamusSeData', 'getKelolaSuratTugas',
-        'getManagedTeams', 'getRekapCapaian', 'getTeamMembers'
-    ]);
-
-    const inflightApi = {};
-    const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
-
-    // ---- Cache kecil (localStorage untuk data statis, sessionStorage untuk riwayat) ----
-    function cacheGet(key, session) {
-        try {
-            const raw = (session ? sessionStorage : localStorage).getItem('cache_' + key);
-            return raw ? JSON.parse(raw).d : null;
-        } catch (e) { return null; }
-    }
-    function cacheSet(key, data, session) {
-        try {
-            (session ? sessionStorage : localStorage).setItem('cache_' + key, JSON.stringify({ t: Date.now(), d: data }));
-        } catch (e) { /* kuota penuh / mode privat -- abaikan */ }
-    }
-    function invalidateReportsCache() {
-        try {
-            Object.keys(sessionStorage)
-                .filter(k => k.indexOf('cache_reports_') === 0)
-                .forEach(k => sessionStorage.removeItem(k));
-        } catch (e) {}
-    }
-
-    // opts: { retries: jumlah ulang (default 2 utk BACA, 0 utk TULIS), onRetry(percobaanKe, maks) }
-    async function callApi(params, opts) {
-        opts = opts || {};
-        const isRead = READ_ACTIONS.has(params.action);
-        const maxAttempt = (opts.retries != null)
-            ? opts.retries + 1
-            : (isRead ? API_MAX_ATTEMPT_BACA : 1);
-
-        const key = isRead ? JSON.stringify(params) : null;
-        if (key && inflightApi[key]) return inflightApi[key];
-
-        const p = (async () => {
-            let lastErr = null;
-            for (let attempt = 1; attempt <= maxAttempt; attempt++) {
-                try {
-                    const res = await callApiOnce(params);
-                    if (res && typeof res === 'object') {
-                        if (!isRead) invalidateReportsCache();
-                        return res;
-                    }
-                    throw new Error('Respon server kosong.');
-                } catch (err) {
-                    lastErr = err;
-                    if (attempt < maxAttempt) {
-                        if (typeof opts.onRetry === 'function') {
-                            try { opts.onRetry(attempt + 1, maxAttempt); } catch (e) {}
-                        }
-                        await sleepMs(600 * attempt + Math.floor(Math.random() * 300));
-                    }
-                }
-            }
-            throw lastErr || new Error('Koneksi server gagal.');
-        })();
-
-        if (key) {
-            inflightApi[key] = p;
-            const bersihkan = () => { delete inflightApi[key]; };
-            p.then(bersihkan, bersihkan);
-        }
-        return p;
-    }
-
-    // Satu kali percobaan: fetch() (PC) atau JSONP (HP / setelah fetch terbukti gagal).
-    async function callApiOnce(params) {
+    async function callApi(params) {
+        // Begitu fetch() pernah terbukti gagal di sesi ini, langsung pakai
+        // JSONP tanpa mencoba fetch() lagi -- menghindari pengulangan
+        // percobaan-gagal yang membuang waktu di setiap panggilan.
         if (fetchTerbuktiTidakJalan) {
             return await callApiJsonp(params);
         }
@@ -1957,24 +1946,23 @@
         try {
             const response = await fetch(url.toString(), { method: 'GET', mode: 'cors', signal: controller.signal });
             clearTimeout(timeoutId);
-            if (!response.ok) {
-                const e = new Error('HTTP ' + response.status);
-                e.transient = true; // error server sesaat: jangan matikan fetch() untuk sesi ini
-                throw e;
-            }
+            if (!response.ok) throw new Error();
             return await response.json();
         } catch (err) {
             clearTimeout(timeoutId);
-            // Hanya kalau ini error jaringan/CORS sungguhan (bukan timeout / HTTP error
-            // sesaat) baru pindah permanen ke JSONP untuk sisa sesi.
-            if (err.name !== 'AbortError' && !err.transient) {
-                fetchTerbuktiTidakJalan = true;
-            }
+            fetchTerbuktiTidakJalan = true; // jangan coba fetch() lagi untuk panggilan berikutnya di sesi ini
             return await callApiJsonp(params);
         }
     }
 
+    // Penghitung untuk membuat nama callback JSONP yang UNIK. Sebelumnya
+    // memakai 'jsonp_' + Date.now() saja, sehingga dua panggilan yang
+    // dimulai di milidetik yang sama (contoh: loadTugasOptions() dan
+    // loadTimDropdown() yang sekarang jalan bersamaan lewat Promise.all)
+    // mendapat NAMA YANG SAMA -- callback yang satu menimpa yang lain,
+    // salah satu jawaban hilang, dan dropdown TUGAS/TIM jadi kosong.
     let jsonpCounter = 0;
+    const JSONP_TIMEOUT_MS = 30000;
 
     function callApiJsonp(params) {
         return new Promise((resolve, reject) => {
@@ -1996,6 +1984,8 @@
                 delete window[callbackName];
                 if (script.parentNode) script.parentNode.removeChild(script);
             };
+            // Jaga-jaga: kalau server tidak pernah membalas, jangan biarkan
+            // Promise menggantung selamanya.
             const timerId = setTimeout(() => {
                 if (selesai) return;
                 bersihkan();
@@ -2089,9 +2079,7 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
             }
 
             try {
-                const hasilJson = await response.json();
-                invalidateReportsCache();
-                return hasilJson;
+                return await response.json();
             } catch (parseErr) {
                 throw new Error(invalidResponseMessage || 'Respon server tidak valid.');
             }
@@ -2117,9 +2105,7 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
         showAlert('loginAlert', '⏳ SILAKAN MENUNGGU, SEDANG MEMERIKSA DATA ANDA...', 'info');
 
         try {
-            let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce }, {
-                onRetry: (ke, maks) => showAlert('loginAlert', '⏳ SERVER SEDANG LAMBAT, MENCOBA LAGI (' + ke + '/' + maks + ')...', 'info')
-            });
+            let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
             if (!result.success) {
                 showAlert('loginAlert', '❌ ' + result.message.toUpperCase(), 'danger');
                 btn.disabled = false; btn.textContent = 'MASUK';
@@ -2145,6 +2131,16 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
                     }
                     state.nip = result.nip;
                     state.taskforce = result.taskforce;
+                    // Role SEMENTARA diisi dari respons login (result.role) kalau
+                    // ADA, atau 'anggota' kalau tidak ada -- lalu akan ditimpa
+                    // lagi di bawah oleh action terpisah 'getRoleInfo' (supaya
+                    // login tidak perlu menunggu baca sheet DATABASE yang besar).
+                    // SENGAJA tetap membaca result.role di sini (bukan langsung
+                    // 'anggota') sebagai JARING PENGAMAN: kalau backend yang
+                    // sedang aktif kebetulan versi LAMA (belum kenal action
+                    // 'getRoleInfo', sehingga panggilan itu nanti gagal), tab
+                    // KELOLA/REKAP tetap bisa muncul dari role yang sudah
+                    // dikirim login, bukan hilang total.
                     state.role = result.role || 'anggota';
                     state.managedTeams = result.managedTeams || [];
                     state.viewableTeams = result.viewableTeams || [];
@@ -2160,10 +2156,9 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
                     document.getElementById('reportPanel').style.display = 'block';
                     
                     applyRoleVisibility();
-                    // Dijalankan BERSAMAAN (Promise.all), bukan berurutan --
-                    // keduanya tidak saling bergantung, jadi tidak perlu
-                    // menunggu satu selesai baru mulai yang lain. Ini
-                    // memotong waktu tunggu login kira-kira separuhnya.
+                    // Ketiganya dijalankan BERSAMAAN (Promise.all), bukan
+                    // berurutan -- tidak saling bergantung, jadi tidak perlu
+                    // menunggu satu selesai baru mulai yang lain.
                     //
                     // loadReports() SENGAJA TIDAK dipanggil di sini lagi --
                     // tab yang aktif setelah login adalah LAPORAN, bukan
@@ -2171,10 +2166,17 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
                     // sini cuma buang-buang waktu & kuota data (terutama di
                     // HP). Riwayat baru diambil saat tab RIWAYAT benar-benar
                     // dibuka (lihat switchTab()).
-                    // TIDAK di-await: panel laporan langsung tampil. Dropdown terisi
-                    // dari cache (instan) lalu diperbarui diam-diam di belakang layar.
-                    loadTugasOptions();
-                    loadTimDropdown();
+                    const [, , roleRes] = await Promise.all([
+                        loadTugasOptions(),
+                        loadTimDropdown(),
+                        callApi({ action: 'getRoleInfo', nip: result.nip, taskforce: result.taskforce }).catch(() => null)
+                    ]);
+                    if (roleRes && roleRes.success) {
+                        state.role = roleRes.role || 'anggota';
+                        state.managedTeams = roleRes.managedTeams || [];
+                        state.viewableTeams = roleRes.viewableTeams || [];
+                        applyRoleVisibility();
+                    }
                 }
             }
         } catch (err) {
@@ -2184,7 +2186,6 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
     }
 
     function handleLogout() {
-        invalidateReportsCache();
         document.getElementById('loginPanel').style.display = 'block';
         document.getElementById('reportPanel').style.display = 'none';
         document.getElementById('loginForm').reset();
@@ -2297,52 +2298,13 @@ playWiggle();
     // 'Konsultasi' sengaja tidak dimasukkan di sini karena dia boleh lebih dari 1 hari.
     const TUGAS_WAJIB_SATU_HARI = ['pengawasan', 'pemeriksaan', 'supervisi'];
 
-    // Isi <select> dari daftar; pilihan yang sedang dipilih tidak hilang.
-    function isiSelectOpsi(id, placeholder, list) {
-        const sel = document.getElementById(id);
-        if (!sel) return;
-        const prev = sel.value;
-        let html = '<option value="">' + placeholder + '</option>';
-        let adaPrev = false;
-        (list || []).forEach(o => {
-            const v = String(o).trim();
-            if (!v) return;
-            if (v === prev) adaPrev = true;
-            html += '<option value="' + escapeHtml(v) + '">' + escapeHtml(v.toUpperCase()) + '</option>';
-        });
-        sel.innerHTML = html;
-        if (prev && adaPrev) sel.value = prev;
-    }
-
-    // Pola: tampilkan CACHE dulu (instan) -> ambil data terbaru di belakang layar.
-    // Kalau cache ada, fungsi langsung selesai tanpa menunggu jaringan.
-    async function muatDropdownBercache(cacheKey, params, selectId, placeholder) {
-        const cached = cacheGet(cacheKey);
-        if (cached && cached.length) isiSelectOpsi(selectId, placeholder, cached);
-        else isiSelectOpsi(selectId, '-- MEMUAT... --', []);
-
-        const segarkan = (async () => {
-            try {
-                const res = await callApi(params);
-                if (res && res.success && Array.isArray(res.data)) {
-                    if (!cached || JSON.stringify(cached) !== JSON.stringify(res.data)) {
-                        isiSelectOpsi(selectId, placeholder, res.data);
-                    }
-                    cacheSet(cacheKey, res.data);
-                    return;
-                }
-                throw new Error('gagal');
-            } catch (e) {
-                if (!cached || !cached.length) isiSelectOpsi(selectId, '-- GAGAL MEMUAT, COBA LOGIN ULANG --', []);
-            }
-        })();
-
-        if (cached && cached.length) return; // sudah tampil dari cache, tidak perlu menunggu
-        await segarkan;
-    }
-
     async function loadTugasOptions() {
-        await muatDropdownBercache('tugasOptions', { action: 'getTugasOptions' }, 'reportTugas', '-- PILIH TUGAS --');
+        let res = await callApi({ action: 'getTugasOptions' });
+        if (res.success) {
+            const select = document.getElementById('reportTugas');
+            select.innerHTML = '<option value="">-- PILIH TUGAS --</option>';
+            res.data.forEach(opt => select.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+        }
     }
 
     // Dipanggil saat dropdown TUGAS berubah. Jika tugas termasuk yang wajib
@@ -2376,8 +2338,24 @@ playWiggle();
         updateSisaKuota();
     }
 
+    // Daftar SEMUA TIM yang terdaftar di sheet DATABASE (bukan cuma TIM yang
+    // sudah pernah dipakai pengguna ini). Diisi oleh loadTimDropdown() yang
+    // SUDAH DIPANGGIL SAAT LOGIN untuk mengisi dropdown "PILIH TIM" di form
+    // laporan -- dipakai ULANG di sini (tanpa panggilan server tambahan)
+    // supaya filter TIM di tab RIWAYAT juga menampilkan SEMUA TIM yang ada,
+    // bukan cuma TIM yang kebetulan sudah pernah dibuatkan laporan oleh
+    // pengguna ini. Ini yang memperbaiki keluhan "TIM X tidak muncul di
+    // filter RIWAYAT padahal TIM-nya memang ada di database".
+    let semuaTimList = [];
+
     async function loadTimDropdown() {
-        await muatDropdownBercache('timOptions', { action: 'getDropdownData', level: 'tim' }, 'reportTim', '-- PILIH TIM --');
+        let res = await callApi({ action: 'getDropdownData', level: 'tim' });
+        if (res.success) {
+            semuaTimList = (res.data || []).map(t => String(t).trim()).filter(Boolean);
+            const select = document.getElementById('reportTim');
+            select.innerHTML = '<option value="">-- PILIH TIM --</option>';
+            res.data.forEach(opt => select.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
+        }
     }
 
 
@@ -3853,7 +3831,7 @@ sub = 'surat';
                         action: 'getRekapCapaian',
                         nip: state.nip,
                         requester_taskforce: state.taskforce
-                    }, { retries: 0 });
+                    });
 
                     if (res && res.success) {
                         clearTimeout(loadingTimeout);
@@ -3876,7 +3854,7 @@ sub = 'surat';
                         requester_taskforce: state.taskforce,
                         tim: '',
                         status: ''
-                    }, { retries: 0 });
+                    });
                     if (!resFallback.success) {
                         throw new Error(resFallback.message || (res && res.message) || 'Server menolak permintaan.');
                     }
@@ -4845,7 +4823,7 @@ if (res.role === 'asesor') {
         try {
             let res = await callApi({ action: 'deleteReport', id: id, nip: state.nip });
             if (res.success) {
-                loadReports(true);
+                loadReports();
             } else {
                 alert('❌ ' + (res.message || 'GAGAL MENGHAPUS LAPORAN.').toUpperCase());
             }
@@ -4872,7 +4850,7 @@ if (res.role === 'asesor') {
         // nama TASKFORCE pemilik laporan supaya tidak tertukar saat mencentang.
         const tampilkanPemilik = state.role === 'admin';
 
-        let htmlKartu = '<ul class="list-group small fw-bold">';
+        container.innerHTML = '<ul class="list-group small fw-bold">';
         data.forEach(r => {
             reportListCache[r.ID] = r;
             const idAman = escapeHtml(String(r.ID));
@@ -4881,7 +4859,7 @@ if (res.role === 'asesor') {
             const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
             const labelPemilik = tampilkanPemilik ? ` - ${escapeHtml(String(r.TASKFORCE || '-').toUpperCase())}` : '';
 
-            htmlKartu += `<li class="list-group-item">
+            container.innerHTML += `<li class="list-group-item">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                     <div class="form-check flex-grow-1 mb-0">
                         <input class="form-check-input print-select-checkbox" type="checkbox" value="${idAman}" id="printChk_${idAman}">
@@ -4899,8 +4877,7 @@ if (res.role === 'asesor') {
                 </div>
             </li>`;
         });
-        htmlKartu += '</ul>';
-        container.innerHTML = htmlKartu;
+        container.innerHTML += '</ul>';
     }
 
 
@@ -4912,25 +4889,35 @@ if (res.role === 'asesor') {
     let riwayatAllData = [];
     let riwayatFilterTimTerisi = false;
 
-    // Mengisi dropdown filter TIM di tab RIWAYAT dari data yang baru saja
-    // dimuat. Opsi HANYA DITAMBAH (tidak pernah dihapus) supaya TIM yang
-    // pernah muncul di status lain (misal DRAFT) tidak hilang dari pilihan
-    // saat berpindah ke filter status FINAL.
+    // Mengisi dropdown filter TIM di tab RIWAYAT. SUMBER UTAMA sekarang
+    // adalah semuaTimList (SEMUA TIM yang terdaftar di sheet DATABASE,
+    // sudah dimuat saat login -- lihat loadTimDropdown()), BUKAN hanya TIM
+    // yang kebetulan sudah pernah dibuatkan laporan oleh pengguna ini.
+    // Ini memperbaiki keluhan "TIM tertentu tidak muncul di filter RIWAYAT
+    // padahal TIM itu memang ada" -- supaya konsisten dengan tab REKAP yang
+    // juga menampilkan semua TIM yang dikenal sistem, bukan cuma milik
+    // sendiri. Sebagai cadangan (kalau karena suatu sebab semuaTimList
+    // masih kosong), TIM dari data riwayat yang sedang dimuat tetap
+    // ditambahkan juga, supaya tidak ada kemungkinan TIM hilang dari daftar.
     function isiFilterRiwayatTim(data) {
         const select = document.getElementById('filterRiwayatTim');
         if (!select) return;
         const sudahAda = {};
         Array.from(select.options).forEach(opt => { if (opt.value) sudahAda[norm(opt.value)] = true; });
-        (data || []).forEach(r => {
-            const tim = String(r.TIM || '').trim();
-            if (tim && !sudahAda[norm(tim)]) {
-                sudahAda[norm(tim)] = true;
+
+        const tambahkanOpsi = (tim) => {
+            const nilai = String(tim || '').trim();
+            if (nilai && !sudahAda[norm(nilai)]) {
+                sudahAda[norm(nilai)] = true;
                 const opt = document.createElement('option');
-                opt.value = tim;
-                opt.textContent = tim.toUpperCase();
+                opt.value = nilai;
+                opt.textContent = nilai.toUpperCase();
                 select.appendChild(opt);
             }
-        });
+        };
+
+        semuaTimList.forEach(tambahkanOpsi);
+        (data || []).forEach(r => tambahkanOpsi(r.TIM));
     }
 
     // Menerapkan filter TIM (client-side, tanpa fetch ulang) + URUTAN
@@ -4976,7 +4963,7 @@ if (res.role === 'asesor') {
             return;
         }
         reportListCache = {};
-        let htmlKartu = '<ul class="list-group small fw-bold">';
+        container.innerHTML = '<ul class="list-group small fw-bold">';
         data.forEach(r => {
             reportListCache[r.ID] = r;
             const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
@@ -4988,7 +4975,7 @@ if (res.role === 'asesor') {
             const printBtn = isFinal
                 ? `<button type="button" class="btn btn-sm fw-bold btn-print btn-print-final" onclick="printReport('${r.ID}')">🖨️ PRINT FINAL</button>`
                 : '';
-            htmlKartu += `<li class="list-group-item">
+            container.innerHTML += `<li class="list-group-item">
                 <div class="d-flex justify-content-between align-items-center">
                 <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
 
@@ -5009,56 +4996,24 @@ if (res.role === 'asesor') {
                 </div>
             </li>`;
         });
-        htmlKartu += '</ul>';
-        container.innerHTML = htmlKartu;
+        container.innerHTML += '</ul>';
     }
 
-    function htmlGagalMuat(pesan, fnCoba) {
-        return '<div class="small text-danger text-center fw-bold py-2">' + pesan +
-            '<div class="mt-2"><button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="' + fnCoba + '">🔄 COBA LAGI</button></div></div>';
-    }
-
-    // RIWAYAT: tampilkan data tersimpan (kalau ada) LANGSUNG, lalu perbarui dari
-    // server. Kalau server gagal tapi data tersimpan ada, data lama tetap
-    // ditampilkan (bukan pesan gagal). forceReload = true -> lewati cache.
-    async function loadReports(forceReload) {
-        const container = document.getElementById('reportListContainer');
-        const filter = document.getElementById('filterStatus').value;
-        const cacheKey = 'reports_' + state.nip + '_' + filter;
-        const jumlahEl = document.getElementById('riwayatJumlahTampil');
-        const cached = (forceReload === true) ? null : cacheGet(cacheKey, true);
-
-        if (cached) {
-            riwayatAllData = cached;
-            isiFilterRiwayatTim(riwayatAllData);
-            applyRiwayatFilter();
-            if (jumlahEl) jumlahEl.textContent += ' (MEMPERBARUI...)';
-        } else {
-            container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT DATA...</div>';
-        }
-
+    async function loadReports() {
+        let container = document.getElementById('reportListContainer');
+        container.innerHTML = '<div class="small text-muted fw-bold">⏳ SILAKAN MENUNGGU, SEDANG MEMUAT DATA...</div>';
         try {
-            const res = await callApi({ action: 'getMyReports', nip: state.nip, status: filter }, {
-                onRetry: (ke, maks) => {
-                    if (!cached) container.innerHTML = '<div class="small text-muted fw-bold">⏳ SERVER SEDANG LAMBAT, MENCOBA LAGI (' + ke + '/' + maks + ')...</div>';
-                }
-            });
-            if (res && res.success) {
+            let filter = document.getElementById('filterStatus').value;
+            let res = await callApi({ action: 'getMyReports', nip: state.nip, status: filter });
+            if (res.success) {
                 riwayatAllData = res.data || [];
-                cacheSet(cacheKey, riwayatAllData, true);
                 isiFilterRiwayatTim(riwayatAllData);
                 applyRiwayatFilter();
-            } else if (!cached) {
-                container.innerHTML = htmlGagalMuat('GAGAL MEMUAT RIWAYAT LAPORAN.', 'loadReports(true)');
-            } else if (jumlahEl) {
-                jumlahEl.textContent = jumlahEl.textContent.replace(' (MEMPERBARUI...)', ' (DATA TERSIMPAN)');
+            } else {
+                container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT RIWAYAT LAPORAN.</div>';
             }
-        } catch (e) {
-            if (!cached) {
-                container.innerHTML = htmlGagalMuat('GAGAL MEMUAT RIWAYAT LAPORAN. KONEKSI KE SERVER TERGANGGU.', 'loadReports(true)');
-            } else if (jumlahEl) {
-                jumlahEl.textContent = jumlahEl.textContent.replace(' (MEMPERBARUI...)', ' (DATA TERSIMPAN - GAGAL MEMPERBARUI)');
-            }
+        } catch (e) { 
+            container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT RIWAYAT LAPORAN.</div>'; 
         }
     }
 
@@ -5105,7 +5060,7 @@ if (res.role === 'asesor') {
                 // ANGGOTA (dan role lain selain admin): hanya laporan final miliknya sendiri.
                 const res = await callApi({ action: 'getMyReports', nip: state.nip, status: 'final' });
                 if (!res.success) {
-                    container.innerHTML = htmlGagalMuat('GAGAL MEMUAT DAFTAR PRINT FINAL.', 'loadPrintReports()');
+                    container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT DAFTAR PRINT FINAL.</div>';
                     return;
                 }
                 data = res.data || [];
@@ -5115,7 +5070,7 @@ if (res.role === 'asesor') {
             if (isAdmin) isiFilterPrintTim(data);
             applyPrintFilters();
         } catch (e) {
-            container.innerHTML = htmlGagalMuat('GAGAL MEMUAT DAFTAR PRINT FINAL.', 'loadPrintReports()');
+            container.innerHTML = '<div class="small text-danger text-center fw-bold">GAGAL MEMUAT DAFTAR PRINT FINAL.</div>';
         }
     }
 
@@ -5195,12 +5150,6 @@ if (res.role === 'asesor') {
         document.getElementById('reportTanggalBerangkat').value = getToday();
         document.getElementById('reportTanggalPulang').value = getToday();
         updateSisaKuota();
-
-        // PEMANASAN: begitu halaman terbuka, ambil dropdown TUGAS & TIM di belakang
-        // layar. Ini (a) membangunkan server Apps Script dari cold start selagi
-        // pengguna mengetik NIP, sehingga LOGIN jauh lebih cepat, dan (b) mengisi
-        // cache supaya form langsung siap begitu login.
-        try { loadTugasOptions(); loadTimDropdown(); } catch (e) {}
 
         // Isi otomatis NIP dari penyimpanan HP/browser ini (kalau pernah login sebelumnya)
         try {
