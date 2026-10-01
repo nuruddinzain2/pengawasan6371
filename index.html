@@ -1443,6 +1443,10 @@
             <div id="kamusSeDaftarMasalah" class="mb-2" style="max-height:120px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px;"></div>
             <input type="text" id="kamusSeMasalahLain" class="form-control form-control-sm mb-2" placeholder="Permasalahan lain (opsional, ketik sendiri)" oninput="tampilkanPreviewKamusSe()">
 
+            <label class="form-label small mb-1">TINDAK LANJUT / SOLUSI (OPSIONAL, CENTANG YANG SESUAI)</label>
+            <div id="kamusSeDaftarSolusi" class="mb-2" style="max-height:120px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px;"></div>
+            <input type="text" id="kamusSeSolusiLain" class="form-control form-control-sm mb-2" placeholder="Tindak lanjut lain (opsional, ketik sendiri)" oninput="tampilkanPreviewKamusSe()">
+
             <label class="form-label small fw-bold text-uppercase mb-1">PRATINJAU KALIMAT</label>
             <div id="kamusSePreview" class="small border rounded p-2 bg-light mb-3" style="min-height:70px;"></div>
 
@@ -1555,19 +1559,49 @@
         'responden menolak untuk diwawancarai',
         'alamat responden sulit ditemukan/tidak sesuai dengan yang tercatat',
         'responden sedang bepergian dalam waktu lama',
-        'rumah/bangunan kosong tidak berpenghuni'
+        'rumah/bangunan kosong tidak berpenghuni',
+        // BARU (dari contoh laporan lapangan): rumah kosong karena penghuni
+        // bekerja, hanya bisa ditemui di hari libur.
+        'terdapat rumah kosong yang penghuninya bekerja sehingga hanya dapat ditemui di hari libur',
+        // BARU: bangunan masuk prelist petugas padahal seharusnya berada di
+        // luar wilayah tugasnya.
+        'terdapat bangunan yang masuk ke prelist petugas padahal seharusnya berada di luar wilayah tugasnya'
+    ];
+
+    // Daftar "kamus" TINDAK LANJUT / SOLUSI yang UMUM dilakukan untuk
+    // menangani permasalahan lapangan Sensus Ekonomi -- sama seperti daftar
+    // masalah di atas, statis & instan (tidak perlu ambil dari server), bisa
+    // dicentang lebih dari satu, dan ada kolom bebas untuk solusi lain.
+    const KAMUS_SE_DAFTAR_SOLUSI = [
+        'berkoordinasi dengan RT setempat dan melakukan kunjungan ulang',
+        'berkoordinasi dengan admin BPS Kabupaten/Kota untuk memindahkan prelist ke wilayah tugas yang sesuai',
+        'melakukan kunjungan ulang di waktu/hari yang berbeda (misalnya malam hari atau hari libur)',
+        'menitipkan pesan/nomor kontak petugas kepada tetangga atau ketua RT untuk disampaikan ke responden',
+        'melaporkan permasalahan kepada PML/PPL untuk ditindaklanjuti lebih lanjut'
     ];
 
     function renderDaftarMasalahKamusSe() {
         const container = document.getElementById('kamusSeDaftarMasalah');
-        if (!container || container.dataset.terisi === '1') return; // isi sekali saja
-        container.innerHTML = KAMUS_SE_DAFTAR_MASALAH.map((teks, idx) => `
-            <div class="form-check">
-                <input class="form-check-input kamus-se-masalah-checkbox" type="checkbox" value="${idx}" id="kamusSeMasalah_${idx}" onchange="tampilkanPreviewKamusSe()">
-                <label class="form-check-label small" for="kamusSeMasalah_${idx}">${escapeHtml(teks)}</label>
-            </div>
-        `).join('');
-        container.dataset.terisi = '1';
+        if (container && container.dataset.terisi !== '1') {
+            container.innerHTML = KAMUS_SE_DAFTAR_MASALAH.map((teks, idx) => `
+                <div class="form-check">
+                    <input class="form-check-input kamus-se-masalah-checkbox" type="checkbox" value="${idx}" id="kamusSeMasalah_${idx}" onchange="tampilkanPreviewKamusSe()">
+                    <label class="form-check-label small" for="kamusSeMasalah_${idx}">${escapeHtml(teks)}</label>
+                </div>
+            `).join('');
+            container.dataset.terisi = '1';
+        }
+
+        const containerSolusi = document.getElementById('kamusSeDaftarSolusi');
+        if (containerSolusi && containerSolusi.dataset.terisi !== '1') {
+            containerSolusi.innerHTML = KAMUS_SE_DAFTAR_SOLUSI.map((teks, idx) => `
+                <div class="form-check">
+                    <input class="form-check-input kamus-se-solusi-checkbox" type="checkbox" value="${idx}" id="kamusSeSolusi_${idx}" onchange="tampilkanPreviewKamusSe()">
+                    <label class="form-check-label small" for="kamusSeSolusi_${idx}">${escapeHtml(teks)}</label>
+                </div>
+            `).join('');
+            containerSolusi.dataset.terisi = '1';
+        }
     }
 
     function isTimSensusEkonomi(timValue) {
@@ -1657,10 +1691,13 @@
         const jumlahKeluargaEl = document.getElementById('kamusSeJumlahKeluarga');
         const jumlahBkuEl = document.getElementById('kamusSeJumlahBku');
         const masalahLainEl = document.getElementById('kamusSeMasalahLain');
+        const solusiLainEl = document.getElementById('kamusSeSolusiLain');
         if (jumlahKeluargaEl) jumlahKeluargaEl.value = '';
         if (jumlahBkuEl) jumlahBkuEl.value = '';
         if (masalahLainEl) masalahLainEl.value = '';
+        if (solusiLainEl) solusiLainEl.value = '';
         document.querySelectorAll('.kamus-se-masalah-checkbox').forEach(cb => { cb.checked = false; });
+        document.querySelectorAll('.kamus-se-solusi-checkbox').forEach(cb => { cb.checked = false; });
     }
 
     function isiDropdownKecamatanKamus() {
@@ -1771,6 +1808,20 @@
         if (daftarTerpilih.length > 0) {
             const bagianMasalah = daftarTerpilih.map((teks, idx) => idx === 0 ? teks : `selain itu ditemukan ${teks}`).join(', ');
             kalimat += ` Permasalahan yang ditemukan ${bagianMasalah}.`;
+        }
+
+        // --- Bagian OPSIONAL: Tindak Lanjut / Solusi (kamus tercentang + isian bebas) ---
+        const daftarSolusiTerpilih = [];
+        document.querySelectorAll('.kamus-se-solusi-checkbox:checked').forEach(cb => {
+            const teks = KAMUS_SE_DAFTAR_SOLUSI[parseInt(cb.value, 10)];
+            if (teks) daftarSolusiTerpilih.push(teks);
+        });
+        const solusiLain = ((document.getElementById('kamusSeSolusiLain') || {}).value || '').trim();
+        if (solusiLain) daftarSolusiTerpilih.push(solusiLain);
+
+        if (daftarSolusiTerpilih.length > 0) {
+            const bagianSolusi = daftarSolusiTerpilih.map((teks, idx) => idx === 0 ? teks : `serta ${teks}`).join(', ');
+            kalimat += ` Tindak lanjut yang disarankan yaitu ${bagianSolusi}.`;
         }
 
         return kalimat;
@@ -2287,9 +2338,20 @@ playWiggle();
         updateSisaKuota();
     }
 
+    // Daftar SEMUA TIM yang terdaftar di sheet DATABASE (bukan cuma TIM yang
+    // sudah pernah dipakai pengguna ini). Diisi oleh loadTimDropdown() yang
+    // SUDAH DIPANGGIL SAAT LOGIN untuk mengisi dropdown "PILIH TIM" di form
+    // laporan -- dipakai ULANG di sini (tanpa panggilan server tambahan)
+    // supaya filter TIM di tab RIWAYAT juga menampilkan SEMUA TIM yang ada,
+    // bukan cuma TIM yang kebetulan sudah pernah dibuatkan laporan oleh
+    // pengguna ini. Ini yang memperbaiki keluhan "TIM X tidak muncul di
+    // filter RIWAYAT padahal TIM-nya memang ada di database".
+    let semuaTimList = [];
+
     async function loadTimDropdown() {
         let res = await callApi({ action: 'getDropdownData', level: 'tim' });
         if (res.success) {
+            semuaTimList = (res.data || []).map(t => String(t).trim()).filter(Boolean);
             const select = document.getElementById('reportTim');
             select.innerHTML = '<option value="">-- PILIH TIM --</option>';
             res.data.forEach(opt => select.innerHTML += `<option value="${opt.trim()}">${opt.trim().toUpperCase()}</option>`);
@@ -4827,25 +4889,35 @@ if (res.role === 'asesor') {
     let riwayatAllData = [];
     let riwayatFilterTimTerisi = false;
 
-    // Mengisi dropdown filter TIM di tab RIWAYAT dari data yang baru saja
-    // dimuat. Opsi HANYA DITAMBAH (tidak pernah dihapus) supaya TIM yang
-    // pernah muncul di status lain (misal DRAFT) tidak hilang dari pilihan
-    // saat berpindah ke filter status FINAL.
+    // Mengisi dropdown filter TIM di tab RIWAYAT. SUMBER UTAMA sekarang
+    // adalah semuaTimList (SEMUA TIM yang terdaftar di sheet DATABASE,
+    // sudah dimuat saat login -- lihat loadTimDropdown()), BUKAN hanya TIM
+    // yang kebetulan sudah pernah dibuatkan laporan oleh pengguna ini.
+    // Ini memperbaiki keluhan "TIM tertentu tidak muncul di filter RIWAYAT
+    // padahal TIM itu memang ada" -- supaya konsisten dengan tab REKAP yang
+    // juga menampilkan semua TIM yang dikenal sistem, bukan cuma milik
+    // sendiri. Sebagai cadangan (kalau karena suatu sebab semuaTimList
+    // masih kosong), TIM dari data riwayat yang sedang dimuat tetap
+    // ditambahkan juga, supaya tidak ada kemungkinan TIM hilang dari daftar.
     function isiFilterRiwayatTim(data) {
         const select = document.getElementById('filterRiwayatTim');
         if (!select) return;
         const sudahAda = {};
         Array.from(select.options).forEach(opt => { if (opt.value) sudahAda[norm(opt.value)] = true; });
-        (data || []).forEach(r => {
-            const tim = String(r.TIM || '').trim();
-            if (tim && !sudahAda[norm(tim)]) {
-                sudahAda[norm(tim)] = true;
+
+        const tambahkanOpsi = (tim) => {
+            const nilai = String(tim || '').trim();
+            if (nilai && !sudahAda[norm(nilai)]) {
+                sudahAda[norm(nilai)] = true;
                 const opt = document.createElement('option');
-                opt.value = tim;
-                opt.textContent = tim.toUpperCase();
+                opt.value = nilai;
+                opt.textContent = nilai.toUpperCase();
                 select.appendChild(opt);
             }
-        });
+        };
+
+        semuaTimList.forEach(tambahkanOpsi);
+        (data || []).forEach(r => tambahkanOpsi(r.TIM));
     }
 
     // Menerapkan filter TIM (client-side, tanpa fetch ulang) + URUTAN
