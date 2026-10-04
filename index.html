@@ -1009,7 +1009,7 @@
                                      BARU diambil dari server saat tombol ini PERTAMA KALI
                                      diklik (lazy-load), bukan otomatis saat form dibuka, supaya
                                      tidak memperlambat alur normal pengisian laporan. -->
-                                <button type="button" id="btnKamusSe" class="btn btn-outline-secondary btn-sm fw-bold" style="display:none;" onclick="openKamusSeModal()">📖 KAMUS URAIAN</button>
+                                <button type="button" id="btnKamusSe" class="btn btn-outline-secondary btn-sm fw-bold" style="display:inline-block;" onclick="openKamusSeModal()">📖 KAMUS URAIAN</button>
                             </div>
                             <textarea id="reportUraian" class="form-control" rows="3" placeholder="Tuliskan detail progres lapangan hari ini..." required></textarea>
                         </div>
@@ -1614,7 +1614,7 @@
     function refreshTombolKamusSe() {
         const tim = (document.getElementById('reportTim') || {}).value || '';
         const btn = document.getElementById('btnKamusSe');
-        if (btn) btn.style.display = isTimSensusEkonomi(tim) ? 'inline-block' : 'none';
+        if (btn) btn.style.display = 'inline-block'; // tampil untuk SEMUA tim
     }
 
     async function openKamusSeModal() {
