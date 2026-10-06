@@ -1025,7 +1025,7 @@
                         <div class="col-md-4">
                             <label class="form-label">TITIK KOORDINAT</label>
                             <div class="input-group">
-                                <input type="text" id="reportKoordinat" class="form-control" readonly required>
+                                <input type="text" id="reportKoordinat" class="form-control" readonly>
                                 <button type="button" class="btn btn-outline-secondary fw-bold" onclick="getLocation()">📍 GPS</button>
                             </div>
                         </div>
@@ -2626,9 +2626,8 @@ img.src = blobUrl;
         { id: 'reportTanggalBerangkat', label: 'TANGGAL BERANGKAT' },
         { id: 'reportTanggalPulang', label: 'TANGGAL PULANG' },
         { id: 'reportTim', label: 'TIM' },
-        { id: 'reportUraian', label: 'URAIAN KEGIATAN' },
-        { id: 'reportKoordinat', label: 'TITIK KOORDINAT' }
-    ];
+        { id: 'reportUraian', label: 'URAIAN KEGIATAN' }
+            ];
 
     // Field khusus syarat FINAL (tidak wajib untuk draft).
     const FIELD_WAJIB_FINAL = [
