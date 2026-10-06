@@ -1087,6 +1087,30 @@
 
                 <!-- Filter TIM & ANGGOTA -- hanya tampil untuk ADMIN karena hanya ADMIN yang
                      melihat laporan FINAL milik semua anggota lintas TIM sekaligus. -->
+                <!-- Kelola TANDA TANGAN (TTD) untuk cetakan. Disimpan di browser/perangkat ini (per NIP). -->
+                <div class="kelola-section-box" id="ttdBox">
+                    <div class="fw-bold text-uppercase small mb-2">✍️ TANDA TANGAN UNTUK CETAKAN</div>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-6">
+                            <select id="printTtdSelect" class="form-select form-select-sm fw-bold" onchange="handleTtdSelectChange()">
+                                <option value="">TANPA TANDA TANGAN</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('ttdFileInput').click()">➕ UPLOAD TTD</button>
+                            <button type="button" id="btnHapusTtd" class="btn btn-outline-danger btn-sm fw-bold" onclick="hapusTtdTerpilih()" disabled>🗑️ HAPUS</button>
+                        </div>
+                    </div>
+                    <input type="file" id="ttdFileInput" accept="image/*" style="display:none;" onchange="handleTtdUpload(event)">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="ttdHapusLatar" checked>
+                        <label class="form-check-label small fw-bold" for="ttdHapusLatar">HAPUS LATAR BELAKANG OTOMATIS SAAT UPLOAD (cocok untuk foto TTD di kertas putih)</label>
+                    </div>
+                    <div id="ttdPreview" class="mt-2"></div>
+                    <div id="ttdAlert"></div>
+                    <div class="small text-muted fw-bold mt-1">TTD tersimpan di server, jadi tetap ada di HP/laptop mana pun. TTD yang dipilih otomatis dipasang pada laporan milik Anda saat dicetak. ADMIN yang mencetak laporan taskforce lain akan memakai TTD yang dipilih taskforce tersebut. Maksimal 5 TTD.</div>
+                </div>
+
                 <div id="printAdminFilterBox" class="row g-2 mb-2" style="display:none;">
                     <div class="col-md-6">
                         <select id="printFilterTim" class="form-select form-select-sm" onchange="applyPrintFilters()">
@@ -1341,6 +1365,7 @@
                     <div class="rekap-filter-item" style="flex: 0 0 auto; min-width: auto;">
                         <label>&nbsp;</label>
                         <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="loadRekapData(true)">🔄 MUAT ULANG</button>
+                        <button type="button" class="btn btn-success btn-sm fw-bold ms-1" onclick="downloadRekapExcel()">⬇️ DOWNLOAD EXCEL</button>
                     </div>
                 </div>
 
@@ -2246,6 +2271,7 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
             document.getElementById('suratReadOnlyNotice').style.display = 'none';
         } catch (e) {}
 
+        ttdCache = []; ttdLoaded = false; ttdPrintMap = {}; // TTD milik sesi sebelumnya
         // Reset juga state menu REKAP supaya sesi login berikutnya mulai bersih.
         rekapData = [];
         rekapFilterTimTerisi = false;
@@ -2276,7 +2302,7 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
             event.currentTarget.classList.add('active');
         }
         if (tabId === 'tabList') loadReports();
-        if (tabId === 'tabPrint') loadPrintReports();
+        if (tabId === 'tabPrint') { renderTtdManager(); loadPrintReports(); }
         if (tabId === 'tabKelola') loadKelolaData();
         if (tabId === 'tabRekap') loadRekapData();
     }
@@ -3066,6 +3092,13 @@ u
             r['NAMA PPL'] ? `PPL ${escapeHtml(r['NAMA PPL'])}` : ''
         ].filter(Boolean).join(' | ');
         const uraian = escapeHtml(r['URAIAN KEGIATAN'] || '-').replace(/\n/g, '<br>');
+        // TTD hanya dipasang pada laporan milik pengguna yang sedang login.
+        const ttdRaw = ttdPrintMap[String(r.NIP || '').trim()] || '';
+        const ttdData = (ttdRaw.indexOf('data:image/') === 0 && !/["'<>\s]/.test(ttdRaw)) ? ttdRaw : '';
+        const namaTtd = escapeHtml(r.TASKFORCE || r.NIP || '');
+        const ttdSignatureHtml = ttdData
+            ? `<div style="height:62px;display:flex;align-items:flex-end;justify-content:center;"><img src="${ttdData}" alt="Tanda tangan" style="max-height:60px;max-width:180px;object-fit:contain;"></div><div class="sign-line" style="margin-top:0;">${namaTtd}</div>`
+            : `<div class="sign-line">${namaTtd}</div>`;
         const fotoUrl = String(r.FOTO || '').trim();
         const fotoUrlAttr = fotoUrl.replace(/"/g, '&quot;');
         // ✅ Tidak lagi pakai id="printFotoImg" (id harus unik di halaman),
@@ -3130,7 +3163,7 @@ u
 <div class="sign-block">
 <div>${rentangTglRaw ? rentangTglCetak : '..........................'}</div>
 <div>Yang Melaksanakan,</div>
-<div class="sign-line">${escapeHtml(r.TASKFORCE || r.NIP || '')}</div>
+${ttdSignatureHtml}
 </div>
 </div>
 
@@ -3214,7 +3247,7 @@ u
     }
 
     // Cetak SATU laporan (tombol "🖨️ PRINT FINAL" di setiap kartu laporan).
-    function printReport(id) {
+    async function printReport(id) {
         const r = reportListCache[id];
         if (!r) {
             alert('DATA LAPORAN TIDAK DITEMUKAN. SILAKAN MUAT ULANG RIWAYAT.');
@@ -3224,6 +3257,7 @@ u
             alert('HANYA LAPORAN DENGAN STATUS FINAL YANG DAPAT DICETAK.');
             return;
         }
+        if (!(await siapkanTtdUntukCetak([r]))) return;
         const printArea = document.getElementById('printArea');
         printArea.innerHTML = buildPrintBlockHtml(r);
         waitForPrintImages(printArea, () => setTimeout(() => window.print(), 60));
@@ -3235,7 +3269,7 @@ u
     // Setiap laporan tercetak di halaman terpisah (lihat CSS
     // .print-page:not(:last-child) { page-break-after: always; }).
     // =====================================================================
-    function printSelectedReports() {
+    async function printSelectedReports() {
         const checked = Array.from(document.querySelectorAll('#printListContainer .print-select-checkbox:checked'));
         if (checked.length === 0) {
             alert('CENTANG MINIMAL SATU LAPORAN UNTUK DICETAK.');
@@ -3255,6 +3289,7 @@ u
             return;
         }
 
+        if (!(await siapkanTtdUntukCetak(rows))) return;
         const printArea = document.getElementById('printArea');
         printArea.innerHTML = rows.map(r => buildPrintBlockHtml(r)).join('');
         waitForPrintImages(printArea, () => setTimeout(() => window.print(), 60));
@@ -5165,6 +5200,296 @@ if (res.role === 'asesor') {
         if (selectAll) selectAll.checked = false;
     }
     
+
+
+    // =====================================================================
+    // DOWNLOAD EXCEL REKAP (mengikuti filter TIM/TASKFORCE yang aktif)
+    // =====================================================================
+    function downloadRekapExcel() {
+        try {
+            if (typeof XLSX === 'undefined') throw new Error('Library Excel belum termuat. Periksa koneksi internet.');
+            const rows = urutkanRekap(getRekapFilteredData());
+            if (rows.length === 0) {
+                showAlert('rekapAlert', '❌ TIDAK ADA DATA REKAP UNTUK DIUNDUH.', 'danger');
+                return;
+            }
+            let totalDraft = 0, totalFinal = 0;
+            const sheetDetail = rows.map((r, i) => {
+                const d = r.draft || 0, f = r.final || 0;
+                totalDraft += d; totalFinal += f;
+                return { NO: i + 1, TIM: String(r.tim).toUpperCase(), TASKFORCE: String(r.taskforce).toUpperCase(), DRAFT: d, FINAL: f, TOTAL: d + f };
+            });
+            sheetDetail.push({ NO: '', TIM: 'TOTAL KESELURUHAN', TASKFORCE: '', DRAFT: totalDraft, FINAL: totalFinal, TOTAL: totalDraft + totalFinal });
+
+            const perTim = {};
+            rows.forEach(r => {
+                const t = String(r.tim || '-').trim() || '-';
+                if (!perTim[t]) perTim[t] = { draft: 0, final: 0 };
+                perTim[t].draft += (r.draft || 0);
+                perTim[t].final += (r.final || 0);
+            });
+            const sheetTim = Object.keys(perTim).sort((a, b) => a.localeCompare(b, 'id')).map((t, i) => ({
+                NO: i + 1, TIM: t.toUpperCase(), DRAFT: perTim[t].draft, FINAL: perTim[t].final, TOTAL: perTim[t].draft + perTim[t].final
+            }));
+
+            const wb = XLSX.utils.book_new();
+            const ws1 = XLSX.utils.json_to_sheet(sheetDetail, { header: ['NO', 'TIM', 'TASKFORCE', 'DRAFT', 'FINAL', 'TOTAL'] });
+            ws1['!cols'] = [{ wch: 6 }, { wch: 28 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, ws1, 'REKAP');
+            const ws2 = XLSX.utils.json_to_sheet(sheetTim, { header: ['NO', 'TIM', 'DRAFT', 'FINAL', 'TOTAL'] });
+            ws2['!cols'] = [{ wch: 6 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, ws2, 'REKAP PER TIM');
+            XLSX.writeFile(wb, 'rekap_laporan_' + getToday() + '.xlsx');
+        } catch (err) {
+            showAlert('rekapAlert', '❌ GAGAL MENGUNDUH EXCEL: ' + String(err.message || err).toUpperCase(), 'danger');
+        }
+    }
+
+    // =====================================================================
+    // TANDA TANGAN (TTD) -- DISIMPAN DI SERVER (Drive + sheet TTD)
+    // Setiap taskforce menyimpan & memilih TTD miliknya. Saat mencetak,
+    // TTD yang dipilih PEMILIK laporan otomatis dipasang -- termasuk saat
+    // ADMIN yang mencetak laporan orang lain.
+    // =====================================================================
+    const TTD_MAX_JUMLAH = 5;
+    const TTD_MAX_W = 400, TTD_MAX_H = 200;
+    let ttdCache = [];      // [{id, nama, selected, data}] milik pengguna login
+    let ttdLoaded = false;
+    let ttdPrintMap = {};   // { NIP: dataUrl } untuk proses cetak yang sedang berjalan
+
+    async function loadTtdFromServer() {
+        const res = await callApi({ action: 'getMyTtd', nip: state.nip });
+        if (!res || !res.success) throw new Error((res && res.message) || 'Gagal memuat TTD dari server.');
+        ttdCache = (res.data || []).filter(t => t && t.id && typeof t.data === 'string' && t.data.indexOf('data:image/') === 0);
+        ttdLoaded = true;
+    }
+
+    async function renderTtdManager(force) {
+        const select = document.getElementById('printTtdSelect');
+        const preview = document.getElementById('ttdPreview');
+        if (!select) return;
+
+        if (!ttdLoaded || force) {
+            select.disabled = true;
+            preview.innerHTML = '<div class="small text-muted fw-bold">⏳ MEMUAT TTD DARI SERVER...</div>';
+            try {
+                await loadTtdFromServer();
+            } catch (err) {
+                preview.innerHTML = '';
+                showAlert('ttdAlert', '❌ ' + String(err.message || err).toUpperCase(), 'danger');
+                select.disabled = false;
+                return;
+            }
+            select.disabled = false;
+        }
+
+        const sel = ttdCache.find(t => t.selected);
+        select.innerHTML = '<option value="">TANPA TANDA TANGAN</option>' +
+            ttdCache.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(String(t.nama || 'TTD').toUpperCase())}</option>`).join('');
+        select.value = sel ? sel.id : '';
+        preview.innerHTML = sel
+            ? `<div class="border rounded p-2 d-inline-block" style="background:repeating-conic-gradient(#e6e6e6 0% 25%, #fff 0% 50%) 50% / 14px 14px;"><img src="${sel.data}" alt="Pratinjau TTD" style="max-height:70px; max-width:200px;"></div>`
+            : '';
+        document.getElementById('btnHapusTtd').disabled = !sel;
+    }
+
+    async function handleTtdSelectChange() {
+        const id = document.getElementById('printTtdSelect').value;
+        clearAlert('ttdAlert');
+        ttdCache.forEach(t => { t.selected = (t.id === id); }); // tampilan langsung berubah
+        renderTtdManager(false);
+        try {
+            const res = await callApi({ action: 'selectTtd', nip: state.nip, id: id });
+            if (!res || !res.success) throw new Error((res && res.message) || 'Gagal menyimpan pilihan TTD.');
+            showAlert('ttdAlert', id ? '✅ TTD DIPILIH & TERSIMPAN DI SERVER.' : '✅ CETAKAN AKAN TANPA TANDA TANGAN.', 'success');
+        } catch (err) {
+            showAlert('ttdAlert', '❌ ' + String(err.message || err).toUpperCase(), 'danger');
+            await renderTtdManager(true);
+        }
+    }
+
+    // Menghapus latar terang (kertas putih/abu-abu muda) dari foto TTD:
+    // piksel yang mendekati warna kertas dijadikan transparan, piksel gelap
+    // (tinta) dipertahankan. Warna kertas diperkirakan otomatis dari piksel
+    // paling terang, jadi kertas yang agak abu-abu pun tetap terbaca.
+    // Mengubah imgData di tempat. Mengembalikan { ok, alasan, bbox }.
+    function hapusLatarTerangTtd(imgData) {
+        const d = imgData.data, w = imgData.width, h = imgData.height, n = w * h;
+
+        let sudahTransparan = 0;
+        for (let i = 3; i < d.length; i += 4) if (d[i] < 250) sudahTransparan++;
+        if (sudahTransparan / n > 0.02) return { ok: false, alasan: 'GAMBAR SUDAH TRANSPARAN' };
+
+        const hist = new Uint32Array(256);
+        for (let i = 0; i < d.length; i += 4) {
+            hist[Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])]++;
+        }
+        let acc = 0, bg = 255;
+        const target = n * 0.9; // persentil ke-90 = perkiraan terang kertas
+        for (let l = 0; l < 256; l++) { acc += hist[l]; if (acc >= target) { bg = l; break; } }
+        if (bg < 110) return { ok: false, alasan: 'LATAR TERLALU GELAP UNTUK DIHAPUS OTOMATIS' };
+
+        const HIGH = 0.85, LOW = 0.55; // >= HIGH: transparan penuh, <= LOW: tinta penuh
+        const skala = 255 / bg;
+        let minX = w, minY = h, maxX = -1, maxY = -1;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                const ratio = lum / bg;
+                let a;
+                if (ratio >= HIGH) a = 0;
+                else if (ratio <= LOW) a = 255;
+                else a = Math.round(255 * (HIGH - ratio) / (HIGH - LOW));
+                if (a > 0) { // buang warna kertas dari tinta
+                    d[i] = Math.min(255, Math.round(d[i] * skala));
+                    d[i + 1] = Math.min(255, Math.round(d[i + 1] * skala));
+                    d[i + 2] = Math.min(255, Math.round(d[i + 2] * skala));
+                }
+                d[i + 3] = a;
+                if (a > 40) {
+                    if (x < minX) minX = x; if (x > maxX) maxX = x;
+                    if (y < minY) minY = y; if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (maxX < 0) return { ok: false, alasan: 'TIDAK ADA GORESAN TINTA YANG TERDETEKSI' };
+        return { ok: true, bbox: { minX: minX, minY: minY, maxX: maxX, maxY: maxY } };
+    }
+
+    // Membaca gambar, (opsional) menghapus latar terang & memotong sisa
+    // area kosong, lalu mengecilkan. Mengembalikan { dataUrl, latarDihapus, alasan }.
+    function bacaDanKecilkanTtd(file, hapusLatar) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Berkas bukan gambar yang valid.')); };
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                if (!img.naturalWidth || !img.naturalHeight) { reject(new Error('Gambar tidak dapat dibaca.')); return; }
+
+                // Tahap 1: proses di resolusi kerja (maks 1000x500) supaya cepat tapi tetap tajam.
+                const r0 = Math.min(1, 1000 / img.naturalWidth, 500 / img.naturalHeight);
+                const w = Math.max(1, Math.round(img.naturalWidth * r0));
+                const h = Math.max(1, Math.round(img.naturalHeight * r0));
+                const work = document.createElement('canvas');
+                work.width = w; work.height = h;
+                const wctx = work.getContext('2d');
+                wctx.drawImage(img, 0, 0, w, h);
+
+                let info = { ok: false, alasan: '' };
+                if (hapusLatar) {
+                    const imgData = wctx.getImageData(0, 0, w, h);
+                    info = hapusLatarTerangTtd(imgData);
+                    if (info.ok) wctx.putImageData(imgData, 0, 0);
+                }
+
+                // Tahap 2: potong area kosong di sekeliling tinta (kalau latar berhasil dihapus).
+                let sx = 0, sy = 0, sw = w, sh = h;
+                if (info.ok) {
+                    const pad = 6;
+                    sx = Math.max(0, info.bbox.minX - pad);
+                    sy = Math.max(0, info.bbox.minY - pad);
+                    sw = Math.min(w, info.bbox.maxX + pad + 1) - sx;
+                    sh = Math.min(h, info.bbox.maxY + pad + 1) - sy;
+                }
+
+                // Tahap 3: kecilkan ke ukuran akhir (maks 400x200).
+                const r1 = Math.min(1, TTD_MAX_W / sw, TTD_MAX_H / sh);
+                const fw = Math.max(1, Math.round(sw * r1));
+                const fh = Math.max(1, Math.round(sh * r1));
+                const out = document.createElement('canvas');
+                out.width = fw; out.height = fh;
+                const octx = out.getContext('2d');
+                const pakaiJpeg = !info.ok && /jpe?g/i.test(file.type); // JPEG tanpa hapus latar: isi putih
+                if (pakaiJpeg) { octx.fillStyle = '#FFFFFF'; octx.fillRect(0, 0, fw, fh); }
+                octx.drawImage(work, sx, sy, sw, sh, 0, 0, fw, fh);
+
+                resolve({
+                    dataUrl: pakaiJpeg ? out.toDataURL('image/jpeg', 0.85) : out.toDataURL('image/png'),
+                    latarDihapus: info.ok,
+                    alasan: info.alasan || ''
+                });
+            };
+            img.src = url;
+        });
+    }
+
+    async function handleTtdUpload(event) {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        if (!file) return;
+        clearAlert('ttdAlert');
+        try {
+            if (!file.type || !file.type.startsWith('image/')) throw new Error('Berkas harus berupa gambar (PNG/JPG).');
+            if (file.size > 5 * 1024 * 1024) throw new Error('Ukuran gambar maksimal 5 MB.');
+            if (!ttdLoaded) await loadTtdFromServer();
+            if (ttdCache.length >= TTD_MAX_JUMLAH) throw new Error('Maksimal ' + TTD_MAX_JUMLAH + ' TTD. Hapus salah satu dulu.');
+
+            const hapusLatar = !!(document.getElementById('ttdHapusLatar') || {}).checked;
+            const hasilGambar = await bacaDanKecilkanTtd(file, hapusLatar);
+            const dataUrl = hasilGambar.dataUrl;
+            const namaDefault = 'TTD ' + (ttdCache.length + 1);
+            const nama = (prompt('Beri nama untuk tanda tangan ini:', namaDefault) || '').trim() || namaDefault;
+
+            showAlert('ttdAlert', '⏳ MENGUNGGAH TTD KE SERVER...', 'info');
+            const formData = new FormData();
+            formData.append('action', 'uploadTtd');
+            formData.append('nip', state.nip || '');
+            formData.append('taskforce', state.taskforce || '');
+            formData.append('nama', nama);
+            formData.append('base64Data', dataUrl);
+            const res = await postFormApi(formData, 45000, 'Respon server tidak valid saat mengunggah TTD.');
+            if (!res || !res.success) throw new Error((res && res.message) || 'Gagal mengunggah TTD.');
+
+            await renderTtdManager(true);
+            const infoLatar = hasilGambar.latarDihapus
+                ? ' LATAR BELAKANG BERHASIL DIHAPUS (TRANSPARAN).'
+                : (hapusLatar && hasilGambar.alasan ? ' LATAR TIDAK DIHAPUS: ' + hasilGambar.alasan + '.' : '');
+            showAlert('ttdAlert', '✅ TTD "' + escapeHtml(nama.toUpperCase()) + '" TERSIMPAN DI SERVER DAN DIPILIH UNTUK CETAKAN.' + infoLatar, hasilGambar.latarDihapus || !hapusLatar || !hasilGambar.alasan ? 'success' : 'warning');
+        } catch (err) {
+            showAlert('ttdAlert', '❌ ' + String(err.message || err).toUpperCase(), 'danger');
+        } finally {
+            input.value = '';
+        }
+    }
+
+    async function hapusTtdTerpilih() {
+        const t = ttdCache.find(x => x.selected);
+        if (!t) return;
+        const ok = await showConfirmModal('⚠️ HAPUS TTD', `Hapus tanda tangan <b>${escapeHtml(String(t.nama || '').toUpperCase())}</b> dari server?`, 'YA, HAPUS', 'btn-danger');
+        if (!ok) return;
+        try {
+            const res = await callApi({ action: 'deleteTtd', nip: state.nip, id: t.id });
+            if (!res || !res.success) throw new Error((res && res.message) || 'Gagal menghapus TTD.');
+            await renderTtdManager(true);
+            showAlert('ttdAlert', '✅ TTD DIHAPUS.', 'success');
+        } catch (err) {
+            showAlert('ttdAlert', '❌ ' + String(err.message || err).toUpperCase(), 'danger');
+        }
+    }
+
+    // Mengambil TTD terpilih milik SETIAP pemilik laporan yang akan dicetak.
+    // Server hanya memberi TTD orang lain kalau pemintanya ADMIN.
+    // Mengembalikan false kalau pengguna membatalkan cetak.
+    async function siapkanTtdUntukCetak(rows) {
+        ttdPrintMap = {};
+        const nips = Array.from(new Set(rows.map(r => String(r.NIP || '').trim()).filter(Boolean)));
+        if (nips.length === 0) return true;
+        try {
+            const res = await callApi({ action: 'getTtdForPrint', nip: state.nip, nips: nips.join(',') });
+            if (!res || !res.success) throw new Error((res && res.message) || 'Gagal memuat TTD.');
+            ttdPrintMap = res.data || {};
+            return true;
+        } catch (err) {
+            return await showConfirmModal(
+                '⚠️ TTD GAGAL DIMUAT',
+                'Tanda tangan tidak dapat dimuat dari server (' + escapeHtml(String(err.message || err)) + '). Tetap cetak <b>tanpa tanda tangan</b>?',
+                'YA, CETAK',
+                'btn-primary'
+            );
+        }
+    }
 
     // norm() versi javascript sederhana, dipakai untuk perbandingan status
     // di sisi client (mirip helper norm() di backend Apps Script).
