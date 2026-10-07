@@ -1977,12 +1977,60 @@
     // Batas waktu percobaan fetch() biasa sebelum menyerah dan pindah ke
     // JSONP. Dibuat pendek (3 detik) supaya kalau fetch() menggantung lama
     // di jaringan HP, kita tidak ikut menunggu lama -- langsung pindah cara.
-    const FETCH_API_TIMEOUT_MS = 3000;
+    // PERBAIKAN BEBAN SERVER (banyak pengguna bersamaan):
+    // Sebelumnya fetch() dibatalkan setelah 3 detik lalu LANGSUNG dikirim ulang
+    // lewat JSONP. Padahal Apps Script tetap menjalankan permintaan pertama
+    // sampai selesai -> tiap login memakan 2x eksekusi. Saat ramai (server
+    // lambat >3 detik) beban jadi berlipat dan batas ~30 eksekusi bersamaan
+    // Apps Script jebol, sehingga tombol macet di "MEMPROSES...".
+    // Sekarang: timeout longgar, tidak kirim ganda, ada retry 1x dengan jeda
+    // acak, cache untuk data yang jarang berubah, dan tidak ada panggilan kembar.
+    const FETCH_API_TIMEOUT_MS = 20000;
+    const API_MAX_PERCOBAAN = 2;
+    const CACHEABLE_ACTIONS = { getTugasOptions: 10 * 60 * 1000, getDropdownData: 10 * 60 * 1000 };
+    const inflightApi = {};
+
+    function bacaCacheApi(key) {
+        try { return JSON.parse(localStorage.getItem('api:' + key)); } catch (e) { return null; }
+    }
 
     async function callApi(params) {
-        // Begitu fetch() pernah terbukti gagal di sesi ini, langsung pakai
-        // JSONP tanpa mencoba fetch() lagi -- menghindari pengulangan
-        // percobaan-gagal yang membuang waktu di setiap panggilan.
+        const key = JSON.stringify(params);
+        const ttl = CACHEABLE_ACTIONS[params.action];
+        const cache = ttl ? bacaCacheApi(key) : null;
+        if (cache && Date.now() - cache.t < ttl) return cache.v;
+        if (inflightApi[key]) return inflightApi[key]; // klik ganda / panggilan kembar -> pakai yang sedang jalan
+
+        const p = callApiDenganRetry(params).then(res => {
+            if (ttl && res && res.success) {
+                try { localStorage.setItem('api:' + key, JSON.stringify({ t: Date.now(), v: res })); } catch (e) {}
+            }
+            return res;
+        }).catch(err => {
+            if (cache) return cache.v; // server gagal -> pakai data lama daripada kosong
+            throw err;
+        }).finally(() => { delete inflightApi[key]; });
+        inflightApi[key] = p;
+        return p;
+    }
+
+    async function callApiDenganRetry(params) {
+        let lastErr;
+        for (let i = 1; i <= API_MAX_PERCOBAAN; i++) {
+            try {
+                return await callApiSekali(params);
+            } catch (err) {
+                lastErr = err;
+                if (i < API_MAX_PERCOBAAN) {
+                    if (typeof window.onApiRetry === 'function') window.onApiRetry(i + 1, API_MAX_PERCOBAAN);
+                    await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000)); // jeda acak agar tidak serentak
+                }
+            }
+        }
+        throw lastErr;
+    }
+
+    async function callApiSekali(params) {
         if (fetchTerbuktiTidakJalan) {
             return await callApiJsonp(params);
         }
@@ -1997,11 +2045,13 @@
         try {
             const response = await fetch(url.toString(), { method: 'GET', mode: 'cors', signal: controller.signal });
             clearTimeout(timeoutId);
-            if (!response.ok) throw new Error();
+            if (!response.ok) throw new Error('Server sibuk (status ' + response.status + ').');
             return await response.json();
         } catch (err) {
             clearTimeout(timeoutId);
-            fetchTerbuktiTidakJalan = true; // jangan coba fetch() lagi untuk panggilan berikutnya di sesi ini
+            // Timeout = server masih memproses. JANGAN kirim ulang lewat JSONP (itu menggandakan beban).
+            if (err.name === 'AbortError') throw new Error('Server terlalu lama merespons.');
+            fetchTerbuktiTidakJalan = true; // gagal jaringan/CORS -> pakai JSONP
             return await callApiJsonp(params);
         }
     }
@@ -2154,9 +2204,12 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
         btn.textContent = 'MEMPROSES...';
         clearAlert('loginAlert');
         showAlert('loginAlert', '⏳ SILAKAN MENUNGGU, SEDANG MEMERIKSA DATA ANDA...', 'info');
+        window.onApiRetry = (ke, dari) => showAlert('loginAlert', '⏳ SERVER SEDANG RAMAI, MENCOBA LAGI (' + ke + '/' + dari + ')... JANGAN TUTUP HALAMAN.', 'warning');
+        const timerLambat = setTimeout(() => showAlert('loginAlert', '⏳ SERVER SEDANG RAMAI, MOHON TUNGGU SEBENTAR... JANGAN TEKAN TOMBOL BERULANG.', 'info'), 8000);
 
         try {
             let result = await callApi({ action: 'login', nip: nip, taskforce: taskforce });
+            clearTimeout(timerLambat);
             if (!result.success) {
                 showAlert('loginAlert', '❌ ' + result.message.toUpperCase(), 'danger');
                 btn.disabled = false; btn.textContent = 'MASUK';
@@ -2231,8 +2284,10 @@ async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
                 }
             }
         } catch (err) {
-            showAlert('loginAlert', '❌ TERJADI GALAT: ' + err.message.toUpperCase(), 'danger');
+            showAlert('loginAlert', '❌ SERVER SEDANG PENUH/SIBUK. SILAKAN COBA LAGI BEBERAPA DETIK LAGI. (' + err.message.toUpperCase() + ')', 'danger');
         }
+        clearTimeout(timerLambat);
+        window.onApiRetry = null;
         btn.disabled = false; btn.textContent = 'MASUK';
     }
 
