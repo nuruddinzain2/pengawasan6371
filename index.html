@@ -4998,17 +4998,31 @@ async function hapusRiwayatTerpilih() {
     const btn = document.getElementById('btnHapusTerpilih');
     if (btn) btn.disabled = true;
 
+
     let berhasil = 0, gagal = 0;
-    for (let i = 0; i < ids.length; i++) {
-        container.innerHTML = `<div class="small text-muted fw-bold">⏳ SEDANG MENGHAPUS ${i + 1} DARI ${ids.length} LAPORAN... JANGAN TUTUP HALAMAN.</div>`;
-        try {
-            const res = await callApi({ action: 'deleteReport', id: ids[i], nip: state.nip });
-            if (res && res.success) berhasil++; else gagal++;
-        } catch (err) {
-            gagal++;
+    container.innerHTML = `<div class="small text-muted fw-bold">⏳ SEDANG MENGHAPUS ${ids.length} LAPORAN... JANGAN TUTUP HALAMAN.</div>`;
+    try {
+        const fd = new FormData();
+        fd.append('action', 'deleteReports');
+        fd.append('nip', state.nip || '');
+        fd.append('requester_taskforce', state.taskforce || '');
+        fd.append('ids_json', JSON.stringify(ids));
+        const res = await postFormApi(fd, 120000, 'Respon server tidak valid saat hapus massal.');
+        if (res && res.success) {
+            berhasil = res.deleted_count || 0;
+            gagal = ids.length - berhasil;
+        } else {
+            gagal = ids.length;
         }
+    } catch (err) {
+        gagal = ids.length; // daftar dimuat ulang di bawah, jadi yang sudah terhapus tidak tampil lagi
     }
 
+
+
+
+
+    
     await loadReports();
     if (gagal === 0) {
         alert('✅ ' + berhasil + ' LAPORAN BERHASIL DIHAPUS.');
