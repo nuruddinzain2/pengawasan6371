@@ -2403,8 +2403,7 @@ playWiggle();
 
     // TUGAS yang WAJIB rentang 1 hari (Tanggal Berangkat harus sama dengan Tanggal Pulang).
     // 'Konsultasi' sengaja tidak dimasukkan di sini karena dia boleh lebih dari 1 hari.
-    const TUGAS_WAJIB_SATU_HARI = ['pengawasan', 'pemeriksaan', 'supervisi'];
-
+    const TUGAS_WAJIB_SATU_HARI = ['pengawasan', 'pemeriksaan', 'supervisi', 'penyisiran'];
     async function loadTugasOptions() {
         let res = await callApi({ action: 'getTugasOptions' });
         if (res.success) {
