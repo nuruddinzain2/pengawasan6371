@@ -1075,6 +1075,13 @@
                     </div>
                 </div>
                 <div id="riwayatJumlahTampil" class="small text-muted fw-bold mb-2"></div>
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="riwayatSelectAll" onchange="toggleRiwayatSelectAll(this)">
+        <label class="form-check-label small fw-bold text-uppercase" for="riwayatSelectAll">PILIH SEMUA</label>
+    </div>
+    <button type="button" id="btnHapusTerpilih" class="btn btn-danger btn-sm fw-bold" onclick="hapusRiwayatTerpilih()" disabled>🗑️ HAPUS YANG DICENTANG</button>
+</div>
                 <div class="print-access-note">Menu `PRINT FINAL` hanya muncul di PC/laptop dan hanya dapat dipakai untuk laporan yang sudah berstatus final.</div>
                 <div id="reportListContainer"></div>
             </div>
@@ -4946,6 +4953,70 @@ if (res.role === 'asesor') {
         }
     }
 
+// =====================================================================
+// HAPUS MASSAL DI RIWAYAT (centang beberapa laporan, hapus sekaligus)
+// =====================================================================
+function updateRiwayatSelectionState() {
+    const semua = document.querySelectorAll('#reportListContainer .riwayat-select-checkbox');
+    const terpilih = document.querySelectorAll('#reportListContainer .riwayat-select-checkbox:checked');
+    const btn = document.getElementById('btnHapusTerpilih');
+    const selectAll = document.getElementById('riwayatSelectAll');
+    if (btn) {
+        btn.disabled = terpilih.length === 0;
+        btn.textContent = terpilih.length > 0
+            ? `🗑️ HAPUS YANG DICENTANG (${terpilih.length})`
+            : '🗑️ HAPUS YANG DICENTANG';
+    }
+    if (selectAll) selectAll.checked = semua.length > 0 && terpilih.length === semua.length;
+}
+
+function toggleRiwayatSelectAll(checkboxEl) {
+    document.querySelectorAll('#reportListContainer .riwayat-select-checkbox').forEach(cb => {
+        cb.checked = checkboxEl.checked;
+    });
+    updateRiwayatSelectionState();
+}
+
+async function hapusRiwayatTerpilih() {
+    const ids = Array.from(document.querySelectorAll('#reportListContainer .riwayat-select-checkbox:checked')).map(cb => cb.value);
+    if (ids.length === 0) return;
+
+    const jumlahFinal = ids.filter(id => reportListCache[id] && norm(reportListCache[id].STATUS) === 'final').length;
+    const catatanFinal = jumlahFinal > 0
+        ? `<br><br>⚠️ Termasuk <b>${jumlahFinal} laporan berstatus FINAL</b>.`
+        : '';
+
+    const ok = await showConfirmModal(
+        '⚠️ HAPUS ' + ids.length + ' LAPORAN',
+        `Anda yakin akan menghapus <b>${ids.length} laporan</b> yang dicentang? Tindakan ini <b>tidak dapat dibatalkan</b>.` + catatanFinal,
+        'YA, HAPUS SEMUA',
+        'btn-danger'
+    );
+    if (!ok) return;
+
+    const container = document.getElementById('reportListContainer');
+    const btn = document.getElementById('btnHapusTerpilih');
+    if (btn) btn.disabled = true;
+
+    let berhasil = 0, gagal = 0;
+    for (let i = 0; i < ids.length; i++) {
+        container.innerHTML = `<div class="small text-muted fw-bold">⏳ SEDANG MENGHAPUS ${i + 1} DARI ${ids.length} LAPORAN... JANGAN TUTUP HALAMAN.</div>`;
+        try {
+            const res = await callApi({ action: 'deleteReport', id: ids[i], nip: state.nip });
+            if (res && res.success) berhasil++; else gagal++;
+        } catch (err) {
+            gagal++;
+        }
+    }
+
+    await loadReports();
+    if (gagal === 0) {
+        alert('✅ ' + berhasil + ' LAPORAN BERHASIL DIHAPUS.');
+    } else {
+        alert('⚠️ ' + berhasil + ' LAPORAN TERHAPUS, ' + gagal + ' GAGAL. SILAKAN COBA HAPUS ULANG YANG TERSISA.');
+    }
+}
+    
     // Cache laporan yang sedang ditampilkan di tab riwayat, supaya tombol
     // EDIT dan PRINT tidak perlu fetch ulang ke server saat diklik --
     // cukup ambil dari sini berdasarkan ID.
@@ -5071,47 +5142,57 @@ if (res.role === 'asesor') {
     // Dipisah dari loadReports() supaya bisa dipanggil ulang oleh
     // applyRiwayatFilter() tanpa perlu fetch ulang ke server.
     function renderRiwayatCards(data) {
-        const container = document.getElementById('reportListContainer');
-        if (!data || data.length === 0) {
-            container.innerHTML = '<div class="small text-muted py-2 text-center fw-bold">BELUM ADA DATA LAPORAN.</div>';
-            return;
-        }
-        reportListCache = {};
-        container.innerHTML = '<ul class="list-group small fw-bold">';
-        data.forEach(r => {
-            reportListCache[r.ID] = r;
-            const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
-            const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
-            const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
-            const isFinal = norm(r.STATUS) === 'final';
-            const statusClass = isFinal ? 'status-final' : 'status-draft';
-            const editBtnClass = isFinal ? 'btn-edit-final' : 'btn-edit-draft';
-            const printBtn = isFinal
-                ? `<button type="button" class="btn btn-sm fw-bold btn-print btn-print-final" onclick="printReport('${r.ID}')">🖨️ PRINT FINAL</button>`
-                : '';
-            container.innerHTML += `<li class="list-group-item">
-                <div class="d-flex justify-content-between align-items-center">
-                <div><b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})</div>
+    const container = document.getElementById('reportListContainer');
+    const selectAll = document.getElementById('riwayatSelectAll');
+    if (selectAll) selectAll.checked = false;
 
-
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="report-status-badge ${statusClass}">${String(r.STATUS).toUpperCase()}</span>
-                        <div class="report-menu-wrap position-relative">
-                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold py-0 px-2" onclick="toggleReportMenu(event, '${r.ID}')" aria-label="MENU LAINNYA">&#8942;</button>
-                            <div id="reportMenu_${r.ID}" class="report-menu-dropdown" style="display:none;">
-                                <button type="button" class="report-menu-item text-danger" onclick="confirmDeleteReport('${r.ID}')">🗑️ HAPUS LAPORAN</button>
-                            </div>
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="small text-muted py-2 text-center fw-bold">BELUM ADA DATA LAPORAN.</div>';
+        updateRiwayatSelectionState();
+        return;
+    }
+    reportListCache = {};
+    let html = '<ul class="list-group small fw-bold">';
+    data.forEach(r => {
+        reportListCache[r.ID] = r;
+        const idAman = escapeHtml(String(r.ID));
+        const tglBerangkat = String(r['TANGGAL BERANGKAT'] || '').split('T')[0];
+        const tglPulang = String(r['TANGGAL PULANG'] || '').split('T')[0];
+        const rentangTgl = tglBerangkat === tglPulang ? tglBerangkat : `${tglBerangkat} s/d ${tglPulang}`;
+        const isFinal = norm(r.STATUS) === 'final';
+        const statusClass = isFinal ? 'status-final' : 'status-draft';
+        const editBtnClass = isFinal ? 'btn-edit-final' : 'btn-edit-draft';
+        const printBtn = isFinal
+            ? `<button type="button" class="btn btn-sm fw-bold btn-print btn-print-final" onclick="printReport('${r.ID}')">🖨️ PRINT FINAL</button>`
+            : '';
+        html += `<li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="form-check flex-grow-1 mb-0">
+                    <input class="form-check-input riwayat-select-checkbox" type="checkbox" value="${idAman}" id="riwayatChk_${idAman}" onchange="updateRiwayatSelectionState()">
+                    <label class="form-check-label" for="riwayatChk_${idAman}">
+                        <b>${rentangTgl}</b> - ${String(r.TIM || '-').toUpperCase()} - ${String(r.TUGAS).toUpperCase()} (${r.ID_SubSLS || '-'})
+                    </label>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="report-status-badge ${statusClass}">${String(r.STATUS).toUpperCase()}</span>
+                    <div class="report-menu-wrap position-relative">
+                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold py-0 px-2" onclick="toggleReportMenu(event, '${r.ID}')" aria-label="MENU LAINNYA">&#8942;</button>
+                        <div id="reportMenu_${r.ID}" class="report-menu-dropdown" style="display:none;">
+                            <button type="button" class="report-menu-item text-danger" onclick="confirmDeleteReport('${r.ID}')">🗑️ HAPUS LAPORAN</button>
                         </div>
                     </div>
                 </div>
-                <div class="d-flex gap-2 mt-2">
-                    <button type="button" class="btn btn-sm fw-bold ${editBtnClass}" onclick="editReport('${r.ID}')">✏️ EDIT</button>
-                    ${printBtn}
-                </div>
-            </li>`;
-        });
-        container.innerHTML += '</ul>';
-    }
+            </div>
+            <div class="d-flex gap-2 mt-2">
+                <button type="button" class="btn btn-sm fw-bold ${editBtnClass}" onclick="editReport('${r.ID}')">✏️ EDIT</button>
+                ${printBtn}
+            </div>
+        </li>`;
+    });
+    html += '</ul>';
+    container.innerHTML = html;
+    updateRiwayatSelectionState();
+}
 
     async function loadReports() {
         let container = document.getElementById('reportListContainer');
