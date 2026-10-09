@@ -2729,8 +2729,8 @@ img.src = blobUrl;
         }
 
         clearAlert('reportAlert');
-        let status = document.getElementById('reportStatus').value;
-
+       let status = document.getElementById('reportStatus').value;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         // -----------------------------------------------------------------
         // VALIDASI 1: Field umum yang masih kosong -> highlight merah.
         // Untuk DRAFT, ini hanya peringatan visual (tetap boleh disimpan).
