@@ -2123,52 +2123,76 @@
     // terus tanpa pesan error apapun ke pengguna.
     const UPLOAD_TIMEOUT_MS = 45000;
 async function uploadPhotoToServer(base64Data, filename, tim, taskforce, id) {
-    const formData = new FormData();
-    formData.append('action', 'uploadPhoto');
-    formData.append('base64Data', base64Data);
-    formData.append('filename', filename);
-    formData.append('tim', tim || '');
-    formData.append('taskforce', taskforce || '');
-    formData.append('id', id || '');
-    
-    // ✅ LOG: Ukuran base64 untuk debugging
     const sizeKb = Math.round((base64Data.length * 0.75) / 1024);
     console.log('[UPLOAD] Ukuran base64:', sizeKb, 'KB, ID:', id);
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-    try {
-    const response = await fetch(CONFIG.WEBAPP_URL, {
-    method: 'POST',
-    body: formData,
-    signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error('Server menolak upload (status ' + response.status + '). ' + 
-        (sizeKb > 500 ? 'Coba foto lebih kecil.' : ''));
+
+    // Pengiriman dicoba sampai 3x kalau gagal karena jaringan ("Failed to fetch").
+    // Error ini biasanya sementara: sinyal HP putus-nyambung, atau Apps Script
+    // sedang sibuk/menolak permintaan. FormData dibuat ulang tiap percobaan.
+    const MAX_PERCOBAAN = 3;
+    const JEDA_MS = [0, 2000, 5000];
+    let errTerakhir = null;
+
+    for (let i = 0; i < MAX_PERCOBAAN; i++) {
+        if (i > 0) {
+            if (typeof showAlert === 'function') {
+                showAlert('reportAlert', '⏳ KONEKSI TERPUTUS, MENCOBA UNGGAH ULANG (' + (i + 1) + '/' + MAX_PERCOBAAN + ')... JANGAN TUTUP HALAMAN INI.', 'warning');
+            }
+            await new Promise(r => setTimeout(r, JEDA_MS[i]));
+        }
+        if (navigator.onLine === false) {
+            errTerakhir = new TypeError('Perangkat sedang offline');
+            continue;
+        }
+
+        const formData = new FormData();
+        formData.append('action', 'uploadPhoto');
+        formData.append('base64Data', base64Data);
+        formData.append('filename', filename);
+        formData.append('tim', tim || '');
+        formData.append('taskforce', taskforce || '');
+        formData.append('id', id || '');
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+        try {
+            const response = await fetch(CONFIG.WEBAPP_URL, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error('Server menolak upload (status ' + response.status + '). ' +
+                    (sizeKb > 500 ? 'Coba foto lebih kecil.' : ''));
+            }
+            let result;
+            try {
+                result = await response.json();
+            } catch (parseErr) {
+                throw new Error('Respon server tidak valid. Kemungkinan server Apps Script sedang sibuk/error, atau koneksi terputus.');
+            }
+            if (result.success && !result.imageLink && !result.directLink) {
+                throw new Error('Upload berhasil di server tapi TIDAK ADA LINK yang dikembalikan. Cek backend Code.gs.');
+            }
+            return result;
+        } catch (err) {
+            clearTimeout(timeoutId);
+            errTerakhir = err;
+            const gagalJaringan = err instanceof TypeError || err.name === 'AbortError';
+            console.warn('[UPLOAD] Percobaan ' + (i + 1) + ' gagal:', err);
+            if (!gagalJaringan) break; // error dari server (bukan jaringan) -> jangan diulang
+        }
     }
-    let result;
-    try {
-    result = await response.json();
-    } catch (parseErr) {
-    throw new Error('Respon server tidak valid. Kemungkinan foto terlalu besar atau koneksi terputus.');
+
+    if (errTerakhir && errTerakhir.name === 'AbortError') {
+        throw new Error('UPLOAD FOTO TIMEOUT (>45 detik). Koneksi lambat atau foto terlalu besar. Coba foto lebih kecil.');
     }
-    
-    // ✅ VALIDASI: Response harus punya link
-    if (result.success && !result.imageLink && !result.directLink) {
-    throw new Error('Upload berhasil di server tapi TIDAK ADA LINK yang dikembalikan. Cek backend Code.gs.');
+    if (errTerakhir instanceof TypeError) {
+        throw new Error('Gagal upload foto: koneksi ke server terputus (Failed to fetch). Periksa sinyal/internet, matikan VPN/penghemat data/pemblokir iklan, lalu tekan SIMPAN lagi. Data isian tidak hilang.');
     }
-    
-    return result;
-    } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-    throw new Error('UPLOAD FOTO TIMEOUT (>45 detik). Koneksi lambat atau foto terlalu besar. Coba foto lebih kecil.');
-    }
-    throw new Error('Gagal upload foto: ' + err.message);
-    }
+    throw new Error('Gagal upload foto: ' + (errTerakhir ? errTerakhir.message : 'tidak diketahui'));
 }
     async function postFormApi(formData, timeoutMs, invalidResponseMessage) {
         const controller = new AbortController();
